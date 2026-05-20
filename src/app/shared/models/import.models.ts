@@ -1,5 +1,5 @@
 import { CurrencyCode } from './common.models';
-import { ExpenseImportStatus, ExpensePaymentState } from './enums';
+import { DebtPaymentType, ExpenseImportStatus, ExpensePaymentState } from './enums';
 
 export interface ImportRowError {
   column: string;
@@ -21,9 +21,15 @@ export interface ExpenseImportRowResponse {
   paymentMethodName?: string | null;
   paymentMethodId?: number | null;
   paymentState?: ExpensePaymentState | null;
+  appliesDebtPayment?: boolean | null;
+  debtId?: number | null;
+  debtLabel?: string | null;
+  debtPaymentType?: DebtPaymentType | null;
+  debtPaymentNotes?: string | null;
   valid: boolean;
   errors: ImportRowError[];
   createdExpenseId?: number | null;
+  createdDebtPaymentId?: number | null;
 }
 
 export type ExpenseImportRowResponseDto = ExpenseImportRowResponse;

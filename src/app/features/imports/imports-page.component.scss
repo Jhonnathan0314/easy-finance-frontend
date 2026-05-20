@@ -178,6 +178,11 @@
   color: #991b1b;
 }
 
+.badge.debt {
+  background: #f0fdfa;
+  color: #0f766e;
+}
+
 .table-wrap {
   overflow-x: auto;
 }
@@ -185,7 +190,7 @@
 table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 64rem;
+  min-width: 88rem;
 }
 
 th,

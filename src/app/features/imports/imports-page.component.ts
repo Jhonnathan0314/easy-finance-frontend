@@ -54,8 +54,9 @@ export const EXPENSE_IMPORT_TEMPLATE_FILENAME = 'easy-finance-expense-import-tem
           <li>Categoria debe existir, estar activa y ser EXPENSE.</li>
           <li>MedioPago debe existir y estar activo.</li>
           <li>EstadoPago: PENDING, PARTIAL, PAID.</li>
+          <li>Opcionalmente puedes asociar una fila a pago de deuda con AplicaPagoDeuda, Deuda, TipoPagoDeuda y NotasPagoDeuda.</li>
           <li>Filas invalidas se reportan y no se importan.</li>
-          <li>Confirmar importa solo filas validas.</li>
+          <li>Confirmar importa solo filas validas y registra pagos de deuda cuando aplique.</li>
         </ul>
       </section>
 
@@ -186,6 +187,11 @@ export const EXPENSE_IMPORT_TEMPLATE_FILENAME = 'easy-finance-expense-import-tem
                     <th>Categoria</th>
                     <th>Medio pago</th>
                     <th>Estado pago</th>
+                    <th>Pago deuda</th>
+                    <th>Deuda</th>
+                    <th>Tipo pago deuda</th>
+                    <th>Notas deuda</th>
+                    <th>Resultado</th>
                     <th>Valid</th>
                     <th>Errores</th>
                   </tr>
@@ -206,6 +212,23 @@ export const EXPENSE_IMPORT_TEMPLATE_FILENAME = 'easy-finance-expense-import-tem
                       <td>{{ row.categoryName || categoryLabel(row.categoryId) }}</td>
                       <td>{{ row.paymentMethodName || paymentMethodLabel(row.paymentMethodId) }}</td>
                       <td>{{ row.paymentState || '-' }}</td>
+                      <td>
+                        <span class="badge" [class.debt]="row.appliesDebtPayment">
+                          {{ row.appliesDebtPayment ? 'SI' : 'NO' }}
+                        </span>
+                      </td>
+                      <td>{{ debtLabel(row) }}</td>
+                      <td>{{ row.debtPaymentType || '-' }}</td>
+                      <td>{{ row.debtPaymentNotes || '-' }}</td>
+                      <td>
+                        @if (row.createdDebtPaymentId) {
+                          <span class="badge success">Pago deuda #{{ row.createdDebtPaymentId }}</span>
+                        } @else if (row.createdExpenseId) {
+                          <span class="badge success">Gasto #{{ row.createdExpenseId }}</span>
+                        } @else {
+                          -
+                        }
+                      </td>
                       <td>
                         <span class="badge" [class.success]="row.valid" [class.danger]="!row.valid">
                           {{ row.valid ? 'VALID' : 'INVALID' }}
@@ -387,6 +410,14 @@ export class ImportsPageComponent {
 
   paymentMethodLabel(paymentMethodId?: number | null): string {
     return paymentMethodId ? `Medio ${paymentMethodId}` : '-';
+  }
+
+  debtLabel(row: ExpenseImportRowResponseDto): string {
+    if (!row.appliesDebtPayment) {
+      return '-';
+    }
+
+    return row.debtLabel || (row.debtId ? `Deuda ${row.debtId}` : '-');
   }
 
   friendlyError(error: ApiErrorResponse): string {

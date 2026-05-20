@@ -45,9 +45,15 @@ describe('ImportsPageComponent', () => {
         paymentMethodName: 'Cash',
         paymentMethodId: 4,
         paymentState: 'PAID',
+        appliesDebtPayment: false,
+        debtId: null,
+        debtLabel: null,
+        debtPaymentType: null,
+        debtPaymentNotes: null,
         valid: true,
         errors: [],
-        createdExpenseId: null
+        createdExpenseId: null,
+        createdDebtPaymentId: null
       },
       {
         id: 2,
@@ -61,9 +67,32 @@ describe('ImportsPageComponent', () => {
         paymentMethodName: null,
         paymentMethodId: null,
         paymentState: null,
+        appliesDebtPayment: false,
+        debtId: null,
+        debtLabel: null,
+        debtPaymentType: null,
+        debtPaymentNotes: null,
         valid: false,
         errors: [{ column: 'Categoria', code: 'CATEGORY_NOT_FOUND', message: 'Categoria no existe.' }],
-        createdExpenseId: null
+        createdExpenseId: null,
+        createdDebtPaymentId: null
+      }
+    ]
+  };
+  const debtPaymentBatch: ExpenseImportBatchResponseDto = {
+    ...previewBatch,
+    totalRows: 1,
+    validRows: 1,
+    invalidRows: 0,
+    rows: [
+      {
+        ...previewBatch.rows[0],
+        appliesDebtPayment: true,
+        debtId: 9,
+        debtLabel: 'Credito cocina',
+        debtPaymentType: 'INSTALLMENT',
+        debtPaymentNotes: 'Cuota mayo',
+        errors: []
       }
     ]
   };
@@ -183,6 +212,81 @@ describe('ImportsPageComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Revisar catalogos');
   });
 
+  it('shows debt payment metadata when a preview row applies to a debt', () => {
+    const fixture = configure({ batch: debtPaymentBatch });
+    const text = fixture.nativeElement.textContent;
+
+    expect(text).toContain('Pago deuda');
+    expect(text).toContain('Credito cocina');
+    expect(text).toContain('INSTALLMENT');
+    expect(text).toContain('Cuota mayo');
+  });
+
+  it('keeps legacy import rows visible when debt payment metadata is absent', () => {
+    const fixture = configure({
+      batch: {
+        ...previewBatch,
+        rows: [
+          {
+            id: 10,
+            rowNumber: 2,
+            expenseDate: '2026-05-12',
+            description: 'Legacy lunch',
+            amount: 12000,
+            currency: 'COP',
+            categoryName: 'Food',
+            categoryId: 3,
+            paymentMethodName: 'Cash',
+            paymentMethodId: 4,
+            paymentState: 'PAID',
+            valid: true,
+            errors: [],
+            createdExpenseId: null
+          }
+        ]
+      }
+    });
+    const text = fixture.nativeElement.textContent;
+
+    expect(text).toContain('Legacy lunch');
+    expect(text).toContain('NO');
+  });
+
+  it('shows debt-related row errors through the existing row error list', () => {
+    const fixture = configure({
+      batch: {
+        ...debtPaymentBatch,
+        validRows: 0,
+        invalidRows: 1,
+        rows: [
+          {
+            ...debtPaymentBatch.rows[0],
+            valid: false,
+            errors: [{ column: 'Deuda', code: 'IMPORT_DEBT_NOT_FOUND', message: 'La deuda no existe o no esta activa.' }]
+          }
+        ]
+      }
+    });
+
+    expect(fixture.nativeElement.textContent).toContain('Deuda');
+    expect(fixture.nativeElement.textContent).toContain('La deuda no existe o no esta activa.');
+  });
+
+  it('shows created debt payment id after confirmation response includes it', () => {
+    const fixture = configure({
+      batch: {
+        ...debtPaymentBatch,
+        status: 'CONFIRMED',
+        confirmedAt: '2026-05-14T00:00:00Z',
+        rows: [{ ...debtPaymentBatch.rows[0], createdExpenseId: 21, createdDebtPaymentId: 31 }]
+      }
+    });
+    const text = fixture.nativeElement.textContent;
+
+    expect(text).toContain('Pago deuda #31');
+    expect(text).toContain('Importacion confirmada');
+  });
+
   it('disables confirm when there are no valid rows', () => {
     const fixture = configure({ validRows: 0 });
 
@@ -217,7 +321,7 @@ describe('ImportsPageComponent', () => {
   });
 
   it('clears selected file, preview, messages and row filter', () => {
-    const fixture = configure();
+    const fixture = configure({ batch: debtPaymentBatch });
     const component = fixture.componentInstance;
     const store = TestBed.inject(ImportsStore) as jasmine.SpyObj<ImportsStore>;
     const fakeInput = { value: 'C:\\fakepath\\expenses.xlsx' } as HTMLInputElement;
@@ -236,6 +340,7 @@ describe('ImportsPageComponent', () => {
     expect(component.rowFilter()).toBe('all');
     expect(fakeInput.value).toBe('');
     expect(fixture.nativeElement.textContent).toContain('Sin preview cargado');
+    expect(fixture.nativeElement.textContent).not.toContain('Credito cocina');
   });
 
   it('allows selecting another file after clearing', () => {
