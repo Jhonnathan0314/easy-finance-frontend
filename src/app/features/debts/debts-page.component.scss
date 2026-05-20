@@ -1,0 +1,244 @@
+.page-header,
+.form-actions,
+.actions,
+.badges,
+.filters,
+.detail-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.page-header,
+.detail-heading {
+  justify-content: space-between;
+}
+
+.warning-panel {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.success-panel {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.error-panel {
+  display: grid;
+  gap: 0.25rem;
+  border-color: #fecaca;
+  background: #fff1f2;
+  color: #991b1b;
+}
+
+.filters {
+  flex-wrap: wrap;
+}
+
+.filters.compact {
+  align-items: end;
+}
+
+.filters label,
+.field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.filters input,
+.filters select,
+.field input,
+.field select,
+.field textarea {
+  border: 1px solid #c9d2df;
+  border-radius: 6px;
+  background: #ffffff;
+  padding: 0.65rem 0.75rem;
+}
+
+.filters button,
+.actions button,
+.form-actions button,
+.detail-heading button {
+  border: 1px solid #c9d2df;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #1d2433;
+  padding: 0.55rem 0.75rem;
+  cursor: pointer;
+}
+
+.debt-form,
+.payment-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1rem;
+}
+
+.debt-form h2,
+.payment-form h3,
+.field.wide,
+.wide,
+.form-actions,
+.form-error {
+  grid-column: 1 / -1;
+}
+
+.form-error {
+  margin: 0;
+  color: #b42318;
+}
+
+.hint,
+.muted,
+.empty-state p {
+  color: #65738a;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(20rem, 28rem);
+  gap: 1rem;
+  align-items: start;
+}
+
+.debt-list,
+.payment-list,
+.detail-panel {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.debt-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.85rem;
+  align-items: start;
+  border: 1px solid #dce2ea;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 1rem;
+}
+
+.debt-card.selected {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 1px #2563eb;
+}
+
+.debt-card h3,
+.debt-card p,
+.detail-panel h2,
+.detail-panel p,
+.payment-form h3,
+.summary-grid dd {
+  margin: 0;
+}
+
+.progress,
+.badges,
+.actions {
+  grid-column: 1 / -1;
+}
+
+.progress-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: #4b5563;
+  font-size: 0.85rem;
+}
+
+.progress-track {
+  overflow: hidden;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: #e5e7eb;
+}
+
+.progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #16a34a;
+}
+
+.badges,
+.actions {
+  flex-wrap: wrap;
+}
+
+.badges span {
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3730a3;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.summary-grid div {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.summary-grid dt {
+  color: #65738a;
+  font-size: 0.8rem;
+}
+
+.summary-grid dd {
+  color: #1d2433;
+  font-weight: 700;
+}
+
+.payment-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.payment-row div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.payment-row span {
+  color: #65738a;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+@media (max-width: 960px) {
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .page-header,
+  .filters,
+  .detail-heading,
+  .debt-card,
+  .payment-row {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+}

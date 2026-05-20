@@ -1,0 +1,166 @@
+.layout {
+  display: grid;
+  min-height: 100vh;
+  grid-template-columns: 16rem minmax(0, 1fr);
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  border-right: 1px solid #dbe3ee;
+  background: #ffffff;
+  padding: 1rem;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: #111827;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.brand-mark {
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  place-items: center;
+  border-radius: 8px;
+  background: #0f766e;
+  color: #ffffff;
+  font-size: 0.9rem;
+}
+
+.nav {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.nav a {
+  border-radius: 6px;
+  color: #40506a;
+  padding: 0.7rem 0.8rem;
+  text-decoration: none;
+}
+
+.nav a.disabled {
+  color: #9aa7b8;
+}
+
+.nav a.active,
+.nav a:hover {
+  background: #eaf2ff;
+  color: #174ea6;
+}
+
+.content {
+  display: grid;
+  min-width: 0;
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid #dbe3ee;
+  background: #ffffff;
+  padding: 0.9rem 1.25rem;
+}
+
+.account-context,
+.user-context {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.account-context label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.account-context span {
+  color: #65738a;
+  font-size: 0.85rem;
+}
+
+.account-context select {
+  min-width: 12rem;
+  border: 1px solid #c9d2df;
+  border-radius: 6px;
+  background: #ffffff;
+  padding: 0.45rem 0.65rem;
+}
+
+.user-context button,
+.error-banner button {
+  border: 1px solid #c9d2df;
+  border-radius: 6px;
+  background: #ffffff;
+  padding: 0.45rem 0.7rem;
+  cursor: pointer;
+}
+
+.error-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-bottom: 1px solid #fecaca;
+  background: #fff1f2;
+  color: #991b1b;
+  padding: 0.75rem 1.25rem;
+}
+
+.account-banner {
+  border-bottom: 1px solid #bae6fd;
+  background: #eff6ff;
+  color: #1e3a8a;
+  padding: 0.75rem 1.25rem;
+}
+
+.account-banner.archived {
+  border-bottom-color: #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.error-banner small {
+  color: #7f1d1d;
+}
+
+.main {
+  min-width: 0;
+  padding: 1.5rem;
+}
+
+@media (max-width: 820px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    border-right: 0;
+    border-bottom: 1px solid #dbe3ee;
+  }
+
+  .nav {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+  }
+
+  .nav a {
+    white-space: nowrap;
+  }
+
+  .topbar,
+  .error-banner {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

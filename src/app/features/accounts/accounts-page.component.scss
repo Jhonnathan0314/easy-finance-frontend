@@ -1,0 +1,118 @@
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.account-form {
+  max-width: 42rem;
+}
+
+.field small {
+  color: #b42318;
+  font-size: 0.82rem;
+}
+
+.field textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid #c9d2df;
+  border-radius: 6px;
+  padding: 0.75rem 0.85rem;
+}
+
+.error-panel {
+  display: grid;
+  gap: 0.25rem;
+  border-color: #fecaca;
+  background: #fff1f2;
+  color: #991b1b;
+}
+
+.empty-state {
+  display: grid;
+  justify-items: start;
+  gap: 0.75rem;
+}
+
+.empty-state h2,
+.empty-state p {
+  margin: 0;
+}
+
+.accounts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: 1rem;
+}
+
+.account-card {
+  display: grid;
+  gap: 0.85rem;
+  border: 1px solid #dce2ea;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 1rem;
+}
+
+.account-card.selected {
+  border-color: #0f766e;
+  box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.12);
+}
+
+.account-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.account-card h2,
+.account-card p {
+  margin: 0;
+}
+
+.status,
+.meta span {
+  border-radius: 999px;
+  background: #e7f6ef;
+  color: #166534;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.status.archived {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.actions button,
+.actions a {
+  border: 1px solid #c9d2df;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #1d2433;
+  padding: 0.5rem 0.65rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .page-header {
+    flex-direction: column;
+  }
+}
