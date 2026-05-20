@@ -413,6 +413,71 @@ describe('ExpensesPageComponent', () => {
     expect(findButton(fixture, 'Siguiente')?.disabled).toBeFalse();
   });
 
+  it('renders pagination controls above and below the expense list', () => {
+    const fixture = configure({ pagination: { page: 1, size: 20, totalElements: 45, totalPages: 3 } });
+    const root = fixture.nativeElement as HTMLElement;
+
+    expect(root.querySelector('nav[aria-label="Paginacion superior de gastos"]')).toBeTruthy();
+    expect(root.querySelector('nav[aria-label="Paginacion inferior de gastos"]')).toBeTruthy();
+    expect(root.querySelectorAll('.pagination-actions').length).toBe(2);
+    expect(root.textContent).toContain('Tamano pagina');
+  });
+
+  it('renders page size selector with the current size selected', () => {
+    const fixture = configure({ pagination: { page: 0, size: 50, totalElements: 75, totalPages: 2 } });
+    const sizeSelect = fixture.nativeElement.querySelector(
+      'nav[aria-label="Paginacion superior de gastos"] select'
+    ) as HTMLSelectElement | null;
+
+    expect(Array.from(sizeSelect?.options ?? []).map((option) => option.value)).toEqual(['10', '20', '50', '100']);
+    expect(sizeSelect?.value).toBe('50');
+  });
+
+  it('changes page size from the first page while keeping current filters in the store', () => {
+    const fixture = configure({
+      pagination: { page: 2, size: 20, totalElements: 80, totalPages: 4 },
+      persistedFilters: {
+        from: '2026-05-01',
+        to: '2026-05-31',
+        search: 'lunch',
+        categoryId: 1,
+        paymentMethodId: 2,
+        participantId: null,
+        paymentState: 'PAID',
+        status: 'ACTIVE',
+        page: 2,
+        size: 20,
+        sort: 'expenseDate,asc'
+      }
+    });
+    const store = TestBed.inject(ExpensesStore) as jasmine.SpyObj<ExpensesStore>;
+
+    store.loadExpenses.calls.reset();
+    fixture.componentInstance.changePageSize('50');
+
+    expect(store.loadExpenses).toHaveBeenCalledWith(1, { size: 50, page: 0 });
+  });
+
+  it('keeps page size when applying filters and resets it when clearing filters', () => {
+    const fixture = configure({ pagination: { page: 2, size: 50, totalElements: 80, totalPages: 2 } });
+    const store = TestBed.inject(ExpensesStore) as jasmine.SpyObj<ExpensesStore>;
+
+    store.loadExpenses.calls.reset();
+    fixture.componentInstance.applyFilters();
+
+    expect(store.loadExpenses).toHaveBeenCalledWith(
+      1,
+      jasmine.objectContaining({ page: 0 }),
+      { persist: true }
+    );
+    expect(store.loadExpenses.calls.mostRecent().args[1]).not.toEqual(jasmine.objectContaining({ size: 20 }));
+
+    store.loadExpenses.calls.reset();
+    fixture.componentInstance.clearFilters();
+
+    expect(store.loadExpenses).toHaveBeenCalledWith(1, jasmine.objectContaining({ page: 0, size: 20 }));
+  });
+
   it('loads previous and next pages while keeping current filters in the store', () => {
     const fixture = configure({ pagination: { page: 1, size: 20, totalElements: 45, totalPages: 3 } });
     const store = TestBed.inject(ExpensesStore) as jasmine.SpyObj<ExpensesStore>;
@@ -424,6 +489,24 @@ describe('ExpensesPageComponent', () => {
 
     store.loadExpenses.calls.reset();
     fixture.componentInstance.goToNextPage();
+
+    expect(store.loadExpenses).toHaveBeenCalledWith(1, { page: 2 });
+  });
+
+  it('bottom pagination buttons load pages too', () => {
+    const fixture = configure({ pagination: { page: 1, size: 20, totalElements: 45, totalPages: 3 } });
+    const store = TestBed.inject(ExpensesStore) as jasmine.SpyObj<ExpensesStore>;
+    const bottomButtons = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('nav[aria-label="Paginacion inferior de gastos"] button')
+    ) as HTMLButtonElement[];
+
+    store.loadExpenses.calls.reset();
+    bottomButtons.find((button) => button.textContent?.includes('Anterior'))?.click();
+
+    expect(store.loadExpenses).toHaveBeenCalledWith(1, { page: 0 });
+
+    store.loadExpenses.calls.reset();
+    bottomButtons.find((button) => button.textContent?.includes('Siguiente'))?.click();
 
     expect(store.loadExpenses).toHaveBeenCalledWith(1, { page: 2 });
   });

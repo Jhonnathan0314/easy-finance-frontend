@@ -2,6 +2,7 @@
 .header-actions,
 .form-actions,
 .filter-actions,
+.pagination-actions,
 .actions,
 .badges,
 .pagination,
@@ -65,7 +66,8 @@
 .filters select,
 .field input,
 .field select,
-.field textarea {
+.field textarea,
+.page-size-field select {
   border: 1px solid #c9d2df;
   border-radius: 6px;
   background: #ffffff;
@@ -87,10 +89,34 @@
 }
 
 .pagination {
-  justify-content: flex-end;
+  justify-content: space-between;
   flex-wrap: wrap;
   color: #4b5563;
   font-size: 0.95rem;
+}
+
+.pagination-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.page-size-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #4b5563;
+  font-weight: 700;
+}
+
+.pagination-top {
+  border: 1px solid #dce2ea;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 0.75rem 1rem;
+}
+
+.pagination-bottom {
+  justify-content: flex-end;
 }
 
 .sort-toolbar {
@@ -215,7 +241,9 @@ button:disabled {
   .page-header,
   .header-actions,
   .filter-actions,
+  .pagination-actions,
   .pagination,
+  .page-size-field,
   .sort-actions,
   .sort-toolbar,
   .filters,

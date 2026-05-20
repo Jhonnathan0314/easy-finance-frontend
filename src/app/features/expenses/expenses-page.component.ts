@@ -323,6 +323,26 @@ type ExpenseDateSort = 'expenseDate,asc' | 'expenseDate,desc';
       } @else if (!expensesStore.expenses().length) {
         <div class="panel empty-state">No hay gastos para los filtros actuales.</div>
       } @else {
+        <nav class="pagination pagination-top" aria-label="Paginacion superior de gastos">
+          <label class="page-size-field">
+            <span>Tamano pagina</span>
+            <select [value]="expensesStore.pagination().size" [disabled]="expensesStore.isLoading()" (change)="changePageSize($any($event.target).value)">
+              @for (size of pageSizeOptions; track size) {
+                <option [value]="size" [selected]="expensesStore.pagination().size === size">{{ size }}</option>
+              }
+            </select>
+          </label>
+          <div class="pagination-actions">
+            <button type="button" [disabled]="!canGoPreviousPage() || expensesStore.isLoading()" (click)="goToPreviousPage()">
+              Anterior
+            </button>
+            <span>Pagina {{ currentPageNumber() }} de {{ totalPagesNumber() }}</span>
+            <span>{{ expensesStore.pagination().totalElements }} registros</span>
+            <button type="button" [disabled]="!canGoNextPage() || expensesStore.isLoading()" (click)="goToNextPage()">
+              Siguiente
+            </button>
+          </div>
+        </nav>
         <div class="expense-list">
           @for (expense of expensesStore.expenses(); track expense.id) {
             <article class="expense-card">
@@ -346,15 +366,17 @@ type ExpenseDateSort = 'expenseDate,asc' | 'expenseDate,desc';
             </article>
           }
         </div>
-        <nav class="pagination" aria-label="Paginacion de gastos">
-          <button type="button" [disabled]="!canGoPreviousPage() || expensesStore.isLoading()" (click)="goToPreviousPage()">
-            Anterior
-          </button>
-          <span>Pagina {{ currentPageNumber() }} de {{ totalPagesNumber() }}</span>
-          <span>{{ expensesStore.pagination().totalElements }} registros</span>
-          <button type="button" [disabled]="!canGoNextPage() || expensesStore.isLoading()" (click)="goToNextPage()">
-            Siguiente
-          </button>
+        <nav class="pagination pagination-bottom" aria-label="Paginacion inferior de gastos">
+          <div class="pagination-actions">
+            <button type="button" [disabled]="!canGoPreviousPage() || expensesStore.isLoading()" (click)="goToPreviousPage()">
+              Anterior
+            </button>
+            <span>Pagina {{ currentPageNumber() }} de {{ totalPagesNumber() }}</span>
+            <span>{{ expensesStore.pagination().totalElements }} registros</span>
+            <button type="button" [disabled]="!canGoNextPage() || expensesStore.isLoading()" (click)="goToNextPage()">
+              Siguiente
+            </button>
+          </div>
         </nav>
       }
     </section>
@@ -402,6 +424,7 @@ export class ExpensesPageComponent implements OnInit {
 
   readonly paymentStates: ExpensePaymentState[] = ['PENDING', 'PARTIAL', 'PAID'];
   readonly expenseStatuses: ExpenseStatus[] = ['ACTIVE', 'CANCELLED'];
+  readonly pageSizeOptions = [10, 20, 50, 100];
   readonly dateSortOptions: Array<{ label: string; value: ExpenseDateSort }> = [
     { label: 'Fecha descendente', value: 'expenseDate,desc' },
     { label: 'Fecha ascendente', value: 'expenseDate,asc' }
@@ -509,6 +532,16 @@ export class ExpensesPageComponent implements OnInit {
     }
 
     this.loadPage(this.expensesStore.pagination().page + 1);
+  }
+
+  changePageSize(value: string): void {
+    const size = Number(value);
+
+    if (!this.pageSizeOptions.includes(size) || size === this.expensesStore.pagination().size) {
+      return;
+    }
+
+    this.expensesStore.loadExpenses(this.accountId(), { size, page: 0 }).pipe(take(1)).subscribe({ error: () => undefined });
   }
 
   changeDateSort(sort: ExpenseDateSort): void {

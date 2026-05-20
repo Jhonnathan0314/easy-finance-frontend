@@ -182,6 +182,26 @@ type IncomeDateSort = 'incomeDate,asc' | 'incomeDate,desc';
           }
         </div>
       } @else {
+        <nav class="pagination pagination-top" aria-label="Paginacion superior de ingresos">
+          <label class="page-size-field">
+            <span>Tamano pagina</span>
+            <select [value]="incomeStore.pagination().size" [disabled]="incomeStore.isLoading()" (change)="changePageSize($any($event.target).value)">
+              @for (size of pageSizeOptions; track size) {
+                <option [value]="size" [selected]="incomeStore.pagination().size === size">{{ size }}</option>
+              }
+            </select>
+          </label>
+          <div class="pagination-actions">
+            <button type="button" [disabled]="!canGoPreviousPage() || incomeStore.isLoading()" (click)="goToPreviousPage()">
+              Anterior
+            </button>
+            <span>Pagina {{ currentPageNumber() }} de {{ totalPagesNumber() }}</span>
+            <span>{{ incomeStore.pagination().totalElements }} registros</span>
+            <button type="button" [disabled]="!canGoNextPage() || incomeStore.isLoading()" (click)="goToNextPage()">
+              Siguiente
+            </button>
+          </div>
+        </nav>
         <div class="income-list">
           @for (income of incomeStore.incomes(); track income.id) {
             <article class="income-card">
@@ -203,15 +223,17 @@ type IncomeDateSort = 'incomeDate,asc' | 'incomeDate,desc';
             </article>
           }
         </div>
-        <nav class="pagination" aria-label="Paginacion de ingresos">
-          <button type="button" [disabled]="!canGoPreviousPage() || incomeStore.isLoading()" (click)="goToPreviousPage()">
-            Anterior
-          </button>
-          <span>Pagina {{ currentPageNumber() }} de {{ totalPagesNumber() }}</span>
-          <span>{{ incomeStore.pagination().totalElements }} registros</span>
-          <button type="button" [disabled]="!canGoNextPage() || incomeStore.isLoading()" (click)="goToNextPage()">
-            Siguiente
-          </button>
+        <nav class="pagination pagination-bottom" aria-label="Paginacion inferior de ingresos">
+          <div class="pagination-actions">
+            <button type="button" [disabled]="!canGoPreviousPage() || incomeStore.isLoading()" (click)="goToPreviousPage()">
+              Anterior
+            </button>
+            <span>Pagina {{ currentPageNumber() }} de {{ totalPagesNumber() }}</span>
+            <span>{{ incomeStore.pagination().totalElements }} registros</span>
+            <button type="button" [disabled]="!canGoNextPage() || incomeStore.isLoading()" (click)="goToNextPage()">
+              Siguiente
+            </button>
+          </div>
         </nav>
       }
     </section>
@@ -247,6 +269,7 @@ export class IncomePageComponent implements OnInit {
     { label: 'Fecha descendente', value: 'incomeDate,desc' },
     { label: 'Fecha ascendente', value: 'incomeDate,asc' }
   ];
+  readonly pageSizeOptions = [10, 20, 50, 100];
   readonly currentDateSort = computed<IncomeDateSort>(() =>
     this.incomeStore.filters().sort === 'incomeDate,asc' ? 'incomeDate,asc' : 'incomeDate,desc'
   );
@@ -312,6 +335,16 @@ export class IncomePageComponent implements OnInit {
     }
 
     this.loadPage(this.incomeStore.pagination().page + 1);
+  }
+
+  changePageSize(value: string): void {
+    const size = Number(value);
+
+    if (!this.pageSizeOptions.includes(size) || size === this.incomeStore.pagination().size) {
+      return;
+    }
+
+    this.incomeStore.loadIncomes(this.accountId(), { size, page: 0 }).pipe(take(1)).subscribe({ error: () => undefined });
   }
 
   changeDateSort(sort: IncomeDateSort): void {
