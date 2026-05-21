@@ -1,7 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 
-import { BudgetDetailResponseDto, BudgetResponseDto, SubBudgetResponseDto } from '../../shared/models';
+import { BudgetDetailResponseDto, BudgetResponseDto, BudgetSummaryResponseDto, SubBudgetResponseDto } from '../../shared/models';
+import { AnalyticsApiService } from '../analytics/analytics-api.service';
 import { BudgetsApiService } from './budgets-api.service';
 import { BudgetsStore } from './budgets.store';
 
@@ -37,8 +38,22 @@ describe('BudgetsStore', () => {
     subBudgets: [subBudget],
     impacts: []
   };
+  const summary: BudgetSummaryResponseDto = {
+    accountId: 10,
+    year: 2026,
+    month: 5,
+    budgetId: 1,
+    expectedAmount: 500000,
+    paidAmount: 125000,
+    pendingAmount: 375000,
+    impactsCount: 0,
+    paidImpactsCount: 0,
+    activeImpactsCount: 0,
+    subBudgetsCount: 1
+  };
 
   let service: jasmine.SpyObj<BudgetsApiService>;
+  let analyticsApi: jasmine.SpyObj<AnalyticsApiService>;
   let store: BudgetsStore;
 
   beforeEach(() => {
@@ -59,9 +74,15 @@ describe('BudgetsStore', () => {
     service.createSubBudget.and.returnValue(of(subBudget));
     service.updateSubBudget.and.returnValue(of(subBudget));
     service.deactivateSubBudget.and.returnValue(of(undefined));
+    analyticsApi = jasmine.createSpyObj<AnalyticsApiService>('AnalyticsApiService', ['getBudgetSummary']);
+    analyticsApi.getBudgetSummary.and.returnValue(of(summary));
 
     TestBed.configureTestingModule({
-      providers: [BudgetsStore, { provide: BudgetsApiService, useValue: service }]
+      providers: [
+        BudgetsStore,
+        { provide: BudgetsApiService, useValue: service },
+        { provide: AnalyticsApiService, useValue: analyticsApi }
+      ]
     });
 
     store = TestBed.inject(BudgetsStore);
@@ -86,6 +107,8 @@ describe('BudgetsStore', () => {
     store.getBudgetDetail(10, 2026, 5).subscribe(() => {
       expect(service.getBudgetDetail).toHaveBeenCalledWith(10, 2026, 5);
       expect(store.selectedBudgetDetail()).toEqual(detail);
+      expect(analyticsApi.getBudgetSummary).toHaveBeenCalledWith(10, 2026, 5);
+      expect(store.budgetSummary()).toEqual(summary);
       done();
     });
   });

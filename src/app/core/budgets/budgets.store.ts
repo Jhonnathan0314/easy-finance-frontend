@@ -6,12 +6,14 @@ import {
   BudgetDetailResponseDto,
   BudgetListFilters,
   BudgetResponseDto,
+  BudgetSummaryResponseDto,
   BudgetStatus,
   CreateSubBudgetRequest,
   DuplicateBudgetRequest,
   UpdateSubBudgetRequest,
   UpsertBudgetRequest
 } from '../../shared/models';
+import { AnalyticsApiService } from '../analytics/analytics-api.service';
 import { FeatureFilterStorageService } from '../filters/feature-filter-storage.service';
 import { BudgetsApiService } from './budgets-api.service';
 
@@ -51,12 +53,14 @@ export interface BudgetPersistedFilters {
 @Injectable({ providedIn: 'root' })
 export class BudgetsStore {
   private readonly budgetsApi = inject(BudgetsApiService);
+  private readonly analyticsApi = inject(AnalyticsApiService);
   private readonly filterStorage = inject(FeatureFilterStorageService);
   private readonly currentAccountId = signal<number | null>(null);
   private readonly selectedPeriod = signal<{ year: number; month: number } | null>(null);
 
   readonly budgets = signal<BudgetResponseDto[]>([]);
   readonly selectedBudgetDetail = signal<BudgetDetailResponseDto | null>(null);
+  readonly budgetSummary = signal<BudgetSummaryResponseDto | null>(null);
   readonly filters = signal<BudgetFilters>({ ...DEFAULT_FILTERS });
   readonly isLoading = signal(false);
   readonly isSaving = signal(false);
@@ -113,8 +117,15 @@ export class BudgetsStore {
 
     return this.budgetsApi.getBudgetDetail(accountId, year, month).pipe(
       tap((detail) => this.selectedBudgetDetail.set(detail)),
+      switchMap((detail) =>
+        this.analyticsApi.getBudgetSummary(accountId, year, month).pipe(
+          tap((summary) => this.budgetSummary.set(summary)),
+          map(() => detail)
+        )
+      ),
       catchError((error: unknown) => {
         this.selectedBudgetDetail.set(null);
+        this.budgetSummary.set(null);
         return this.handleError(error);
       }),
       finalize(() => this.isLoading.set(false))
@@ -232,6 +243,7 @@ export class BudgetsStore {
     this.selectedPeriod.set(null);
     this.budgets.set([]);
     this.selectedBudgetDetail.set(null);
+    this.budgetSummary.set(null);
     this.filters.set({ ...DEFAULT_FILTERS });
     this.pagination.set({ page: 0, size: 20, totalElements: 0, totalPages: 0 });
     this.error.set(null);
@@ -262,6 +274,7 @@ export class BudgetsStore {
     this.selectedPeriod.set(null);
     this.budgets.set([]);
     this.selectedBudgetDetail.set(null);
+    this.budgetSummary.set(null);
     this.filters.set({ ...DEFAULT_FILTERS });
     this.pagination.set({ page: 0, size: 20, totalElements: 0, totalPages: 0 });
     this.error.set(null);

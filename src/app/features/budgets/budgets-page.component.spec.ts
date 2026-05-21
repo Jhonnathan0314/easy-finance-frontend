@@ -9,6 +9,7 @@ import {
   AccountResponseDto,
   BudgetDetailResponseDto,
   BudgetResponseDto,
+  BudgetSummaryResponseDto,
   CategoryResponseDto,
   SubBudgetResponseDto
 } from '../../shared/models';
@@ -81,6 +82,19 @@ describe('BudgetsPageComponent', () => {
       }
     ]
   };
+  const summary: BudgetSummaryResponseDto = {
+    accountId: 1,
+    year: 2026,
+    month: 5,
+    budgetId: 1,
+    expectedAmount: 800000,
+    paidAmount: 370000,
+    pendingAmount: 430000,
+    impactsCount: 1,
+    paidImpactsCount: 0,
+    activeImpactsCount: 1,
+    subBudgetsCount: 1
+  };
   const category: CategoryResponseDto = {
     id: 3,
     accountId: 1,
@@ -108,6 +122,7 @@ describe('BudgetsPageComponent', () => {
       categories?: CategoryResponseDto[];
       error?: { code: string; message: string };
       persistedFilters?: BudgetPersistedFilters;
+      budgetSummary?: BudgetSummaryResponseDto | null;
     } = {}
   ): ComponentFixture<BudgetsPageComponent> {
     const account = {
@@ -135,6 +150,7 @@ describe('BudgetsPageComponent', () => {
           useValue: {
             budgets: signal(budgets),
             selectedBudgetDetail,
+            budgetSummary: signal(Object.prototype.hasOwnProperty.call(options, 'budgetSummary') ? options.budgetSummary ?? null : summary),
             filters: signal({ year: 2026, status: null, page: 0, size: 20, sort: 'month,desc' }),
             isLoading: signal(false),
             isSaving: signal(false),
@@ -332,8 +348,54 @@ describe('BudgetsPageComponent', () => {
     expect(fixture.nativeElement.textContent).not.toContain('Desactivar');
   });
 
-  it('calculates impact totals and progress', () => {
+  it('renders top-level totals from budget summary', () => {
     const fixture = configure();
+    const component = fixture.componentInstance;
+
+    expect(component.impactTotals()).toEqual({ expected: 800000, paid: 370000, pending: 430000 });
+    expect(component.impactProgress()).toBe(46);
+    expect(fixture.nativeElement.textContent).toContain('$800,000');
+    expect(fixture.nativeElement.textContent).toContain('$370,000');
+    expect(fixture.nativeElement.textContent).toContain('$430,000');
+    expect(fixture.nativeElement.textContent).toContain('Paid / expected total');
+    expect(fixture.nativeElement.querySelector('.detail-panel .progress-track')).not.toBeNull();
+  });
+
+  it('shows only base sub budget information without individual execution values', () => {
+    const fixture = configure();
+    const card = fixture.nativeElement.querySelector('.subbudget-card') as HTMLElement;
+
+    expect(card.textContent).toContain('Mercado');
+    expect(card.textContent).toContain('MANUAL');
+    expect(card.textContent).toContain('Presupuestado');
+    expect(card.textContent).toContain('$500,000');
+    expect(card.textContent).not.toContain('$250,000');
+    expect(card.textContent).not.toContain('Restante');
+    expect(card.textContent).not.toContain('Sobre-ejecucion');
+    expect(fixture.nativeElement.textContent).not.toContain('Spent / planned');
+    expect(fixture.nativeElement.querySelector('.subbudget-card .progress-track')).toBeNull();
+  });
+
+  it('does not show over execution inside sub budget cards', () => {
+    const fixture = configure({
+      selectedDetail: {
+        ...detail,
+        subBudgets: [{ ...manualSubBudget, plannedAmount: 100000, spentAmount: 150000 }]
+      },
+      budgetSummary: { ...summary, expectedAmount: 100000, paidAmount: 150000, pendingAmount: -50000 }
+    });
+    const card = fixture.nativeElement.querySelector('.subbudget-card') as HTMLElement;
+
+    expect(card.textContent).toContain('Presupuestado');
+    expect(card.textContent).toContain('$100,000');
+    expect(card.textContent).not.toContain('Sobre-ejecucion');
+    expect(card.textContent).not.toContain('$150,000');
+    expect(card.textContent).not.toContain('-$50,000');
+    expect(fixture.nativeElement.textContent).toContain('-$50,000');
+  });
+
+  it('falls back to impact totals when budget summary is not loaded', () => {
+    const fixture = configure({ budgetSummary: null });
     const component = fixture.componentInstance;
 
     expect(component.impactTotals()).toEqual({ expected: 300000, paid: 120000, pending: 180000 });

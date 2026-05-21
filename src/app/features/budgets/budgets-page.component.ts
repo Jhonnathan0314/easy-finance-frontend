@@ -230,17 +230,19 @@ type BudgetPeriodSort = 'month,desc' | 'month,asc';
                 </div>
                 <div>
                   <dt>Pending</dt>
-                  <dd>{{ impactTotals().pending | currency: 'COP':'symbol-narrow':'1.0-0' }}</dd>
+                  <dd [class.form-error]="impactTotals().pending < 0">
+                    {{ impactTotals().pending | currency: 'COP':'symbol-narrow':'1.0-0' }}
+                  </dd>
                 </div>
                 <div>
-                  <dt>Avance impacts</dt>
+                  <dt>Avance total</dt>
                   <dd>{{ impactProgress() }}%</dd>
                 </div>
               </dl>
 
               <div class="progress">
                 <div class="progress-label">
-                  <span>Paid / expected</span>
+                  <span>Paid / expected total</span>
                   <span>{{ impactProgress() }}%</span>
                 </div>
                 <div class="progress-track"><span [style.width.%]="impactProgress()"></span></div>
@@ -329,15 +331,8 @@ type BudgetPeriodSort = 'month,desc' | 'month,asc';
                         <p>{{ categoryName(subBudget.categoryId) }} - {{ subBudget.sourceType }}</p>
                       </div>
                       <div class="amount-block">
-                        <strong>{{ subBudget.spentAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
-                        <span>de {{ subBudget.plannedAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}</span>
-                      </div>
-                      <div class="progress">
-                        <div class="progress-label">
-                          <span>Spent / planned</span>
-                          <span>{{ subBudgetProgress(subBudget) }}%</span>
-                        </div>
-                        <div class="progress-track"><span [style.width.%]="subBudgetProgress(subBudget)"></span></div>
+                        <span>Presupuestado</span>
+                        <strong>{{ subBudget.plannedAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
                       </div>
                       <div class="badges">
                         <span>{{ subBudget.status }}</span>
@@ -431,6 +426,16 @@ export class BudgetsPageComponent implements OnInit {
     () => this.accountStore.selectedAccount()?.currentUserRole === 'ACCOUNT_ADMIN' && !this.accountStore.selectedAccountArchived()
   );
   readonly impactTotals = computed(() => {
+    const summary = this.budgetsStore.budgetSummary();
+
+    if (summary) {
+      return {
+        expected: summary.expectedAmount,
+        paid: summary.paidAmount,
+        pending: summary.pendingAmount
+      };
+    }
+
     const impacts = this.budgetsStore.selectedBudgetDetail()?.impacts ?? [];
     const expected = impacts.reduce((total, impact) => total + impact.expectedAmount, 0);
     const paid = impacts.reduce((total, impact) => total + impact.paidAmount, 0);
@@ -438,7 +443,7 @@ export class BudgetsPageComponent implements OnInit {
     return {
       expected,
       paid,
-      pending: Math.max(0, expected - paid)
+      pending: expected - paid
     };
   });
   readonly impactProgress = computed(() => {
@@ -750,10 +755,14 @@ export class BudgetsPageComponent implements OnInit {
 
   subBudgetProgress(subBudget: SubBudgetResponseDto): number {
     if (subBudget.plannedAmount <= 0) {
-      return 0;
+      return subBudget.spentAmount > 0 ? 100 : 0;
     }
 
     return Math.max(0, Math.min(100, Math.round((subBudget.spentAmount / subBudget.plannedAmount) * 100)));
+  }
+
+  subBudgetPending(subBudget: SubBudgetResponseDto): number {
+    return subBudget.plannedAmount - subBudget.spentAmount;
   }
 
   impactPending(impact: BudgetImpactResponseDto): number {
