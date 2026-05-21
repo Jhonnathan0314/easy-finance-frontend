@@ -44,10 +44,10 @@ interface NavigationItem {
           <div class="account-context">
             <label>
               <span>Cuenta</span>
-              <select [value]="accountStore.selectedAccountId() ?? ''" (change)="changeAccount($event)">
+              <select [value]="selectedAccountSelectValue()" (change)="changeAccount($event)">
                 <option value="">Sin seleccionar</option>
                 @for (account of accountStore.accounts(); track account.id) {
-                  <option [value]="account.id">{{ account.name }}</option>
+                  <option [value]="account.id.toString()">{{ account.name }}</option>
                 }
               </select>
             </label>
@@ -123,9 +123,31 @@ export class PrivateLayoutComponent implements OnInit {
     return accountId ? ['/app/accounts', String(accountId), item.segment] : ['/app/accounts'];
   }
 
+  selectedAccountSelectValue(): string {
+    return this.accountStore.selectedAccountId()?.toString() ?? '';
+  }
+
   changeAccount(event: Event): void {
     const value = (event.target as HTMLSelectElement).value;
+
+    if (!value) {
+      this.accountStore.clearSelectedAccount();
+      void this.router.navigate(['/app/accounts']);
+      return;
+    }
+
     const accountId = Number(value);
+
+    if (!Number.isFinite(accountId)) {
+      this.accountStore.clearSelectedAccount();
+      void this.router.navigate(['/app/accounts']);
+      return;
+    }
+
+    if (this.accountStore.selectedAccountId() === accountId) {
+      return;
+    }
+
     const account = this.accountStore.accounts().find((item) => item.id === accountId);
 
     if (!account) {
@@ -134,13 +156,25 @@ export class PrivateLayoutComponent implements OnInit {
       return;
     }
 
+    const nextRoute = this.nextAccountRoute(account.id);
     this.accountStore.selectAccount(account);
-    void this.router.navigate(['/app/accounts', account.id, 'dashboard']);
+    void this.router.navigate(nextRoute);
   }
 
   logout(): void {
     this.authService.logout();
     this.accountStore.clear();
     void this.router.navigate(['/login']);
+  }
+
+  private nextAccountRoute(accountId: number): string[] {
+    const currentPath = this.router.url.split(/[?#]/)[0];
+    const accountScopedMatch = currentPath.match(/^\/app\/accounts\/\d+\/(.+)$/);
+
+    if (!accountScopedMatch) {
+      return ['/app/accounts', String(accountId), 'dashboard'];
+    }
+
+    return ['/app/accounts', String(accountId), ...accountScopedMatch[1].split('/').filter(Boolean)];
   }
 }
