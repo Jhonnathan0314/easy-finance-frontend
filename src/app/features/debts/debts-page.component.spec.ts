@@ -3,9 +3,10 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 
 import { AuthStore } from '../../core/auth/auth.store';
+import { CatalogsApiService } from '../../core/catalogs/catalogs-api.service';
 import { DebtsPersistedFilters, DebtsStore } from '../../core/debts/debts.store';
 import { AccountStore } from '../../core/state/account.store';
-import { AccountResponseDto, DebtPaymentResponseDto, DebtResponseDto } from '../../shared/models';
+import { AccountResponseDto, CategoryResponseDto, DebtPaymentResponseDto, DebtResponseDto, PaymentMethodResponseDto } from '../../shared/models';
 import { DebtsPageComponent } from './debts-page.component';
 
 describe('DebtsPageComponent', () => {
@@ -45,6 +46,26 @@ describe('DebtsPageComponent', () => {
     createdAt: '',
     updatedAt: ''
   };
+  const category: CategoryResponseDto = {
+    id: 3,
+    accountId: 1,
+    name: 'Mercado',
+    description: null,
+    type: 'EXPENSE',
+    status: 'ACTIVE',
+    createdAt: '',
+    updatedAt: ''
+  };
+  const paymentMethod: PaymentMethodResponseDto = {
+    id: 4,
+    accountId: 1,
+    name: 'Tarjeta',
+    description: null,
+    type: 'CREDIT_CARD',
+    status: 'ACTIVE',
+    createdAt: '',
+    updatedAt: ''
+  };
   const defaultPersistedFilters: DebtsPersistedFilters = {
     debtFilters: {
       state: 'ACTIVE',
@@ -70,6 +91,9 @@ describe('DebtsPageComponent', () => {
       debts?: DebtResponseDto[];
       selectedDebt?: DebtResponseDto | null;
       persistedFilters?: DebtsPersistedFilters;
+      createdExpenseId?: number | null;
+      categories?: CategoryResponseDto[];
+      paymentMethods?: PaymentMethodResponseDto[];
     } = {}
   ): ComponentFixture<DebtsPageComponent> {
     const account: AccountResponseDto = {
@@ -121,7 +145,20 @@ describe('DebtsPageComponent', () => {
               payments.set([payment]);
               return of([payment]);
             }),
-            registerPayment: jasmine.createSpy('registerPayment').and.returnValue(of([payment]))
+            registerPayment: jasmine
+              .createSpy('registerPayment')
+              .and.returnValue(of({ payment, debt: { ...debt, remainingAmount: 700000 }, createdExpenseId: options.createdExpenseId ?? null }))
+          }
+        },
+        {
+          provide: CatalogsApiService,
+          useValue: {
+            listCategories: jasmine
+              .createSpy('listCategories')
+              .and.returnValue(of({ content: options.categories ?? [category], page: 0, size: 100, totalElements: 1, totalPages: 1 })),
+            listPaymentMethods: jasmine
+              .createSpy('listPaymentMethods')
+              .and.returnValue(of({ content: options.paymentMethods ?? [paymentMethod], page: 0, size: 100, totalElements: 1, totalPages: 1 }))
           }
         }
       ]
@@ -165,6 +202,101 @@ describe('DebtsPageComponent', () => {
     component.savePayment();
 
     expect(component.paymentFormError()).toContain('saldo pendiente');
+  });
+
+  it('keeps current payment behavior when associated expense is disabled', () => {
+    const fixture = configure({ selectedDebt: debt });
+    const component = fixture.componentInstance;
+    const store = TestBed.inject(DebtsStore) as jasmine.SpyObj<DebtsStore>;
+
+    component.startPayment(debt);
+    component.paymentForm.patchValue({ amount: 100000 });
+    component.savePayment();
+
+    expect(store.registerPayment).toHaveBeenCalledWith(
+      1,
+      1,
+      jasmine.objectContaining({
+        paymentType: 'INSTALLMENT',
+        amount: 100000,
+        createExpense: false
+      })
+    );
+    expect(store.registerPayment.calls.mostRecent().args[2].categoryId).toBeUndefined();
+    expect(store.registerPayment.calls.mostRecent().args[2].paymentMethodId).toBeUndefined();
+    expect(store.registerPayment.calls.mostRecent().args[2].expenseDescription).toBeUndefined();
+  });
+
+  it('shows associated expense fields when checkbox is enabled', () => {
+    const fixture = configure({ selectedDebt: debt });
+    const component = fixture.componentInstance;
+
+    component.startPayment(debt);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).not.toContain('Categoria del gasto');
+
+    component.paymentForm.patchValue({ createExpense: true });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Categoria del gasto');
+    expect(fixture.nativeElement.textContent).toContain('Medio de pago del gasto');
+    expect(fixture.nativeElement.textContent).toContain('Descripcion del gasto');
+  });
+
+  it('requires associated expense fields when checkbox is enabled', () => {
+    const fixture = configure({ selectedDebt: debt });
+    const component = fixture.componentInstance;
+
+    component.startPayment(debt);
+    component.paymentForm.patchValue({ amount: 100000, createExpense: true });
+
+    expect(component.paymentForm.hasError('associatedExpenseRequired')).toBeTrue();
+    expect(component.paymentForm.valid).toBeFalse();
+  });
+
+  it('sends associated expense fields when registering a debt payment', () => {
+    const fixture = configure({ selectedDebt: debt });
+    const component = fixture.componentInstance;
+    const store = TestBed.inject(DebtsStore) as jasmine.SpyObj<DebtsStore>;
+
+    component.startPayment(debt);
+    component.paymentForm.patchValue({
+      amount: 100000,
+      createExpense: true,
+      categoryId: 3,
+      paymentMethodId: 4,
+      expenseDescription: 'Pago deuda laptop'
+    });
+    component.savePayment();
+
+    expect(store.registerPayment).toHaveBeenCalledWith(
+      1,
+      1,
+      jasmine.objectContaining({
+        createExpense: true,
+        categoryId: 3,
+        paymentMethodId: 4,
+        expenseDescription: 'Pago deuda laptop'
+      })
+    );
+  });
+
+  it('shows success message when backend creates associated expense', () => {
+    const fixture = configure({ selectedDebt: debt, createdExpenseId: 21 });
+    const component = fixture.componentInstance;
+
+    component.startPayment(debt);
+    component.paymentForm.patchValue({
+      amount: 100000,
+      createExpense: true,
+      categoryId: 3,
+      paymentMethodId: 4,
+      expenseDescription: 'Pago deuda laptop'
+    });
+    component.savePayment();
+
+    expect(component.successMessage()).toBe('Pago registrado y gasto asociado creado.');
   });
 
   it('blocks payment actions for paid or cancelled debts', () => {

@@ -62,7 +62,7 @@ describe('DebtsStore', () => {
     service.getDebt.and.returnValue(of(debt));
     service.cancelDebt.and.returnValue(of(undefined));
     service.listPayments.and.returnValue(of({ content: [payment], page: 0, size: 20, totalElements: 1, totalPages: 1 }));
-    service.registerPayment.and.returnValue(of({ payment, debt: { ...debt, remainingAmount: 700000 } }));
+    service.registerPayment.and.returnValue(of({ payment, debt: { ...debt, remainingAmount: 700000 }, createdExpenseId: 21 }));
     service.getPayment.and.returnValue(of(payment));
 
     TestBed.configureTestingModule({
@@ -107,7 +107,7 @@ describe('DebtsStore', () => {
 
     store
       .registerPayment(10, 1, { paymentType: 'INSTALLMENT', amount: 100000, paymentDate: '2026-05-12' })
-      .subscribe(() => {
+      .subscribe((response) => {
         expect(service.registerPayment).toHaveBeenCalledWith(10, 1, {
           paymentType: 'INSTALLMENT',
           amount: 100000,
@@ -116,6 +116,7 @@ describe('DebtsStore', () => {
         expect(service.listPayments).toHaveBeenCalledWith(10, 1, jasmine.objectContaining({ status: 'ACTIVE' }));
         expect(store.selectedDebt()?.remainingAmount).toBe(700000);
         expect(store.payments()).toEqual([payment]);
+        expect(response.createdExpenseId).toBe(21);
         done();
       });
   });

@@ -12,7 +12,8 @@ import {
   DebtResponseDto,
   DebtSourceType,
   DebtState,
-  RegisterDebtPaymentRequest
+  RegisterDebtPaymentRequest,
+  RegisterDebtPaymentResponseDto
 } from '../../shared/models';
 import { FeatureFilterStorageService } from '../filters/feature-filter-storage.service';
 import { DebtsApiService } from './debts-api.service';
@@ -187,7 +188,7 @@ export class DebtsStore {
     );
   }
 
-  registerPayment(accountId: number, debtId: number, request: RegisterDebtPaymentRequest): Observable<DebtPaymentResponseDto[]> {
+  registerPayment(accountId: number, debtId: number, request: RegisterDebtPaymentRequest): Observable<RegisterDebtPaymentResponseDto> {
     this.ensureAccount(accountId);
     this.isSaving.set(true);
     this.error.set(null);
@@ -197,8 +198,12 @@ export class DebtsStore {
         this.selectedDebt.set(response.debt);
         this.debts.update((debts) => debts.map((debt) => (debt.id === response.debt.id ? response.debt : debt)));
       }),
-      switchMap(() => this.loadDebts(accountId)),
-      switchMap(() => this.loadPayments(accountId, debtId)),
+      switchMap((response) =>
+        this.loadDebts(accountId).pipe(
+          switchMap(() => this.loadPayments(accountId, debtId)),
+          map(() => response)
+        )
+      ),
       catchError((error: unknown) => this.handleError(error)),
       finalize(() => this.isSaving.set(false))
     );

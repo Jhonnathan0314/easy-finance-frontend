@@ -17,6 +17,10 @@ export interface RegisterDebtPaymentRequest {
   amount: number;
   paymentDate: string;
   notes?: string | null;
+  createExpense?: boolean | null;
+  categoryId?: number | null;
+  paymentMethodId?: number | null;
+  expenseDescription?: string | null;
 }
 
 export interface DebtResponse {
@@ -64,6 +68,7 @@ export type DebtPaymentResponseDto = DebtPaymentResponse;
 export interface RegisterDebtPaymentResponse {
   payment: DebtPaymentResponse;
   debt: DebtResponse;
+  createdExpenseId?: number | null;
 }
 
 export type RegisterDebtPaymentResponseDto = RegisterDebtPaymentResponse;

@@ -70,7 +70,17 @@ describe('DebtsApiService', () => {
         sort: 'paymentDate,desc'
       })
       .subscribe();
-    service.registerPayment(5, 8, { paymentType: 'CAPITAL_PAYMENT', amount: 50000, paymentDate: '2026-05-12' }).subscribe();
+    service
+      .registerPayment(5, 8, {
+        paymentType: 'CAPITAL_PAYMENT',
+        amount: 50000,
+        paymentDate: '2026-05-12',
+        createExpense: true,
+        categoryId: 3,
+        paymentMethodId: 4,
+        expenseDescription: 'Pago deuda laptop'
+      })
+      .subscribe();
     service.getPayment(5, 8, 13).subscribe();
 
     const listRequest = httpTesting.expectOne(
@@ -79,7 +89,17 @@ describe('DebtsApiService', () => {
     expect(listRequest.request.method).toBe('GET');
     listRequest.flush({ content: [], page: 2, size: 5, totalElements: 0, totalPages: 0 });
 
-    expect(httpTesting.expectOne('http://localhost:8080/api/v1/accounts/5/debts/8/payments').request.method).toBe('POST');
+    const registerRequest = httpTesting.expectOne('http://localhost:8080/api/v1/accounts/5/debts/8/payments');
+    expect(registerRequest.request.method).toBe('POST');
+    expect(registerRequest.request.body).toEqual({
+      paymentType: 'CAPITAL_PAYMENT',
+      amount: 50000,
+      paymentDate: '2026-05-12',
+      createExpense: true,
+      categoryId: 3,
+      paymentMethodId: 4,
+      expenseDescription: 'Pago deuda laptop'
+    });
     expect(httpTesting.expectOne('http://localhost:8080/api/v1/accounts/5/debts/8/payments/13').request.method).toBe('GET');
   });
 });

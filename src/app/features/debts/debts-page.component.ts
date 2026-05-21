@@ -4,15 +4,18 @@ import { AbstractControl, NonNullableFormBuilder, ReactiveFormsModule, Validatio
 import { take } from 'rxjs';
 
 import { AuthStore } from '../../core/auth/auth.store';
+import { CatalogsApiService } from '../../core/catalogs/catalogs-api.service';
 import { DebtFilters, DebtsPersistedFilters, DebtsStore, PaymentFilters } from '../../core/debts/debts.store';
 import { AccountStore } from '../../core/state/account.store';
 import {
+  CategoryResponseDto,
   CreateManualDebtRequest,
   DebtPaymentStatus,
   DebtPaymentType,
   DebtResponseDto,
   DebtSourceType,
   DebtState,
+  PaymentMethodResponseDto,
   RegisterDebtPaymentRequest
 } from '../../shared/models';
 
@@ -240,6 +243,43 @@ import {
                   <span>Notas</span>
                   <textarea rows="3" formControlName="notes"></textarea>
                 </label>
+                <label class="checkbox-field wide">
+                  <input type="checkbox" formControlName="createExpense">
+                  <span>Crear gasto asociado</span>
+                </label>
+                @if (paymentForm.controls.createExpense.value) {
+                  <div class="associated-expense-fields wide">
+                    <p class="hint">El gasto asociado usara el mismo monto y fecha del pago.</p>
+                    <label class="field">
+                      <span>Categoria del gasto</span>
+                      <select formControlName="categoryId">
+                        <option [ngValue]="0">Selecciona</option>
+                        @for (category of expenseCategories(); track category.id) {
+                          <option [ngValue]="category.id">{{ category.name }}</option>
+                        }
+                      </select>
+                    </label>
+                    <label class="field">
+                      <span>Medio de pago del gasto</span>
+                      <select formControlName="paymentMethodId">
+                        <option [ngValue]="0">Selecciona</option>
+                        @for (method of paymentMethods(); track method.id) {
+                          <option [ngValue]="method.id">{{ method.name }}</option>
+                        }
+                      </select>
+                    </label>
+                    <label class="field wide">
+                      <span>Descripcion del gasto</span>
+                      <input type="text" formControlName="expenseDescription">
+                    </label>
+                    @if (paymentForm.hasError('associatedExpenseRequired') && paymentForm.touched) {
+                      <p class="form-error">Categoria, medio de pago y descripcion son requeridos para crear el gasto asociado.</p>
+                    }
+                    @if (!expenseCategories().length || !paymentMethods().length) {
+                      <p class="form-error">Necesitas categorias EXPENSE activas y medios de pago activos para crear el gasto asociado.</p>
+                    }
+                  </div>
+                }
                 <div class="form-actions">
                   <button class="button" type="submit" [disabled]="paymentForm.invalid || debtsStore.isSaving()">Guardar pago</button>
                   <button type="button" (click)="showPaymentForm.set(false)">Cancelar</button>
@@ -306,6 +346,7 @@ export class DebtsPageComponent implements OnInit {
   protected readonly debtsStore = inject(DebtsStore);
   protected readonly accountStore = inject(AccountStore);
   private readonly authStore = inject(AuthStore);
+  private readonly catalogsApi = inject(CatalogsApiService);
   private readonly fb = inject(NonNullableFormBuilder);
 
   readonly accountId = computed(() => this.accountStore.selectedAccountId() ?? 0);
@@ -315,6 +356,8 @@ export class DebtsPageComponent implements OnInit {
   readonly showPaymentForm = signal(false);
   readonly successMessage = signal<string | null>(null);
   readonly paymentFormError = signal<string | null>(null);
+  readonly expenseCategories = signal<CategoryResponseDto[]>([]);
+  readonly paymentMethods = signal<PaymentMethodResponseDto[]>([]);
 
   readonly debtStates: DebtState[] = ['ACTIVE', 'PAID', 'CANCELLED'];
   readonly sourceTypes: DebtSourceType[] = ['MANUAL', 'INSTALLMENT_EXPENSE'];
@@ -350,14 +393,22 @@ export class DebtsPageComponent implements OnInit {
     status: ['ACTIVE' as DebtPaymentStatus]
   });
 
-  readonly paymentForm = this.fb.group({
-    paymentType: ['INSTALLMENT' as DebtPaymentType, [Validators.required]],
-    amount: [0, [Validators.required, Validators.min(0.01)]],
-    paymentDate: [today(), [Validators.required]],
-    notes: ['', [Validators.maxLength(1000)]]
-  });
+  readonly paymentForm = this.fb.group(
+    {
+      paymentType: ['INSTALLMENT' as DebtPaymentType, [Validators.required]],
+      amount: [0, [Validators.required, Validators.min(0.01)]],
+      paymentDate: [today(), [Validators.required]],
+      notes: ['', [Validators.maxLength(1000)]],
+      createExpense: [false],
+      categoryId: [0],
+      paymentMethodId: [0],
+      expenseDescription: ['', [Validators.maxLength(500)]]
+    },
+    { validators: associatedExpenseValidator }
+  );
 
   ngOnInit(): void {
+    this.loadCatalogs();
     this.patchFilterForms(this.debtsStore.loadPersistedFilters(this.accountId()));
     this.debtsStore.loadDebts(this.accountId()).pipe(take(1)).subscribe({ error: () => undefined });
   }
@@ -468,7 +519,11 @@ export class DebtsPageComponent implements OnInit {
       paymentType: 'INSTALLMENT',
       amount: 0,
       paymentDate: today(),
-      notes: ''
+      notes: '',
+      createExpense: false,
+      categoryId: 0,
+      paymentMethodId: 0,
+      expenseDescription: ''
     });
     this.showPaymentForm.set(true);
   }
@@ -492,15 +547,22 @@ export class DebtsPageComponent implements OnInit {
       paymentType: raw.paymentType,
       amount: raw.amount,
       paymentDate: raw.paymentDate,
-      notes: raw.notes || null
+      notes: raw.notes || null,
+      createExpense: raw.createExpense
     };
+
+    if (raw.createExpense) {
+      request.categoryId = raw.categoryId;
+      request.paymentMethodId = raw.paymentMethodId;
+      request.expenseDescription = raw.expenseDescription.trim();
+    }
 
     this.debtsStore
       .registerPayment(this.accountId(), debt.id, request)
       .pipe(take(1))
       .subscribe({
-        next: () => {
-          this.successMessage.set('Pago registrado.');
+        next: (response) => {
+          this.successMessage.set(response.createdExpenseId ? 'Pago registrado y gasto asociado creado.' : 'Pago registrado.');
           this.paymentFormError.set(null);
           this.showPaymentForm.set(false);
         },
@@ -572,10 +634,33 @@ export class DebtsPageComponent implements OnInit {
       DEBT_CANCELLED: 'La deuda esta cancelada.',
       DEBT_NOT_FOUND: 'La deuda no existe o no pertenece a esta cuenta.',
       DEBT_PAYMENT_AMOUNT_INVALID: 'El monto del pago debe ser mayor que cero.',
+      EXPENSE_CATEGORY_NOT_FOUND: 'La categoria del gasto no existe.',
+      EXPENSE_CATEGORY_INACTIVE: 'La categoria del gasto esta inactiva.',
+      EXPENSE_CATEGORY_INVALID_TYPE: 'La categoria del gasto debe ser de tipo EXPENSE.',
+      EXPENSE_PAYMENT_METHOD_NOT_FOUND: 'El medio de pago no existe.',
+      EXPENSE_PAYMENT_METHOD_INACTIVE: 'El medio de pago esta inactivo.',
       VALIDATION_ERROR: 'Revisa los datos del formulario.'
     };
 
     return messages[code] ?? fallback;
+  }
+
+  private loadCatalogs(): void {
+    this.catalogsApi
+      .listCategories(this.accountId(), { type: 'EXPENSE', status: 'ACTIVE', size: 100, sort: 'name,asc' })
+      .pipe(take(1))
+      .subscribe({
+        next: (page) => this.expenseCategories.set(page.content),
+        error: () => this.expenseCategories.set([])
+      });
+
+    this.catalogsApi
+      .listPaymentMethods(this.accountId(), { status: 'ACTIVE', size: 100, sort: 'name,asc' })
+      .pipe(take(1))
+      .subscribe({
+        next: (page) => this.paymentMethods.set(page.content),
+        error: () => this.paymentMethods.set([])
+      });
   }
 
   private patchFilterForms(filters: DebtsPersistedFilters): void {
@@ -610,6 +695,22 @@ export function installmentPairValidator(control: AbstractControl): ValidationEr
   const hasAmount = installmentAmount !== null && installmentAmount !== undefined && installmentAmount !== '';
 
   return hasCount === hasAmount ? null : { installmentsPairRequired: true };
+}
+
+export function associatedExpenseValidator(control: AbstractControl): ValidationErrors | null {
+  const createExpense = Boolean(control.get('createExpense')?.value);
+
+  if (!createExpense) {
+    return null;
+  }
+
+  const categoryId = Number(control.get('categoryId')?.value);
+  const paymentMethodId = Number(control.get('paymentMethodId')?.value);
+  const expenseDescription = control.get('expenseDescription')?.value;
+
+  return categoryId > 0 && paymentMethodId > 0 && typeof expenseDescription === 'string' && expenseDescription.trim()
+    ? null
+    : { associatedExpenseRequired: true };
 }
 
 function today(): string {
