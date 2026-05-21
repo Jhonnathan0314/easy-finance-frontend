@@ -3,7 +3,7 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { take } from 'rxjs';
 
-import { AnalyticsStore, monthPeriodFromRange } from '../../core/analytics/analytics.store';
+import { AnalyticsStore, monthDateRange, monthPeriodFromRange } from '../../core/analytics/analytics.store';
 import { AccountStore } from '../../core/state/account.store';
 import {
   AnalyticsDashboardFilters,
@@ -15,6 +15,7 @@ import {
 } from '../../shared/models';
 
 type QuickPreset = 'THIS_MONTH' | 'LAST_30_DAYS' | 'LAST_3_MONTHS' | 'THIS_YEAR';
+type DashboardTab = 'summary' | 'cashflow' | 'expenses' | 'budget';
 
 @Component({
   selector: 'ef-dashboard-page',
@@ -73,14 +74,36 @@ type QuickPreset = 'THIS_MONTH' | 'LAST_30_DAYS' | 'LAST_3_MONTHS' | 'THIS_YEAR'
           </button>
         </div>
 
+        <div class="filters specific-month-filter" aria-label="Mes especifico">
+          <label>
+            <span>Anio</span>
+            <select formControlName="specificYear">
+              <option value="">Seleccionar</option>
+              @for (year of yearOptions; track year) {
+                <option [value]="year">{{ year }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            <span>Mes</span>
+            <select formControlName="specificMonth">
+              <option value="">Seleccionar</option>
+              @for (month of monthOptions; track month.value) {
+                <option [value]="month.value">{{ month.label }}</option>
+              }
+            </select>
+          </label>
+          <button type="button" (click)="applySpecificMonth()" [disabled]="analyticsStore.loading()">Aplicar mes</button>
+        </div>
+
         <div class="filters">
           <label>
             <span>Desde</span>
-            <input type="date" formControlName="from">
+            <input type="date" formControlName="from" (change)="syncSpecificMonthFromRange()">
           </label>
           <label>
             <span>Hasta</span>
-            <input type="date" formControlName="to">
+            <input type="date" formControlName="to" (change)="syncSpecificMonthFromRange()">
           </label>
           <button type="button" class="secondary-button" (click)="advancedOpen.update(toggle)">
             {{ advancedOpen() ? 'Ocultar filtros' : 'Filtros avanzados' }}
@@ -181,251 +204,275 @@ type QuickPreset = 'THIS_MONTH' | 'LAST_30_DAYS' | 'LAST_3_MONTHS' | 'THIS_YEAR'
         </div>
       }
 
-      @if (analyticsStore.cashflowSummary(); as cashflow) {
-        <section class="dashboard-section" aria-label="Cashflow real">
-          <div class="section-heading">
-            <div>
-              <h2>Cashflow real</h2>
-              <span>{{ cashflow.from }} a {{ cashflow.to }}</span>
-            </div>
-            <span class="badge">Dinero real</span>
-          </div>
-          <div class="kpi-grid">
-            <article class="metric-card">
-              <span>Ingresos reales</span>
-              <strong>{{ cashflow.totalIncome | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
-            </article>
-            <article class="metric-card">
-              <span>Gastos reales pagados</span>
-              <strong>{{ cashflow.totalSimpleExpenseOutflow | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
-            </article>
-            <article class="metric-card">
-              <span>Pagos deuda</span>
-              <strong>{{ cashflow.totalDebtPaymentOutflow | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
-            </article>
-            <article class="metric-card">
-              <span>Salida total</span>
-              <strong>{{ cashflow.totalOutflow | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
-            </article>
-            <article class="metric-card" [class.positive]="cashflow.netCashflow >= 0" [class.negative]="cashflow.netCashflow < 0">
-              <span>Neto</span>
-              <strong>{{ cashflow.netCashflow | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
-            </article>
-          </div>
-          <p class="generated-at">Generado {{ cashflow.generatedAt | date: 'medium' }}</p>
-        </section>
-      }
+      <nav class="dashboard-tabs" role="tablist" aria-label="Secciones del dashboard">
+        @for (tab of dashboardTabs; track tab.id) {
+          <button
+            type="button"
+            role="tab"
+            [class.active]="activeDashboardTab() === tab.id"
+            [attr.aria-selected]="activeDashboardTab() === tab.id"
+            (click)="activeDashboardTab.set(tab.id)"
+          >
+            {{ tab.label }}
+          </button>
+        }
+      </nav>
 
-      @if (analyticsStore.expenseSummary(); as expenses) {
-        <section class="dashboard-section" aria-label="Gastos conceptuales">
-          <div class="section-heading">
-            <div>
-              <h2>Compras y gastos conceptuales</h2>
-              <span>{{ expenses.from }} a {{ expenses.to }}</span>
-            </div>
-            <span class="badge muted-badge">Incluye cuotas</span>
-          </div>
-          <div class="kpi-grid">
-            <article class="metric-card">
-              <span>Gastos simples</span>
-              <strong>{{ expenses.totalSimpleExpenses | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
-            </article>
-            <article class="metric-card">
-              <span>Compras cuotas</span>
-              <strong>{{ expenses.totalInstallmentPurchases | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
-            </article>
-            <article class="metric-card">
-              <span>Total conceptual</span>
-              <strong>{{ expenses.totalExpensesConceptual | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
-            </article>
-            <article class="metric-card">
-              <span>Cantidad gastos</span>
-              <strong>{{ expenses.expensesCount }}</strong>
-            </article>
-          </div>
-        </section>
-      }
-
-      <section class="panel budget-comparison-panel" aria-label="Presupuesto vs gastos por categoria">
-        @if (monthlyBudgetComparisonPeriod(); as period) {
-          <div class="section-heading">
-            <div>
-              <h2>Presupuesto vs gastos por categoria</h2>
-              <span>{{ periodLabel(period.year, period.month) }}</span>
-            </div>
-            <span class="badge">Mensual</span>
-          </div>
-
-          @if (analyticsStore.loading()) {
-            <p class="muted">Cargando comparacion de presupuesto...</p>
-          } @else if (analyticsStore.budgetVsExpensesByCategory(); as comparison) {
-            @if (comparison.length) {
-              <div class="comparison-table" role="table" aria-label="Comparacion de presupuesto y gasto conceptual">
-                <div class="comparison-row comparison-head" role="row">
-                  <span role="columnheader">Categoria</span>
-                  <span role="columnheader">Presupuestado</span>
-                  <span role="columnheader">Gastado</span>
-                  <span role="columnheader">Restante</span>
-                  <span role="columnheader">Ejecucion</span>
+      @switch (activeDashboardTab()) {
+        @case ('summary') {
+          @if (analyticsStore.cashflowSummary(); as cashflow) {
+            <section class="dashboard-section" aria-label="Cashflow real">
+              <div class="section-heading">
+                <div>
+                  <h2>Cashflow real</h2>
+                  <span>{{ cashflow.from }} a {{ cashflow.to }}</span>
                 </div>
-                @for (item of comparison; track item.categoryId) {
-                  <div class="comparison-row" [class.overrun]="item.remainingAmount < 0" role="row">
-                    <strong role="cell">{{ item.categoryName }}</strong>
-                    <span role="cell">{{ item.budgetedAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}</span>
-                    <span role="cell">{{ item.spentAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}</span>
-                    <span role="cell" [class.negative-text]="item.remainingAmount < 0">
-                      {{ item.remainingAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}
-                      @if (item.remainingAmount < 0) {
-                        <em class="negative-text">Sobre-ejecucion</em>
-                      }
-                    </span>
-                    <span role="cell">
-                      @if (item.executionPercentage === null || item.executionPercentage === undefined) {
-                        <span class="muted">Sin presupuesto</span>
-                      } @else {
-                        {{ item.executionPercentage | number: '1.0-2' }}%
-                        <span class="bar-track comparison-progress" aria-hidden="true">
-                          <span [style.width.%]="executionBarPercent(item)"></span>
-                        </span>
-                      }
-                    </span>
-                  </div>
+                <span class="badge">Dinero real</span>
+              </div>
+              <div class="kpi-grid">
+                <article class="metric-card">
+                  <span>Ingresos reales</span>
+                  <strong>{{ cashflow.totalIncome | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
+                </article>
+                <article class="metric-card">
+                  <span>Gastos reales pagados</span>
+                  <strong>{{ cashflow.totalSimpleExpenseOutflow | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
+                </article>
+                <article class="metric-card">
+                  <span>Pagos deuda</span>
+                  <strong>{{ cashflow.totalDebtPaymentOutflow | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
+                </article>
+                <article class="metric-card">
+                  <span>Salida total</span>
+                  <strong>{{ cashflow.totalOutflow | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
+                </article>
+                <article class="metric-card" [class.positive]="cashflow.netCashflow >= 0" [class.negative]="cashflow.netCashflow < 0">
+                  <span>Neto</span>
+                  <strong>{{ cashflow.netCashflow | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
+                </article>
+              </div>
+              <p class="generated-at">Generado {{ cashflow.generatedAt | date: 'medium' }}</p>
+            </section>
+          }
+
+          @if (analyticsStore.expenseSummary(); as expenses) {
+            <section class="dashboard-section" aria-label="Gastos conceptuales">
+              <div class="section-heading">
+                <div>
+                  <h2>Compras y gastos conceptuales</h2>
+                  <span>{{ expenses.from }} a {{ expenses.to }}</span>
+                </div>
+                <span class="badge muted-badge">Incluye cuotas</span>
+              </div>
+              <div class="kpi-grid">
+                <article class="metric-card">
+                  <span>Gastos simples</span>
+                  <strong>{{ expenses.totalSimpleExpenses | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
+                </article>
+                <article class="metric-card">
+                  <span>Compras cuotas</span>
+                  <strong>{{ expenses.totalInstallmentPurchases | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
+                </article>
+                <article class="metric-card">
+                  <span>Total conceptual</span>
+                  <strong>{{ expenses.totalExpensesConceptual | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
+                </article>
+                <article class="metric-card">
+                  <span>Cantidad gastos</span>
+                  <strong>{{ expenses.expensesCount }}</strong>
+                </article>
+              </div>
+            </section>
+          }
+        }
+
+        @case ('cashflow') {
+          <section class="panel breakdown-panel timeline-panel">
+            <div class="section-heading">
+              <h2>Timeline cashflow</h2>
+              @if (analyticsStore.cashflowTimeline(); as timeline) {
+                <span>{{ timeline.groupBy }}</span>
+              }
+            </div>
+            @if (analyticsStore.cashflowTimeline()?.items?.length) {
+              <div class="timeline-list">
+                @for (item of analyticsStore.cashflowTimeline()?.items ?? []; track item.period) {
+                  <article class="timeline-row">
+                    <div class="row-heading">
+                      <strong>{{ item.period }}</strong>
+                      <span [class.positive-text]="item.netCashflow >= 0" [class.negative-text]="item.netCashflow < 0">
+                        {{ item.netCashflow | currency: 'COP':'symbol-narrow':'1.0-0' }}
+                      </span>
+                    </div>
+                    <div class="timeline-bars">
+                      <span class="income-bar" [style.width.%]="cashflowPercent(item.totalIncome)"></span>
+                      <span class="outflow-bar" [style.width.%]="cashflowPercent(item.totalOutflow)"></span>
+                    </div>
+                    <div class="timeline-detail">
+                      <span>Ingreso {{ item.totalIncome | currency: 'COP':'symbol-narrow':'1.0-0' }}</span>
+                      <span>Gasto real {{ item.simpleExpenseOutflow | currency: 'COP':'symbol-narrow':'1.0-0' }}</span>
+                      <span>Deuda {{ item.debtPaymentOutflow | currency: 'COP':'symbol-narrow':'1.0-0' }}</span>
+                    </div>
+                  </article>
                 }
               </div>
             } @else {
-              <p class="muted">No hay presupuesto ni gastos por categoria para este mes.</p>
+              <p class="muted">No hay cashflow para graficar en este rango.</p>
             }
-          } @else {
-            <p class="muted">No hay datos de comparacion para este mes.</p>
-          }
-        } @else {
-          <div class="section-heading">
-            <div>
-              <h2>Presupuesto vs gastos por categoria</h2>
-              <span>Comparacion mensual</span>
-            </div>
-            <span class="badge muted-badge">Mes especifico</span>
-          </div>
-          <p class="muted">La comparacion contra presupuesto esta disponible para un mes especifico.</p>
+          </section>
         }
-      </section>
 
-      <div class="dashboard-grid">
-        <section class="panel breakdown-panel">
-          <div class="section-heading">
-            <h2>Gastos por categoria</h2>
-            @if (analyticsStore.expensesByCategory(); as breakdown) {
-              <span>{{ breakdown.from }} a {{ breakdown.to }}</span>
-            }
-          </div>
-          @if (analyticsStore.expensesByCategory()?.items?.length) {
-            <div class="breakdown-list">
-              @for (item of analyticsStore.expensesByCategory()?.items ?? []; track item.categoryId) {
-                <article class="breakdown-row">
-                  <div class="row-heading">
-                    <strong>{{ item.categoryName }}</strong>
-                    <span>{{ item.count }} registros</span>
-                  </div>
-                  <div class="bar-track">
-                    <span [style.width.%]="categoryPercent(item, analyticsStore.expensesByCategory()?.items ?? [])"></span>
-                  </div>
-                  <strong>{{ item.amount | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
-                </article>
+        @case ('expenses') {
+          <div class="dashboard-grid">
+            <section class="panel breakdown-panel">
+              <div class="section-heading">
+                <h2>Gastos por categoria</h2>
+                @if (analyticsStore.expensesByCategory(); as breakdown) {
+                  <span>{{ breakdown.from }} a {{ breakdown.to }}</span>
+                }
+              </div>
+              @if (analyticsStore.expensesByCategory()?.items?.length) {
+                <div class="breakdown-list">
+                  @for (item of analyticsStore.expensesByCategory()?.items ?? []; track item.categoryId) {
+                    <article class="breakdown-row">
+                      <div class="row-heading">
+                        <strong>{{ item.categoryName }}</strong>
+                        <span>{{ item.count }} registros</span>
+                      </div>
+                      <div class="bar-track">
+                        <span [style.width.%]="categoryPercent(item, analyticsStore.expensesByCategory()?.items ?? [])"></span>
+                      </div>
+                      <strong>{{ item.amount | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
+                    </article>
+                  }
+                </div>
+              } @else {
+                <p class="muted">No hay gastos por categoria para este rango.</p>
               }
-            </div>
-          } @else {
-            <p class="muted">No hay gastos por categoria para este rango.</p>
-          }
-        </section>
+            </section>
 
-        <section class="panel breakdown-panel">
-          <div class="section-heading">
-            <h2>Gastos por medio de pago</h2>
-            @if (analyticsStore.expensesByPaymentMethod(); as breakdown) {
-              <span>{{ breakdown.from }} a {{ breakdown.to }}</span>
-            }
-          </div>
-          @if (analyticsStore.expensesByPaymentMethod()?.items?.length) {
-            <div class="breakdown-list">
-              @for (item of analyticsStore.expensesByPaymentMethod()?.items ?? []; track item.paymentMethodId ?? item.paymentMethodName) {
-                <article class="breakdown-row payment">
-                  <div class="row-heading">
-                    <strong>{{ item.paymentMethodName }}</strong>
-                    <span>{{ item.count }} registros</span>
-                  </div>
-                  <div class="bar-track">
-                    <span [style.width.%]="paymentMethodPercent(item, analyticsStore.expensesByPaymentMethod()?.items ?? [])"></span>
-                  </div>
-                  <strong>{{ item.amount | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
-                </article>
+            <section class="panel breakdown-panel">
+              <div class="section-heading">
+                <h2>Gastos por medio de pago</h2>
+                @if (analyticsStore.expensesByPaymentMethod(); as breakdown) {
+                  <span>{{ breakdown.from }} a {{ breakdown.to }}</span>
+                }
+              </div>
+              @if (analyticsStore.expensesByPaymentMethod()?.items?.length) {
+                <div class="breakdown-list">
+                  @for (item of analyticsStore.expensesByPaymentMethod()?.items ?? []; track item.paymentMethodId ?? item.paymentMethodName) {
+                    <article class="breakdown-row payment">
+                      <div class="row-heading">
+                        <strong>{{ item.paymentMethodName }}</strong>
+                        <span>{{ item.count }} registros</span>
+                      </div>
+                      <div class="bar-track">
+                        <span [style.width.%]="paymentMethodPercent(item, analyticsStore.expensesByPaymentMethod()?.items ?? [])"></span>
+                      </div>
+                      <strong>{{ item.amount | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
+                    </article>
+                  }
+                </div>
+              } @else {
+                <p class="muted">No hay gastos por medio de pago para este rango.</p>
               }
-            </div>
-          } @else {
-            <p class="muted">No hay gastos por medio de pago para este rango.</p>
-          }
-        </section>
+            </section>
 
-        <section class="panel breakdown-panel">
-          <div class="section-heading">
-            <h2>Ingresos por categoria</h2>
-            @if (analyticsStore.incomesByCategory(); as breakdown) {
-              <span>{{ breakdown.from }} a {{ breakdown.to }}</span>
-            }
-          </div>
-          @if (analyticsStore.incomesByCategory()?.items?.length) {
-            <div class="breakdown-list">
-              @for (item of analyticsStore.incomesByCategory()?.items ?? []; track item.categoryId) {
-                <article class="breakdown-row income">
-                  <div class="row-heading">
-                    <strong>{{ item.categoryName }}</strong>
-                    <span>{{ item.count }} registros</span>
-                  </div>
-                  <div class="bar-track">
-                    <span [style.width.%]="categoryPercent(item, analyticsStore.incomesByCategory()?.items ?? [])"></span>
-                  </div>
-                  <strong>{{ item.amount | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
-                </article>
+            <section class="panel breakdown-panel">
+              <div class="section-heading">
+                <h2>Ingresos por categoria</h2>
+                @if (analyticsStore.incomesByCategory(); as breakdown) {
+                  <span>{{ breakdown.from }} a {{ breakdown.to }}</span>
+                }
+              </div>
+              @if (analyticsStore.incomesByCategory()?.items?.length) {
+                <div class="breakdown-list">
+                  @for (item of analyticsStore.incomesByCategory()?.items ?? []; track item.categoryId) {
+                    <article class="breakdown-row income">
+                      <div class="row-heading">
+                        <strong>{{ item.categoryName }}</strong>
+                        <span>{{ item.count }} registros</span>
+                      </div>
+                      <div class="bar-track">
+                        <span [style.width.%]="categoryPercent(item, analyticsStore.incomesByCategory()?.items ?? [])"></span>
+                      </div>
+                      <strong>{{ item.amount | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
+                    </article>
+                  }
+                </div>
+              } @else {
+                <p class="muted">No hay ingresos por categoria para este rango.</p>
               }
-            </div>
-          } @else {
-            <p class="muted">No hay ingresos por categoria para este rango.</p>
-          }
-        </section>
+            </section>
+          </div>
+        }
 
-        <section class="panel breakdown-panel timeline-panel">
-          <div class="section-heading">
-            <h2>Timeline cashflow</h2>
-            @if (analyticsStore.cashflowTimeline(); as timeline) {
-              <span>{{ timeline.groupBy }}</span>
-            }
-          </div>
-          @if (analyticsStore.cashflowTimeline()?.items?.length) {
-            <div class="timeline-list">
-              @for (item of analyticsStore.cashflowTimeline()?.items ?? []; track item.period) {
-                <article class="timeline-row">
-                  <div class="row-heading">
-                    <strong>{{ item.period }}</strong>
-                    <span [class.positive-text]="item.netCashflow >= 0" [class.negative-text]="item.netCashflow < 0">
-                      {{ item.netCashflow | currency: 'COP':'symbol-narrow':'1.0-0' }}
-                    </span>
+        @case ('budget') {
+          <section class="panel budget-comparison-panel" aria-label="Presupuesto vs gastos por categoria">
+            @if (monthlyBudgetComparisonPeriod(); as period) {
+              <div class="section-heading">
+                <div>
+                  <h2>Presupuesto vs gastos por categoria</h2>
+                  <span>{{ periodLabel(period.year, period.month) }}</span>
+                </div>
+                <span class="badge">Mensual</span>
+              </div>
+
+              @if (analyticsStore.loading()) {
+                <p class="muted">Cargando comparacion de presupuesto...</p>
+              } @else if (analyticsStore.budgetVsExpensesByCategory(); as comparison) {
+                @if (comparison.length) {
+                  <div class="comparison-table" role="table" aria-label="Comparacion de presupuesto y gasto conceptual">
+                    <div class="comparison-row comparison-head" role="row">
+                      <span role="columnheader">Categoria</span>
+                      <span role="columnheader">Presupuestado</span>
+                      <span role="columnheader">Gastado</span>
+                      <span role="columnheader">Restante</span>
+                      <span role="columnheader">Ejecucion</span>
+                    </div>
+                    @for (item of comparison; track item.categoryId) {
+                      <div class="comparison-row" [class.overrun]="item.remainingAmount < 0" role="row">
+                        <strong role="cell">{{ item.categoryName }}</strong>
+                        <span role="cell">{{ item.budgetedAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}</span>
+                        <span role="cell">{{ item.spentAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}</span>
+                        <span role="cell" [class.negative-text]="item.remainingAmount < 0">
+                          {{ item.remainingAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}
+                          @if (item.remainingAmount < 0) {
+                            <em class="negative-text">Sobre-ejecucion</em>
+                          }
+                        </span>
+                        <span role="cell">
+                          @if (item.executionPercentage === null || item.executionPercentage === undefined) {
+                            <span class="muted">Sin presupuesto</span>
+                          } @else {
+                            {{ item.executionPercentage | number: '1.0-2' }}%
+                            <span class="bar-track comparison-progress" aria-hidden="true">
+                              <span [style.width.%]="executionBarPercent(item)"></span>
+                            </span>
+                          }
+                        </span>
+                      </div>
+                    }
                   </div>
-                  <div class="timeline-bars">
-                    <span class="income-bar" [style.width.%]="cashflowPercent(item.totalIncome)"></span>
-                    <span class="outflow-bar" [style.width.%]="cashflowPercent(item.totalOutflow)"></span>
-                  </div>
-                  <div class="timeline-detail">
-                    <span>Ingreso {{ item.totalIncome | currency: 'COP':'symbol-narrow':'1.0-0' }}</span>
-                    <span>Gasto real {{ item.simpleExpenseOutflow | currency: 'COP':'symbol-narrow':'1.0-0' }}</span>
-                    <span>Deuda {{ item.debtPaymentOutflow | currency: 'COP':'symbol-narrow':'1.0-0' }}</span>
-                  </div>
-                </article>
+                } @else {
+                  <p class="muted">No hay presupuesto ni gastos por categoria para este mes.</p>
+                }
+              } @else {
+                <p class="muted">No hay datos de comparacion para este mes.</p>
               }
-            </div>
-          } @else {
-            <p class="muted">No hay cashflow para graficar en este rango.</p>
-          }
-        </section>
-      </div>
+            } @else {
+              <div class="section-heading">
+                <div>
+                  <h2>Presupuesto vs gastos por categoria</h2>
+                  <span>Comparacion mensual</span>
+                </div>
+                <span class="badge muted-badge">Mes especifico</span>
+              </div>
+              <p class="muted">La comparacion contra presupuesto esta disponible para un mes especifico.</p>
+            }
+          </section>
+        }
+      }
     </section>
   `
 })
@@ -435,14 +482,38 @@ export class DashboardPageComponent implements OnInit {
   private readonly fb = inject(NonNullableFormBuilder);
 
   readonly groupByOptions: CashflowGroupBy[] = ['DAY', 'WEEK', 'MONTH'];
+  readonly yearOptions = Array.from({ length: 101 }, (_, index) => 2000 + index);
+  readonly monthOptions = [
+    { value: 1, label: 'Enero' },
+    { value: 2, label: 'Febrero' },
+    { value: 3, label: 'Marzo' },
+    { value: 4, label: 'Abril' },
+    { value: 5, label: 'Mayo' },
+    { value: 6, label: 'Junio' },
+    { value: 7, label: 'Julio' },
+    { value: 8, label: 'Agosto' },
+    { value: 9, label: 'Septiembre' },
+    { value: 10, label: 'Octubre' },
+    { value: 11, label: 'Noviembre' },
+    { value: 12, label: 'Diciembre' }
+  ];
+  readonly dashboardTabs: { id: DashboardTab; label: string }[] = [
+    { id: 'summary', label: 'Resumen' },
+    { id: 'cashflow', label: 'Cashflow' },
+    { id: 'expenses', label: 'Gastos' },
+    { id: 'budget', label: 'Presupuesto' }
+  ];
   readonly skeletonItems = Array.from({ length: 6 }, (_, index) => index);
   readonly advancedOpen = signal(false);
+  readonly activeDashboardTab = signal<DashboardTab>('summary');
   readonly localError = signal<string | null>(null);
   readonly accountId = computed(() => this.accountStore.selectedAccountId() ?? 0);
   readonly toggle = (value: boolean) => !value;
   readonly filtersForm = this.fb.group({
     from: ['', [Validators.required]],
     to: ['', [Validators.required]],
+    specificYear: [''],
+    specificMonth: [''],
     participantId: [''],
     expenseCategoryId: [''],
     incomeCategoryId: [''],
@@ -462,10 +533,27 @@ export class DashboardPageComponent implements OnInit {
   applyPreset(preset: QuickPreset, reload = true): void {
     const range = presetRange(preset);
     this.filtersForm.patchValue({ from: range.from, to: range.to });
+    this.syncSpecificMonthFromRange();
 
     if (reload) {
       this.loadDashboard();
     }
+  }
+
+  applySpecificMonth(): void {
+    const raw = this.filtersForm.getRawValue();
+    const year = nullableNumber(raw.specificYear);
+    const month = nullableNumber(raw.specificMonth);
+
+    if (!year || !month || year < 2000 || year > 2100 || month < 1 || month > 12) {
+      this.localError.set('Selecciona un anio y mes validos.');
+      return;
+    }
+
+    const range = monthDateRange(year, month);
+    this.filtersForm.patchValue({ from: range.from, to: range.to });
+    this.localError.set(null);
+    this.loadDashboard();
   }
 
   activePreset(): QuickPreset | null {
@@ -545,6 +633,20 @@ export class DashboardPageComponent implements OnInit {
       expenseType: filters.expenseType ?? '',
       groupBy: filters.groupBy
     });
+    this.syncSpecificMonthFromRange();
+  }
+
+  syncSpecificMonthFromRange(): void {
+    const raw = this.filtersForm.getRawValue();
+    const period = monthPeriodFromRange(raw.from, raw.to);
+
+    this.filtersForm.patchValue(
+      {
+        specificYear: period ? String(period.year) : '',
+        specificMonth: period ? String(period.month) : ''
+      },
+      { emitEvent: false }
+    );
   }
 
   validateFilters(): string | null {

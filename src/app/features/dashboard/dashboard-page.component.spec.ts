@@ -169,12 +169,30 @@ describe('DashboardPageComponent', () => {
     return fixture;
   }
 
+  function clickTab(fixture: ComponentFixture<DashboardPageComponent>, label: string): void {
+    const button = Array.from(fixture.nativeElement.querySelectorAll('.dashboard-tabs button')).find((item) =>
+      (item as HTMLElement).textContent?.includes(label)
+    ) as HTMLButtonElement;
+
+    button.click();
+    fixture.detectChanges();
+  }
+
   afterEach(() => TestBed.resetTestingModule());
 
-  it('shows cashflow and conceptual expense cards', () => {
+  it('renders local tabs and shows summary by default', () => {
     const fixture = configure();
     const text = fixture.nativeElement.textContent;
 
+    expect(text).toContain('Resumen');
+    expect(text).toContain('Cashflow');
+    expect(text).toContain('Gastos');
+    expect(text).toContain('Presupuesto');
+    expect(fixture.nativeElement.querySelector('.dashboard-tabs button.active')?.textContent).toContain('Resumen');
+    expect(text).toContain('Aplicar mes');
+    expect(text).toContain('Marzo');
+    expect(text).toContain('Desde');
+    expect(text).toContain('Hasta');
     expect(text).toContain('Cashflow real');
     expect(text).toContain('Ingresos reales');
     expect(text).toContain('Gastos reales pagados');
@@ -212,6 +230,62 @@ describe('DashboardPageComponent', () => {
     const currentYear = new Date().getFullYear();
     expect(raw.from).toBe(`${currentYear}-01-01`);
     expect(raw.to).toBe(`${currentYear}-12-31`);
+  });
+
+  it('applies a specific month range', () => {
+    const fixture = configure();
+    const store = TestBed.inject(AnalyticsStore) as jasmine.SpyObj<AnalyticsStore>;
+    store.applyFilters.calls.reset();
+
+    fixture.componentInstance.filtersForm.patchValue({ specificYear: '2026', specificMonth: '3' });
+    fixture.componentInstance.applySpecificMonth();
+
+    expect(fixture.componentInstance.filtersForm.getRawValue()).toEqual(jasmine.objectContaining({
+      from: '2026-03-01',
+      to: '2026-03-31',
+      specificYear: '2026',
+      specificMonth: '3'
+    }));
+    expect(store.applyFilters).toHaveBeenCalledWith(1, jasmine.objectContaining({
+      from: '2026-03-01',
+      to: '2026-03-31'
+    }));
+  });
+
+  it('calculates leap year February for a specific month', () => {
+    const fixture = configure();
+
+    fixture.componentInstance.filtersForm.patchValue({ specificYear: '2024', specificMonth: '2' });
+    fixture.componentInstance.applySpecificMonth();
+
+    expect(fixture.componentInstance.filtersForm.getRawValue()).toEqual(jasmine.objectContaining({
+      from: '2024-02-01',
+      to: '2024-02-29'
+    }));
+  });
+
+  it('syncs the specific month selector when from and to are an exact month', () => {
+    const fixture = configure();
+
+    fixture.componentInstance.filtersForm.patchValue({ from: '2026-07-01', to: '2026-07-31' });
+    fixture.componentInstance.syncSpecificMonthFromRange();
+
+    expect(fixture.componentInstance.filtersForm.getRawValue()).toEqual(jasmine.objectContaining({
+      specificYear: '2026',
+      specificMonth: '7'
+    }));
+  });
+
+  it('clears the specific month selector when from and to are not an exact month', () => {
+    const fixture = configure();
+
+    fixture.componentInstance.filtersForm.patchValue({ from: '2026-07-02', to: '2026-07-31' });
+    fixture.componentInstance.syncSpecificMonthFromRange();
+
+    expect(fixture.componentInstance.filtersForm.getRawValue()).toEqual(jasmine.objectContaining({
+      specificYear: '',
+      specificMonth: ''
+    }));
   });
 
   it('marks the matching quick preset as active', () => {
@@ -295,18 +369,40 @@ describe('DashboardPageComponent', () => {
     expect(store.applyFilters).toHaveBeenCalledWith(1, jasmine.objectContaining({ groupBy: 'WEEK' }), { persist: false });
   });
 
-  it('shows timeline and payment method breakdown', () => {
+  it('shows cashflow timeline in the cashflow tab', () => {
     const fixture = configure();
+
+    clickTab(fixture, 'Cashflow');
+
     const text = fixture.nativeElement.textContent;
 
     expect(text).toContain('Timeline cashflow');
     expect(text).toContain('2026-W18');
+    expect(text).toContain('Ingreso');
+    expect(text).toContain('Gasto real');
+    expect(text).toContain('Deuda');
+  });
+
+  it('shows expense breakdowns in the expenses tab', () => {
+    const fixture = configure();
+
+    clickTab(fixture, 'Gastos');
+
+    const text = fixture.nativeElement.textContent;
+
+    expect(text).toContain('Gastos por categoria');
+    expect(text).toContain('Food');
     expect(text).toContain('Gastos por medio de pago');
     expect(text).toContain('Cash');
+    expect(text).toContain('Ingresos por categoria');
+    expect(text).toContain('Salary');
   });
 
   it('shows monthly budget versus expenses comparison', () => {
     const fixture = configure();
+
+    clickTab(fixture, 'Presupuesto');
+
     const text = fixture.nativeElement.textContent;
 
     expect(text).toContain('Presupuesto vs gastos por categoria');
@@ -319,6 +415,9 @@ describe('DashboardPageComponent', () => {
 
   it('shows overrun and no-budget states in budget comparison', () => {
     const fixture = configure();
+
+    clickTab(fixture, 'Presupuesto');
+
     const text = fixture.nativeElement.textContent;
 
     expect(text).toContain('Unexpected');
@@ -331,6 +430,7 @@ describe('DashboardPageComponent', () => {
     const fixture = configure();
 
     fixture.componentInstance.filtersForm.patchValue({ from: '2026-05-10', to: '2026-05-31' });
+    clickTab(fixture, 'Presupuesto');
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toContain('La comparacion contra presupuesto esta disponible para un mes especifico');
@@ -338,6 +438,8 @@ describe('DashboardPageComponent', () => {
 
   it('shows budget comparison empty state', () => {
     const fixture = configure({ budgetVsExpensesByCategory: [] });
+
+    clickTab(fixture, 'Presupuesto');
 
     expect(fixture.nativeElement.textContent).toContain('No hay presupuesto ni gastos por categoria para este mes');
   });
