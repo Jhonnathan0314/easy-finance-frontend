@@ -1,6 +1,6 @@
 # Angular Architecture
 
-Use the latest stable Angular version available in the target environment.
+Use Angular 21 with standalone components and TypeScript strict.
 
 ## Recommended Shape
 
@@ -37,7 +37,7 @@ src/app/
     debts/
     budgets/
     income/
-    analytics/
+    dashboard/
     imports/
 ```
 
@@ -54,7 +54,14 @@ Keep state lean:
 - Auth user/token in `AuthStore`.
 - Selected account in `AccountStore`.
 - Catalog cache per account.
-- Current filters in each feature route.
+- Feature stores with signals for route-local data.
+- Persisted filters per account through `FeatureFilterStorageService` for expenses, analytics dashboard, income, debts, budgets and catalogs.
 
 Avoid global state for every table row; refetch on route changes or after mutations.
 
+## Current Navigation Notes
+
+- Dashboard is the single analytics experience.
+- The legacy `/app/accounts/:accountId/analytics` route redirects to Dashboard for old links.
+- The sidebar must not expose an Analytics placeholder.
+- Switching account from the topbar preserves the current account-scoped section when safe.

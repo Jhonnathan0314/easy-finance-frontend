@@ -1,6 +1,6 @@
 # Frontend QA Smoke - Easy Finance
 
-Fecha de preparacion: 2026-05-14
+Fecha de preparacion: 2026-05-21
 
 ## Precondiciones
 
@@ -11,6 +11,7 @@ Fecha de preparacion: 2026-05-14
 - Base de datos local disponible y migraciones aplicadas.
 - Navegador con `localStorage` limpio para una corrida desde cero.
 - Archivo Excel `.xlsx` para imports con maximo 5MB y hasta 1000 filas.
+- Para imports con pago de deuda, debe existir una deuda activa en la cuenta.
 
 Nota de esta revision: desde esta sesion no fue posible conectar con `http://localhost:8080`; el smoke real queda documentado para ejecucion manual cuando el backend este arriba.
 
@@ -31,6 +32,7 @@ URL frontend esperada: `http://localhost:4200`.
 - `/register`
 - `/app/accounts`
 - `/app/accounts/:accountId/dashboard`
+- `/app/accounts/:accountId/analytics` debe redirigir a `/app/accounts/:accountId/dashboard`
 - `/app/accounts/:accountId/catalogs`
 - `/app/accounts/:accountId/expenses`
 - `/app/accounts/:accountId/debts`
@@ -45,6 +47,7 @@ Expected:
 - `/login` y `/register` redirigen a `/app/accounts` con sesion activa.
 - Rutas con `:accountId` redirigen a `/app/accounts` si la cuenta no pertenece al usuario.
 - La cuenta seleccionada persiste tras refresh si sigue perteneciendo al usuario.
+- Cambiar cuenta desde el topbar preserva la seccion actual cuando la ruta es account-scoped.
 
 ## Datos De Prueba
 
@@ -91,19 +94,19 @@ Excel imports:
 Cabeceras requeridas:
 
 ```text
-Fecha | Descripcion | Monto | Categoria | MedioPago | EstadoPago
+Fecha | Descripcion | Monto | Categoria | MedioPago | EstadoPago | AplicaPagoDeuda | Deuda | TipoPagoDeuda | NotasPagoDeuda
 ```
 
 Fila valida sugerida:
 
 ```text
-2026-05-14 | Compra import QA | 30000 | Mercado QA | Efectivo QA | PAID
+2026-05-14 | Compra import QA | 30000 | Mercado QA | Efectivo QA | PAID | NO |  |  |
 ```
 
 Fila invalida sugerida:
 
 ```text
-2026-05-14 | Categoria inexistente | 15000 | No Existe QA | Efectivo QA | PAID
+2026-05-14 | Categoria inexistente | 15000 | No Existe QA | Efectivo QA | PAID | NO |  |  |
 ```
 
 ## Smoke Flow
@@ -128,12 +131,14 @@ Expected:
 1. Abrir `/app/accounts`.
 2. Crear cuenta `QA Personal`.
 3. Seleccionarla.
-4. Recargar navegador.
+4. Cambiar a otra cuenta desde el topbar si existe.
+5. Recargar navegador.
 
 Expected:
 
 - La cuenta aparece en la lista.
 - La cuenta queda seleccionada.
+- En rutas como `/expenses`, el topbar cambia solo el `accountId` y conserva la seccion.
 - Tras refresh, la cuenta seleccionada se restaura.
 
 ### C. Catalogs
@@ -153,26 +158,33 @@ Expected:
 1. Abrir `/app/accounts/:accountId/expenses`.
 2. Crear gasto simple `Almuerzo QA`.
 3. Crear gasto en cuotas `Laptop QA`.
-4. Filtrar por estado `ACTIVE`.
+4. Buscar por descripcion.
+5. Cambiar orden por fecha.
+6. Cambiar tamano de pagina.
+7. Filtrar por estado `ACTIVE`.
 
 Expected:
 
 - El gasto simple aparece en la lista.
 - El gasto en cuotas aparece como `INSTALLMENT`.
 - El gasto en cuotas no muestra acciones de editar/cancelar desde Expenses.
+- La paginacion superior e inferior queda sincronizada.
+- La busqueda por descripcion mantiene filtros y orden.
 
 ### E. Debts
 
 1. Abrir `/app/accounts/:accountId/debts`.
 2. Verificar deuda derivada del gasto en cuotas.
 3. Registrar pago parcial.
-4. Intentar sobrepago mayor al saldo pendiente.
-5. Registrar pago final si el saldo lo permite.
+4. Registrar un pago con checkbox `Crear gasto asociado`, categoria EXPENSE activa, medio activo y descripcion.
+5. Intentar sobrepago mayor al saldo pendiente.
+6. Registrar pago final si el saldo lo permite.
 
 Expected:
 
 - La deuda derivada aparece como `INSTALLMENT_EXPENSE`.
 - El pago parcial reduce el saldo pendiente.
+- Si se marca gasto asociado, la respuesta muestra gasto creado y el gasto aparece como conceptual sin duplicar cashflow.
 - El sobrepago se bloquea en UI o backend con mensaje amigable.
 - Al pagar todo, la deuda queda `PAID`.
 
@@ -188,6 +200,8 @@ Expected:
 
 - El detalle muestra impacts derivados de deuda si existen.
 - Totales expected/paid/pending son visibles.
+- Las metricas superiores usan `analytics/budget-summary`.
+- Los subpresupuestos muestran nombre, categoria, valor presupuestado, estado/source y acciones; no muestran progreso individual.
 - Solo admin puede escribir.
 - Cuenta archivada bloquea writes.
 
@@ -197,6 +211,7 @@ Expected:
 2. Crear ingreso `Salario mensual QA`.
 3. Editar descripcion o monto.
 4. Cancelar ingreso.
+5. Verificar busqueda por descripcion, orden por fecha, paginacion superior/inferior y selector de tamano de pagina.
 
 Expected:
 
@@ -207,35 +222,45 @@ Expected:
 ### H. Analytics
 
 1. Abrir `/app/accounts/:accountId/dashboard`.
-2. Seleccionar el mes usado en gastos/ingresos.
-3. Refrescar.
+2. Verificar tabs `Resumen`, `Cashflow`, `Gastos`, `Presupuesto`.
+3. Seleccionar un mes especifico por year/month usado en gastos/ingresos.
+4. Refrescar.
+5. Probar preset `Ultimos 30 dias` y volver a mes exacto.
 
 Expected:
 
-- Monthly summary muestra ingresos, gastos, balance, deuda pendiente y presupuesto.
-- Gastos por categoria incluye `Mercado QA`.
-- Ingresos por categoria incluye `Salario QA` si no fue cancelado para ese periodo.
+- `Resumen` muestra cashflow real y gastos conceptuales.
+- `Cashflow` muestra timeline.
+- `Gastos` muestra gastos por categoria, gastos por medio de pago e ingresos por categoria.
+- `Presupuesto` muestra comparacion presupuesto vs gasto por categoria solo para mes calendario exacto.
+- Si el rango no es mensual, muestra mensaje claro de no disponibilidad de comparacion presupuestal.
 - Debt summary refleja deudas activas/pagadas.
 - Budget summary muestra `Sin presupuesto mensual creado` si no existe budget.
 
 ### I. Imports
 
 1. Abrir `/app/accounts/:accountId/imports`.
-2. Intentar preview sin archivo.
-3. Intentar archivo que no sea `.xlsx`.
-4. Subir Excel QA con una fila valida y una invalida.
-5. Ejecutar preview.
-6. Filtrar por filas validas e invalidas.
-7. Confirmar import.
-8. Volver a Expenses.
+2. Descargar plantilla dinamica y verificar columnas de deuda.
+3. Intentar preview sin archivo.
+4. Intentar archivo que no sea `.xlsx`.
+5. Subir Excel QA con una fila valida y una invalida.
+6. Ejecutar preview.
+7. Filtrar por filas validas e invalidas.
+8. Si hay deuda activa, agregar una fila con `AplicaPagoDeuda = SI` y verificar metadata de deuda en preview.
+9. Confirmar import.
+10. Usar `Cargar otro archivo` o `Limpiar`.
+11. Volver a Expenses y Debts.
 
 Expected:
 
 - Validaciones frontend bloquean archivo faltante, extension invalida y mayor a 5MB.
 - Preview muestra resumen total/validas/invalidas.
 - Errores por fila se leen claramente.
+- Las columnas de deuda muestran deuda, tipo y notas cuando aplican.
 - Confirm se deshabilita durante confirmacion y no aparece tras `CONFIRMED`.
 - Solo filas validas crean gastos.
+- Filas con deuda valida tambien registran `createdDebtPaymentId`.
+- Limpiar borra archivo, batch, preview, mensajes y permite cargar otro archivo sin recargar pagina.
 
 ## Checklist De Hardening UI
 
@@ -244,7 +269,7 @@ Expected:
 - [ ] Error visible con `code` y mensaje amigable.
 - [ ] Botones de escritura deshabilitados cuando `isSaving`/`isConfirming`.
 - [ ] Cuenta `ARCHIVED` bloquea create/update/cancel/confirm.
-- [ ] `ACCOUNT_MEMBER` sin ownership no ve acciones de editar/cancelar en Expenses/Income/Debts.
+- [ ] `ACCOUNT_MEMBER` sin ownership no ve acciones de editar/cancelar/duplicar en Expenses/Income/Debts.
 - [ ] `ACCOUNT_ADMIN` ve acciones permitidas.
 - [ ] 401 limpia sesion y redirige a `/login`.
 - [ ] 403 por usuario/participante inactivo limpia sesion y redirige a `/login`.
@@ -253,12 +278,11 @@ Expected:
 
 ## Bugs Conocidos / Riesgos
 
-- Backend local no disponible durante esta preparacion; smoke real pendiente de ejecutar.
+- Smoke manual visual completo sigue pendiente de ejecutarse en navegador real para todos los breakpoints.
 - `docs/api/openapi.json` define algunos request amounts como `Money`, mientras `docs/models/dto-reference.md` y `docs/models/request-examples.md` los documentan como `number`. El frontend mantiene `number`, que coincide con ejemplos y fases funcionales actuales.
-- Members page es de lectura basica; endpoints de alta/cambio de rol/remocion estan documentados en backend pero no implementados como UI de esta fase.
 
 ## Veredicto Del Checklist
 
-- Build: OK (`npm run build`, 2026-05-14).
-- Tests: OK (`npm test -- --watch=false`, 112 success, 2026-05-14).
-- Smoke real: pendiente hasta tener backend disponible.
+- Build: ejecutar antes de RC.
+- Tests: ejecutar antes de RC.
+- Smoke real: seguir este checklist contra backend v0.2.0.

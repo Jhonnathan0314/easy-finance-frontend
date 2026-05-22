@@ -99,11 +99,14 @@ interface RegisterDebtPaymentResponse { payment: DebtPaymentResponse; debt: Debt
 interface UpsertBudgetRequest { name?: string | null; status?: "ACTIVE" | "CLOSED" | "ARCHIVED" | null; }
 interface CreateSubBudgetRequest { categoryId?: number | null; name: string; plannedAmount: number; }
 interface UpdateSubBudgetRequest { categoryId?: number | null; name: string; plannedAmount: number; }
+interface DuplicateBudgetRequest { targetYear: number; targetMonth: number; name?: string | null; }
 interface BudgetResponse { id: number; accountId: number; year: number; month: number; name?: string | null; status: string; createdAt: string; updatedAt: string; }
 interface SubBudgetResponse { id: number; accountId: number; budgetId: number; categoryId?: number | null; debtId?: number | null; name: string; plannedAmount: number; plannedCurrency: "COP"; spentAmount: number; spentCurrency: "COP"; status: string; sourceType: string; createdAt: string; updatedAt: string; }
 interface BudgetImpactResponse { id: number; accountId: number; budgetId: number; subBudgetId: number; debtId: number; expenseId?: number | null; periodYear: number; periodMonth: number; expectedAmount: number; expectedCurrency: "COP"; paidAmount: number; paidCurrency: "COP"; status: string; sourceType: string; createdAt: string; updatedAt: string; }
 interface BudgetDetailResponse { budget: BudgetResponse; subBudgets: SubBudgetResponse[]; impacts: BudgetImpactResponse[]; }
 ```
+
+Budget note: manual sub-budget `spentAmount` is a read-time calculation from active simple expenses in the same month/category with `sourceType = "MANUAL" | "IMPORT"`. `sourceType = "DEBT_PAYMENT"` is excluded to avoid double counting debt payments. Debt-derived sub-budgets use budget impacts.
 
 ## Income
 
@@ -128,9 +131,13 @@ interface PaymentMethodAmountItem { paymentMethodId?: number | null; paymentMeth
 interface PaymentMethodBreakdownResponse { accountId: number; from: string; to: string; items: PaymentMethodAmountItem[]; }
 interface DebtSummaryResponse { accountId: number; activeDebtsCount: number; paidDebtsCount: number; cancelledDebtsCount: number; totalDebtAmount: number; totalRemainingBalance: number; totalPaidAmount: number; manualDebtsCount: number; installmentExpenseDebtsCount: number; }
 interface BudgetSummaryResponse { accountId: number; year: number; month: number; budgetId?: number | null; expectedAmount: number; paidAmount: number; pendingAmount: number; impactsCount: number; paidImpactsCount: number; activeImpactsCount: number; subBudgetsCount: number; }
+interface BudgetVsExpensesCategoryItem { categoryId: number; categoryName: string; budgetedAmount: number; spentAmount: number; remainingAmount: number; executionPercentage?: number | null; }
+interface BudgetVsExpensesByCategoryResponse { accountId: number; year: number; month: number; from: string; to: string; items: BudgetVsExpensesCategoryItem[]; }
 ```
 
 Analytics cashflow represents real money only: active incomes, active simple expenses with `paymentState = "PAID"`, and active debt payments for non-cancelled debts. Expenses with `sourceType = "DEBT_PAYMENT"` are excluded from simple cashflow outflow because the debt payment already counts the real cash movement. Conceptual expense analytics can include full `INSTALLMENT` purchase amounts and debt-payment associated expenses, and should not be displayed as cash outflow.
+
+Budget summary combines manual planned amounts, dynamic manual expense execution, and debt impact expected/paid amounts. Budget-vs-expenses by category returns a wrapper with `items`; frontend stores/rendering should use `response.items`, including categories with spending but no budget where `executionPercentage = null`.
 
 ## Expense Imports
 

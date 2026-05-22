@@ -1,8 +1,19 @@
-# Easy Finance Frontend Context
+# Easy Finance Frontend Docs
 
-This folder is a handoff package for building a new Angular frontend against the Easy Finance backend MVP without rereading the Java codebase.
+Documentacion del frontend Easy Finance alineada con backend v0.2.0.
 
-Use this folder as the first input for the frontend project agent. It contains API contracts, business rules, DTO references, example payloads, and Angular implementation guidance.
+## Como Leer Esta Carpeta
+
+1. `api/api-overview.md`: mapa de endpoints usados por el frontend.
+2. `api/openapi.json`: contrato OpenAPI local de referencia.
+3. `business/business-rules.md`: reglas financieras y de permisos que la UI debe respetar visualmente.
+4. `frontend-guidance/implementation-roadmap.md`: estado por fases y pendientes.
+5. `frontend-guidance/routing-plan.md`: rutas publicas, privadas y account-scoped.
+6. `frontend-guidance/ui-pages-map.md`: paginas, endpoints y comportamiento esperado.
+7. `frontend-guidance/state-management-plan.md`: stores, filtros persistentes y selected account.
+8. `models/dto-reference.md`: DTOs principales para mantener interfaces TypeScript.
+9. `frontend-qa-smoke.md`: smoke real manual contra backend local.
+10. `frontend-rc-checklist.md`: criterios de release candidate.
 
 ## Backend
 
@@ -12,16 +23,25 @@ Use this folder as the first input for the frontend project agent. It contains A
 - Public endpoints:
   - `POST /api/v1/auth/register`
   - `POST /api/v1/auth/login`
-  - health endpoints if enabled by environment.
 
-## Recommended Use In A New Angular Project
+## Estado Funcional Frontend
 
-1. Copy `frontend-context/` into the Angular repo root.
-2. Read `api/api-overview.md` and `business/business-rules.md` first.
-3. Use `api/openapi.json` to generate TypeScript clients if desired.
-4. Use `models/dto-reference.md` and `models/enums.md` when building manual interfaces.
-5. Use `frontend-guidance/implementation-roadmap.md` as the build order.
-6. Import `api/postman-collection.json` and `api/postman-environment.json` to smoke-test the backend before wiring screens.
+Implementado:
 
-No secrets, passwords, or real tokens are included.
+- Auth, Accounts, Members y selected account.
+- Catalogs con busqueda.
+- Expenses con busqueda, orden por fecha, paginacion y tamano de pagina.
+- Debts/Payments con gasto asociado opcional.
+- Budgets con metricas dinamicas y subpresupuestos simplificados.
+- Income con busqueda, orden por fecha y filtros simplificados.
+- Dashboard analytics con tabs, filtro de mes especifico y presupuesto vs gasto por categoria.
+- Imports Excel con plantilla dinamica, metadata de deuda, preview, confirmacion y cargar otro archivo.
 
+No incluido:
+
+- Exportaciones.
+- Imports de income/debts.
+- Reportes avanzados.
+- Graficas con librerias externas.
+
+No secrets, passwords, real tokens, `dist`, `coverage` or `node_modules` should be committed.

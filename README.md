@@ -1,27 +1,69 @@
-# Easy Finance Frontend Context
+# Easy Finance Frontend
 
-This folder is a handoff package for building a new Angular frontend against the Easy Finance backend MVP without rereading the Java codebase.
+Frontend Angular standalone para Easy Finance, alineado con backend v0.2.0.
 
-Use this folder as the first input for the frontend project agent. It contains API contracts, business rules, DTO references, example payloads, and Angular implementation guidance.
+## Stack
 
-## Backend
+- Angular 21 con standalone components.
+- TypeScript strict.
+- Angular Router con rutas lazy por feature.
+- HttpClient con interceptores de JWT y errores.
+- Signals para estado local/stores.
+- Reactive Forms.
+- API REST backend en `http://localhost:8080/api/v1`.
 
-- Local base URL: `http://localhost:8080`
-- API prefix: `/api/v1`
-- Protected endpoints require `Authorization: Bearer <accessToken>`.
-- Public endpoints:
-  - `POST /api/v1/auth/register`
-  - `POST /api/v1/auth/login`
-  - health endpoints if enabled by environment.
+## Alcance Implementado
 
-## Recommended Use In A New Angular Project
+- Auth real: register, login, `/auth/me`, logout y guards.
+- Accounts con selected account persistida y topbar que preserva la seccion al cambiar cuenta.
+- Members: listado, alta por email, cambio de rol y remocion.
+- Catalogs: categorias y medios de pago con filtros y busqueda.
+- Expenses: gastos simples, gastos en cuotas, duplicacion simple, busqueda por descripcion, orden por fecha, paginacion superior/inferior y selector de tamano de pagina.
+- Debts/Payments: deudas manuales/derivadas, pagos, y pago con gasto asociado opcional.
+- Budgets: presupuesto mensual, duplicacion, subpresupuestos manuales, impacts de deuda, metricas con `budget-summary` y subpresupuestos simplificados.
+- Income: ingresos, duplicacion, busqueda por descripcion, filtros simplificados, orden por fecha y paginacion superior/inferior.
+- Dashboard analytics: tabs locales `Resumen`, `Cashflow`, `Gastos`, `Presupuesto`, filtro de mes especifico, cashflow, gastos conceptuales, breakdowns y comparacion presupuesto vs gasto por categoria.
+- Imports Excel: descarga de plantilla dinamica, preview, confirmacion, columnas opcionales de pago de deuda y accion para cargar otro archivo.
 
-1. Copy `frontend-context/` into the Angular repo root.
-2. Read `api/api-overview.md` and `business/business-rules.md` first.
-3. Use `api/openapi.json` to generate TypeScript clients if desired.
-4. Use `models/dto-reference.md` and `models/enums.md` when building manual interfaces.
-5. Use `frontend-guidance/implementation-roadmap.md` as the build order.
-6. Import `api/postman-collection.json` and `api/postman-environment.json` to smoke-test the backend before wiring screens.
+## Comandos
 
-No secrets, passwords, or real tokens are included.
+```bash
+npm install
+npm start
+npm run build
+npm test -- --watch=false
+```
 
+`npm start` levanta el frontend en `http://localhost:4200`.
+
+## Environment
+
+Archivos:
+
+- `src/environments/environment.ts`
+- `src/environments/environment.prod.ts`
+
+Valores esperados en local:
+
+```ts
+apiBaseUrl: 'http://localhost:8080'
+apiPrefix: '/api/v1'
+production: false
+```
+
+## Documentacion
+
+La documentacion funcional y tecnica esta en `docs/`:
+
+- `docs/api/`: contratos REST, OpenAPI y Postman.
+- `docs/business/`: reglas de negocio, permisos y ciclos de vida.
+- `docs/frontend-guidance/`: arquitectura Angular, rutas, roadmap, estado y formularios.
+- `docs/models/`: DTOs, enums y ejemplos.
+- `docs/frontend-qa-smoke.md`: smoke manual frontend/backend.
+- `docs/frontend-rc-checklist.md`: checklist de release candidate.
+
+## Notas De Seguridad
+
+- El JWT se agrega por interceptor.
+- No se deben hardcodear tokens, secretos ni URLs absolutas fuera de environments.
+- El backend sigue siendo autoridad para permisos, ownership, cuentas archivadas y validaciones de negocio.
