@@ -45,7 +45,7 @@ States: `ACTIVE`, `PAID`, `CANCELLED`
 - New debt starts `ACTIVE`.
 - Payment to zero marks `PAID`.
 - Manual debt can be cancelled by owner/admin.
-- Derived debt cancellation is blocked in MVP.
+- Derived installment debt can be cancelled by owner/admin when it has no active payments; cancellation also cancels the origin installment expense and active budget impacts.
 
 ## DebtPayment
 

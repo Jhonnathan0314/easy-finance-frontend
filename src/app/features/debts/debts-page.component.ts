@@ -611,15 +611,23 @@ export class DebtsPageComponent implements OnInit {
   }
 
   cancelDebt(debt: DebtResponseDto): void {
-    if (!this.canCancelDebt(debt) || !globalThis.confirm(`Cancelar deuda "${debt.name}"?`)) {
+    if (!this.canCancelDebt(debt) || !globalThis.confirm(this.cancelDebtConfirmationMessage(debt))) {
       return;
     }
+
+    const shouldRefreshSelectedDebt = this.selectedDebt()?.id === debt.id;
 
     this.debtsStore
       .cancelDebt(this.accountId(), debt.id)
       .pipe(take(1))
       .subscribe({
-        next: () => this.successMessage.set('Deuda cancelada.'),
+        next: () => {
+          if (shouldRefreshSelectedDebt) {
+            this.debtsStore.getDebt(this.accountId(), debt.id).pipe(take(1)).subscribe({ error: () => undefined });
+          }
+
+          this.successMessage.set('Deuda cancelada.');
+        },
         error: () => undefined
       });
   }
@@ -629,7 +637,7 @@ export class DebtsPageComponent implements OnInit {
   }
 
   canCancelDebt(debt: DebtResponseDto): boolean {
-    if (this.accountStore.selectedAccountArchived() || debt.sourceType !== 'MANUAL' || debt.state !== 'ACTIVE') {
+    if (this.accountStore.selectedAccountArchived() || debt.state !== 'ACTIVE') {
       return false;
     }
 
@@ -661,6 +669,7 @@ export class DebtsPageComponent implements OnInit {
       DEBT_ALREADY_PAID: 'La deuda ya esta pagada.',
       DEBT_CANCELLED: 'La deuda esta cancelada.',
       DEBT_NOT_FOUND: 'La deuda no existe o no pertenece a esta cuenta.',
+      DERIVED_DEBT_HAS_PAYMENTS: 'No se puede cancelar esta deuda porque ya tiene pagos registrados.',
       DEBT_PAYMENT_AMOUNT_INVALID: 'El monto del pago debe ser mayor que cero.',
       EXPENSE_CATEGORY_NOT_FOUND: 'La categoria del gasto no existe.',
       EXPENSE_CATEGORY_INACTIVE: 'La categoria del gasto esta inactiva.',
@@ -671,6 +680,14 @@ export class DebtsPageComponent implements OnInit {
     };
 
     return messages[code] ?? fallback;
+  }
+
+  private cancelDebtConfirmationMessage(debt: DebtResponseDto): string {
+    if (debt.sourceType === 'INSTALLMENT_EXPENSE') {
+      return 'Esta deuda viene de un gasto en cuotas. Al cancelarla tambien se cancelara el gasto origen y sus impactos de presupuesto. Deseas continuar?';
+    }
+
+    return `Cancelar deuda "${debt.name}"?`;
   }
 
   private loadCatalogs(): void {

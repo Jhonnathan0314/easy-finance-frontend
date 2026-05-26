@@ -79,7 +79,6 @@
   "description": "Laptop",
   "totalAmount": 1200000.00,
   "totalCurrency": "COP",
-  "scheduledTotalAmount": 1200000.00,
   "remainingAmount": 1100000.00,
   "remainingCurrency": "COP",
   "installmentCount": 12,

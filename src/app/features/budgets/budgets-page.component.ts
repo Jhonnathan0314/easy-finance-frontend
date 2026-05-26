@@ -17,6 +17,13 @@ import {
 
 type BudgetPeriodSort = 'month,desc' | 'month,asc';
 
+interface BudgetCategorySummary {
+  categoryId: number;
+  categoryName: string;
+  totalPlannedAmount: number;
+  subBudgetCount: number;
+}
+
 @Component({
   selector: 'ef-budgets-page',
   standalone: true,
@@ -249,6 +256,35 @@ type BudgetPeriodSort = 'month,desc' | 'month,asc';
               </div>
             </div>
 
+            <section class="panel category-budget-section">
+              <div class="section-heading">
+                <h2>Presupuesto por categoria</h2>
+                <span>{{ budgetByCategory().length }} categorias</span>
+              </div>
+
+              @if (!budgetByCategory().length) {
+                <p class="muted">No hay categorias con presupuesto para este mes.</p>
+              } @else {
+                <div class="category-budget-list">
+                  @for (item of budgetByCategory(); track item.categoryId) {
+                    <article class="budget-card">
+                      <div>
+                        <strong>{{ item.categoryName }}</strong>
+                        <span>
+                          {{ item.subBudgetCount }}
+                          {{ item.subBudgetCount === 1 ? 'subpresupuesto incluido' : 'subpresupuestos incluidos' }}
+                        </span>
+                      </div>
+                      <div class="amount-block">
+                        <span>Total presupuestado</span>
+                        <strong>{{ item.totalPlannedAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
+                      </div>
+                    </article>
+                  }
+                </div>
+              }
+            </section>
+
             @if (showDuplicateBudgetForm()) {
               <form class="panel form-grid duplicate-form" [formGroup]="duplicateBudgetForm" (ngSubmit)="saveDuplicateBudget()">
                 <h2>Duplicar presupuesto</h2>
@@ -450,6 +486,32 @@ export class BudgetsPageComponent implements OnInit {
     const totals = this.impactTotals();
 
     return totals.expected > 0 ? Math.min(100, Math.round((totals.paid / totals.expected) * 100)) : 0;
+  });
+  readonly budgetByCategory = computed<BudgetCategorySummary[]>(() => {
+    const detail = this.budgetsStore.selectedBudgetDetail();
+    const grouped = new Map<number, { totalPlannedAmount: number; subBudgetCount: number }>();
+
+    for (const subBudget of detail?.subBudgets ?? []) {
+      if (subBudget.status !== 'ACTIVE' || subBudget.categoryId == null) {
+        continue;
+      }
+
+      const current = grouped.get(subBudget.categoryId) ?? { totalPlannedAmount: 0, subBudgetCount: 0 };
+
+      grouped.set(subBudget.categoryId, {
+        totalPlannedAmount: current.totalPlannedAmount + subBudget.plannedAmount,
+        subBudgetCount: current.subBudgetCount + 1
+      });
+    }
+
+    return Array.from(grouped.entries())
+      .map(([categoryId, value]) => ({
+        categoryId,
+        categoryName: this.categoryName(categoryId),
+        totalPlannedAmount: value.totalPlannedAmount,
+        subBudgetCount: value.subBudgetCount
+      }))
+      .sort((a, b) => a.categoryName.localeCompare(b.categoryName));
   });
   readonly currentPeriodSort = computed<BudgetPeriodSort>(() =>
     this.budgetsStore.filters().sort === 'month,asc' ? 'month,asc' : 'month,desc'

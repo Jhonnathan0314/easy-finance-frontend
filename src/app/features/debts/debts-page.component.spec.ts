@@ -339,10 +339,10 @@ describe('DebtsPageComponent', () => {
     expect(fixture.nativeElement.textContent).not.toContain('Registrar pago');
   });
 
-  it('hides cancel for installment expense debts', () => {
+  it('shows cancel for active installment expense debts', () => {
     const fixture = configure({ debts: [{ ...debt, sourceType: 'INSTALLMENT_EXPENSE' }] });
 
-    expect(fixture.nativeElement.textContent).not.toContain('Cancelar');
+    expect(fixture.nativeElement.textContent).toContain('Cancelar');
   });
 
   it('allows owner or admin to cancel manual debt', () => {
@@ -357,6 +357,12 @@ describe('DebtsPageComponent', () => {
     expect(fixture.nativeElement.textContent).not.toContain('Cancelar');
   });
 
+  it('hides cancel for paid or cancelled debts', () => {
+    const fixture = configure({ debts: [{ ...debt, state: 'PAID' }] });
+
+    expect(fixture.nativeElement.textContent).not.toContain('Cancelar');
+  });
+
   it('asks for confirmation before cancelling debt', () => {
     spyOn(window, 'confirm').and.returnValue(true);
     const fixture = configure();
@@ -366,6 +372,39 @@ describe('DebtsPageComponent', () => {
 
     expect(window.confirm).toHaveBeenCalled();
     expect(store.cancelDebt).toHaveBeenCalledWith(1, 1);
+  });
+
+  it('warns before cancelling an installment expense debt', () => {
+    const installmentDebt: DebtResponseDto = { ...debt, sourceType: 'INSTALLMENT_EXPENSE', originExpenseId: 55 };
+    spyOn(window, 'confirm').and.returnValue(true);
+    const fixture = configure({ debts: [installmentDebt] });
+    const store = TestBed.inject(DebtsStore) as jasmine.SpyObj<DebtsStore>;
+
+    fixture.componentInstance.cancelDebt(installmentDebt);
+
+    expect(window.confirm).toHaveBeenCalledWith(
+      'Esta deuda viene de un gasto en cuotas. Al cancelarla tambien se cancelara el gasto origen y sus impactos de presupuesto. Deseas continuar?'
+    );
+    expect(store.cancelDebt).toHaveBeenCalledWith(1, 1);
+  });
+
+  it('shows a friendly error when a derived debt already has payments', () => {
+    const fixture = configure();
+
+    expect(fixture.componentInstance.friendlyError('DERIVED_DEBT_HAS_PAYMENTS', '')).toBe(
+      'No se puede cancelar esta deuda porque ya tiene pagos registrados.'
+    );
+  });
+
+  it('refreshes selected debt after successful cancellation', () => {
+    spyOn(window, 'confirm').and.returnValue(true);
+    const fixture = configure({ selectedDebt: debt });
+    const store = TestBed.inject(DebtsStore) as jasmine.SpyObj<DebtsStore>;
+
+    fixture.componentInstance.cancelDebt(debt);
+
+    expect(store.cancelDebt).toHaveBeenCalledWith(1, 1);
+    expect(store.getDebt).toHaveBeenCalledWith(1, 1);
   });
 
   it('loads persisted filters on init', () => {

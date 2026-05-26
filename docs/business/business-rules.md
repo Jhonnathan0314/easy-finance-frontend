@@ -47,11 +47,7 @@
 
 - Manual debts do not create expenses or budget impacts.
 - Installment debts are derived from installment expenses.
-- Debt amount semantics:
-  - `totalAmount` is original capital.
-  - `remainingAmount` is pending capital balance.
-  - `scheduledTotalAmount` is the scheduled/estimated total to pay.
-- A debt payment reduces pending capital balance (`remainingAmount` in the frontend DTO).
+- A debt payment reduces `remainingAmount`.
 - Payment amount cannot exceed the remaining debt balance.
 - A total payment marks the debt `PAID`.
 - Payments on `PAID` or `CANCELLED` debts are rejected.

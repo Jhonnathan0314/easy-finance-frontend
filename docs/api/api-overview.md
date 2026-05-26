@@ -74,7 +74,7 @@ Authorization: Bearer <accessToken>
 | POST | `/api/v1/accounts/{accountId}/debts` | Create manual debt. |
 | GET | `/api/v1/accounts/{accountId}/debts` | List debts. Query: `state`, `sourceType`, `participantId`, `from`, `to`, `page`, `size`, `sort`. |
 | GET | `/api/v1/accounts/{accountId}/debts/{debtId}` | Get debt. |
-| PATCH | `/api/v1/accounts/{accountId}/debts/{debtId}/cancel` | Cancel manual debt if owner or admin. Derived debt cancellation is blocked in this MVP. |
+| PATCH | `/api/v1/accounts/{accountId}/debts/{debtId}/cancel` | Cancel active manual debt if owner/admin. Derived installment debt can be cancelled when it has no active payments; backend also cancels the origin installment expense and active budget impacts. |
 
 ## Debt Payments
 

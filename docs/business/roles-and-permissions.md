@@ -20,7 +20,7 @@
 | Create installment expense | Yes | Yes | N/A | Creates debt and budget impacts transactionally. |
 | Create manual debt | Yes | Yes | N/A | Account must be `ACTIVE`. |
 | List/view debts | Yes | Yes | N/A | Current member required. |
-| Cancel manual debt | Yes | No | Yes | Derived debt cancellation is blocked in MVP. |
+| Cancel debt | Yes | No | Yes | Manual debt can be cancelled while active. Derived installment debt can be cancelled only if it has no active payments. |
 | Register debt payment | Yes | Yes | N/A | Debt must be `ACTIVE`; no overpayment. |
 | List/view debt payments | Yes | Yes | N/A | Current member required. |
 | Upsert budget | Yes | No | N/A | Account must be `ACTIVE`; year 2000-2100, month 1-12. |
@@ -32,4 +32,3 @@
 | Preview expense import | Yes | Yes | N/A | Account must be `ACTIVE`. |
 | Confirm expense import | Yes | Yes | N/A | Batch must be `PREVIEW`; valid rows only. |
 | Get import batch | Yes | Yes | N/A | Batch must belong to account. |
-

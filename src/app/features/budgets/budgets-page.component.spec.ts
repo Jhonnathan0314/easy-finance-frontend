@@ -361,6 +361,69 @@ describe('BudgetsPageComponent', () => {
     expect(fixture.nativeElement.querySelector('.detail-panel .progress-track')).not.toBeNull();
   });
 
+  it('renders budget by category summary', () => {
+    const fixture = configure();
+    const section = fixture.nativeElement.querySelector('.category-budget-section') as HTMLElement;
+
+    expect(section.textContent).toContain('Presupuesto por categoria');
+    expect(section.textContent).toContain('Mercado');
+    expect(section.textContent).toContain('Total presupuestado');
+    expect(section.textContent).toContain('$500,000');
+    expect(section.textContent).toContain('1 subpresupuesto incluido');
+  });
+
+  it('groups manual and debt-derived sub budgets by category', () => {
+    const fixture = configure({
+      selectedDetail: {
+        ...detail,
+        subBudgets: [
+          manualSubBudget,
+          { ...manualSubBudget, id: 5, name: 'Supermercado', plannedAmount: 200000 },
+          { ...derivedSubBudget, id: 6, plannedAmount: 300000 }
+        ]
+      }
+    });
+    const section = fixture.nativeElement.querySelector('.category-budget-section') as HTMLElement;
+
+    expect(section.textContent).toContain('Mercado');
+    expect(section.textContent).toContain('$1,000,000');
+    expect(section.textContent).toContain('3 subpresupuestos incluidos');
+  });
+
+  it('excludes inactive and uncategorized sub budgets from category summary', () => {
+    const fixture = configure({
+      selectedDetail: {
+        ...detail,
+        subBudgets: [
+          manualSubBudget,
+          { ...manualSubBudget, id: 5, name: 'Inactivo', plannedAmount: 900000, status: 'INACTIVE' },
+          { ...manualSubBudget, id: 6, name: 'Sin categoria', categoryId: null, plannedAmount: 300000 }
+        ]
+      }
+    });
+    const section = fixture.nativeElement.querySelector('.category-budget-section') as HTMLElement;
+
+    expect(section.textContent).toContain('$500,000');
+    expect(section.textContent).toContain('1 subpresupuesto incluido');
+    expect(section.textContent).not.toContain('$900,000');
+    expect(section.textContent).not.toContain('$300,000');
+  });
+
+  it('shows empty category summary when no active categorized sub budgets exist', () => {
+    const fixture = configure({
+      selectedDetail: {
+        ...detail,
+        subBudgets: [
+          { ...manualSubBudget, status: 'INACTIVE' },
+          { ...manualSubBudget, id: 5, categoryId: null }
+        ]
+      }
+    });
+    const section = fixture.nativeElement.querySelector('.category-budget-section') as HTMLElement;
+
+    expect(section.textContent).toContain('No hay categorias con presupuesto para este mes.');
+  });
+
   it('shows only base sub budget information without individual execution values', () => {
     const fixture = configure();
     const card = fixture.nativeElement.querySelector('.subbudget-card') as HTMLElement;

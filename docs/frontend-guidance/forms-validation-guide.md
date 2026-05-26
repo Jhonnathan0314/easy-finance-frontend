@@ -62,7 +62,7 @@ Mirror backend validation to reduce failed submissions.
 - paymentType required.
 - amount required, min 0.01.
 - paymentDate required.
-- amount must not exceed current pending capital (`remainingAmount` in the frontend DTO).
+- amount must not exceed current `remainingAmount`.
 - notes max 1000.
 
 ## Budgets
