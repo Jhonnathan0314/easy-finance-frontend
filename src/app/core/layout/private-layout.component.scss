@@ -78,25 +78,23 @@
   gap: 0.5rem;
 }
 
-.account-context label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
 .account-context span {
   color: #65738a;
   font-size: 0.85rem;
 }
 
-.account-context select {
-  min-width: 12rem;
-  border: 1px solid #c9d2df;
-  border-radius: 6px;
-  background: #ffffff;
-  padding: 0.45rem 0.65rem;
+.account-name {
+  color: #111827;
 }
 
+.account-role {
+  border-radius: 999px;
+  background: #eef6ff;
+  color: #174ea6;
+  padding: 0.25rem 0.5rem;
+}
+
+.secondary-action,
 .user-context button,
 .error-banner button {
   border: 1px solid #c9d2df;

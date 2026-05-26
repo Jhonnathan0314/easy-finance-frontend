@@ -5,6 +5,13 @@
   gap: 1rem;
 }
 
+.header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
 .secondary-action,
 .section-header button,
 .member-actions button {
@@ -150,6 +157,10 @@ select:disabled {
   .section-header {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .header-actions {
+    justify-content: flex-start;
   }
 
   .member-row {

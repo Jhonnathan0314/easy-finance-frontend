@@ -1,6 +1,6 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize, take } from 'rxjs';
 
 import { AccountsApiService } from '../../../core/accounts/accounts-api.service';
@@ -19,7 +19,10 @@ import { AccountMemberResponseDto, AccountRole, ApiErrorResponse } from '../../.
           <h1 class="page-title">{{ accountStore.selectedAccount()?.name ?? 'Cuenta' }}</h1>
           <p class="page-subtitle">Gestiona los miembros y permisos de la cuenta {{ accountId() }}.</p>
         </div>
-        <a class="secondary-action" [routerLink]="['/app/accounts', accountId(), 'dashboard']">Ir al dashboard</a>
+        <div class="header-actions">
+          <a class="secondary-action" routerLink="/app/accounts">Volver a cuentas</a>
+          <button class="button" type="button" (click)="goToDashboard()">Ir al dashboard</button>
+        </div>
       </div>
 
       @if (accountStore.selectedAccount(); as account) {
@@ -111,15 +114,24 @@ import { AccountMemberResponseDto, AccountRole, ApiErrorResponse } from '../../.
                       <label class="compact-field">
                         <span>Rol</span>
                         <select
-                          [value]="member.role"
+                          [value]="pendingRole(member)"
                           [disabled]="isSavingMember(member.participantId)"
-                          (change)="changeRole(member, $event)"
+                          (change)="stageRoleChange(member, $event)"
                         >
                           @for (role of roles; track role) {
-                            <option [value]="role">{{ role }}</option>
+                            <option [value]="role" [selected]="role === pendingRole(member)">{{ role }}</option>
                           }
                         </select>
                       </label>
+                      @if (hasPendingRoleChange(member)) {
+                        <button
+                          type="button"
+                          [disabled]="isSavingMember(member.participantId)"
+                          (click)="saveRoleChange(member)"
+                        >
+                          Guardar
+                        </button>
+                      }
                       <button
                         type="button"
                         [disabled]="isSavingMember(member.participantId)"
@@ -144,6 +156,7 @@ export class AccountMembersPageComponent implements OnInit {
   protected readonly accountStore = inject(AccountStore);
   private readonly accountsApi = inject(AccountsApiService);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly fb = inject(NonNullableFormBuilder);
 
   readonly roles: AccountRole[] = ['ACCOUNT_MEMBER', 'ACCOUNT_ADMIN'];
@@ -153,6 +166,7 @@ export class AccountMembersPageComponent implements OnInit {
   readonly savingParticipantId = signal<number | null>(null);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
+  readonly pendingRoleChanges = signal<Record<number, AccountRole>>({});
   readonly accountId = computed(() => Number(this.route.snapshot.paramMap.get('accountId')));
   readonly canWrite = computed(
     () => this.accountStore.selectedAccount()?.currentUserRole === 'ACCOUNT_ADMIN' && !this.accountStore.selectedAccountArchived()
@@ -167,6 +181,16 @@ export class AccountMembersPageComponent implements OnInit {
     this.loadMembers();
   }
 
+  goToDashboard(): void {
+    const account = this.accountStore.selectedAccount();
+
+    if (account) {
+      this.accountStore.selectAccount(account);
+    }
+
+    void this.router.navigate(['/app/accounts', this.accountId(), 'dashboard']);
+  }
+
   loadMembers(): void {
     this.isLoading.set(true);
     this.errorMessage.set(null);
@@ -177,8 +201,12 @@ export class AccountMembersPageComponent implements OnInit {
         finalize(() => this.isLoading.set(false))
       )
       .subscribe({
-        next: (members) => this.members.set(members),
+        next: (members) => {
+          this.pendingRoleChanges.set({});
+          this.members.set(members);
+        },
         error: (error: unknown) => {
+          this.pendingRoleChanges.set({});
           this.members.set([]);
           this.errorMessage.set(this.friendlyError(this.errorCode(error)));
         }
@@ -211,12 +239,40 @@ export class AccountMembersPageComponent implements OnInit {
       });
   }
 
-  changeRole(member: AccountMemberResponseDto, event: Event): void {
+  stageRoleChange(member: AccountMemberResponseDto, event: Event): void {
     const select = event.target as HTMLSelectElement;
     const nextRole = select.value as AccountRole;
 
-    if (!this.canWrite() || member.status !== 'ACTIVE' || nextRole === member.role) {
-      select.value = member.role;
+    if (!this.canWrite() || member.status !== 'ACTIVE') {
+      select.value = this.pendingRole(member);
+      return;
+    }
+
+    this.pendingRoleChanges.update((changes) => {
+      const nextChanges = { ...changes };
+
+      if (nextRole === member.role) {
+        delete nextChanges[member.participantId];
+      } else {
+        nextChanges[member.participantId] = nextRole;
+      }
+
+      return nextChanges;
+    });
+  }
+
+  pendingRole(member: AccountMemberResponseDto): AccountRole {
+    return this.pendingRoleChanges()[member.participantId] ?? member.role;
+  }
+
+  hasPendingRoleChange(member: AccountMemberResponseDto): boolean {
+    return Boolean(this.pendingRoleChanges()[member.participantId]);
+  }
+
+  saveRoleChange(member: AccountMemberResponseDto): void {
+    const nextRole = this.pendingRoleChanges()[member.participantId];
+
+    if (!this.canWrite() || member.status !== 'ACTIVE' || !nextRole) {
       return;
     }
 
@@ -225,7 +281,6 @@ export class AccountMembersPageComponent implements OnInit {
       nextRole === 'ACCOUNT_MEMBER' &&
       !globalThis.confirm('Cambiar este administrador a miembro?')
     ) {
-      select.value = member.role;
       return;
     }
 
@@ -239,11 +294,15 @@ export class AccountMembersPageComponent implements OnInit {
       )
       .subscribe({
         next: () => {
+          this.pendingRoleChanges.update((changes) => {
+            const nextChanges = { ...changes };
+            delete nextChanges[member.participantId];
+            return nextChanges;
+          });
           this.showSuccess('Rol actualizado.');
           this.loadMembers();
         },
         error: (error: unknown) => {
-          select.value = member.role;
           this.errorMessage.set(this.friendlyError(this.errorCode(error)));
         }
       });

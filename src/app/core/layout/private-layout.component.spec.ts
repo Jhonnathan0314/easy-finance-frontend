@@ -90,6 +90,18 @@ describe('PrivateLayoutComponent', () => {
     expect(text).toContain('ACCOUNT_ADMIN');
   });
 
+  it('does not render the topbar account select', () => {
+    const select = fixture.nativeElement.querySelector('select');
+
+    expect(select).toBeNull();
+  });
+
+  it('renders the change account button', () => {
+    const text = fixture.nativeElement.textContent;
+
+    expect(text).toContain('Cambiar de cuenta');
+  });
+
   it('keeps Dashboard in navigation and hides Analytics placeholder link', () => {
     const text = fixture.nativeElement.textContent;
 
@@ -97,70 +109,16 @@ describe('PrivateLayoutComponent', () => {
     expect(text).not.toContain('Analitica');
   });
 
-  it('changes account from topbar preserving expenses section', () => {
-    spyOnProperty(router, 'url', 'get').and.returnValue('/app/accounts/1/expenses');
+  it('navigates to accounts when clicking change account', () => {
+    const buttons = Array.from(fixture.nativeElement.querySelectorAll('button')) as HTMLButtonElement[];
+    const button = buttons.find(
+      (item): item is HTMLButtonElement => item.textContent?.trim() === 'Cambiar de cuenta'
+    );
 
-    fixture.componentInstance.changeAccount(selectEvent('2'));
-
-    expect(accountStore.selectAccount).toHaveBeenCalledWith(jasmine.objectContaining({ id: 2 }));
-    expect(router.navigate).toHaveBeenCalledWith(['/app/accounts', '2', 'expenses']);
-  });
-
-  it('changes directly from account A to B from the select without choosing empty first', () => {
-    spyOnProperty(router, 'url', 'get').and.returnValue('/app/accounts/1/expenses');
-    const select = fixture.nativeElement.querySelector('select') as HTMLSelectElement;
-
-    select.value = '2';
-    select.dispatchEvent(new Event('change'));
-    fixture.detectChanges();
-
-    expect(accountStore.selectAccount).toHaveBeenCalledWith(jasmine.objectContaining({ id: 2 }));
-    expect(router.navigate).toHaveBeenCalledWith(['/app/accounts', '2', 'expenses']);
-    expect(select.value).toBe('2');
-  });
-
-  it('changes account from topbar preserving budgets section', () => {
-    spyOnProperty(router, 'url', 'get').and.returnValue('/app/accounts/1/budgets');
-
-    fixture.componentInstance.changeAccount(selectEvent('2'));
-
-    expect(router.navigate).toHaveBeenCalledWith(['/app/accounts', '2', 'budgets']);
-  });
-
-  it('ignores selecting the currently selected account', () => {
-    spyOnProperty(router, 'url', 'get').and.returnValue('/app/accounts/1/expenses');
-
-    fixture.componentInstance.changeAccount(selectEvent('1'));
+    button?.click();
 
     expect(accountStore.selectAccount).not.toHaveBeenCalled();
-    expect(router.navigate).not.toHaveBeenCalled();
-  });
-
-  it('changes account from topbar preserving nested members settings section', () => {
-    spyOnProperty(router, 'url', 'get').and.returnValue('/app/accounts/1/settings/members');
-
-    fixture.componentInstance.changeAccount(selectEvent('2'));
-
-    expect(router.navigate).toHaveBeenCalledWith(['/app/accounts', '2', 'settings', 'members']);
-  });
-
-  it('changes account from accounts page to the new account dashboard', () => {
-    spyOnProperty(router, 'url', 'get').and.returnValue('/app/accounts');
-
-    fixture.componentInstance.changeAccount(selectEvent('2'));
-
-    expect(router.navigate).toHaveBeenCalledWith(['/app/accounts', '2', 'dashboard']);
-  });
-
-  it('clears selected account when choosing the empty option', () => {
-    fixture.componentInstance.changeAccount(selectEvent(''));
-
-    expect(accountStore.clearSelectedAccount).toHaveBeenCalled();
-    expect(accountStore.selectAccount).not.toHaveBeenCalled();
+    expect(accountStore.clearSelectedAccount).not.toHaveBeenCalled();
     expect(router.navigate).toHaveBeenCalledWith(['/app/accounts']);
   });
 });
-
-function selectEvent(value: string): Event {
-  return { target: { value } } as unknown as Event;
-}

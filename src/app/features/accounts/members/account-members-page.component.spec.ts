@@ -1,6 +1,6 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ActivatedRoute, provideRouter } from '@angular/router';
+import { ActivatedRoute, Router, provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 
 import { AccountsApiService } from '../../../core/accounts/accounts-api.service';
@@ -33,7 +33,12 @@ describe('AccountMembersPageComponent', () => {
     archived?: boolean;
     members?: AccountMemberResponseDto[];
     changeRoleFails?: boolean;
-  } = {}): { fixture: ComponentFixture<AccountMembersPageComponent>; api: jasmine.SpyObj<AccountsApiService> } {
+  } = {}): {
+    fixture: ComponentFixture<AccountMembersPageComponent>;
+    api: jasmine.SpyObj<AccountsApiService>;
+    accountStore: { selectAccount: jasmine.Spy };
+    router: Router;
+  } {
     const selectedAccount = {
       ...account,
       currentUserRole: options.role ?? 'ACCOUNT_ADMIN',
@@ -54,6 +59,12 @@ describe('AccountMembersPageComponent', () => {
         : of({ ...member, role: 'ACCOUNT_ADMIN' })
     );
     api.removeMember.and.returnValue(of(undefined));
+    const accountStore = {
+      selectedAccountId: signal(1),
+      selectedAccount: signal(selectedAccount),
+      selectedAccountArchived: signal(Boolean(options.archived)),
+      selectAccount: jasmine.createSpy('selectAccount')
+    };
 
     TestBed.configureTestingModule({
       imports: [AccountMembersPageComponent],
@@ -71,19 +82,17 @@ describe('AccountMembersPageComponent', () => {
         },
         {
           provide: AccountStore,
-          useValue: {
-            selectedAccountId: signal(1),
-            selectedAccount: signal(selectedAccount),
-            selectedAccountArchived: signal(Boolean(options.archived))
-          }
+          useValue: accountStore
         },
         { provide: AccountsApiService, useValue: api }
       ]
     });
 
+    const router = TestBed.inject(Router);
+    spyOn(router, 'navigate').and.resolveTo(true);
     const fixture = TestBed.createComponent(AccountMembersPageComponent);
     fixture.detectChanges();
-    return { fixture, api };
+    return { fixture, api, accountStore, router };
   }
 
   afterEach(() => TestBed.resetTestingModule());
@@ -94,6 +103,23 @@ describe('AccountMembersPageComponent', () => {
     expect(api.listMembers).toHaveBeenCalledWith(1);
     expect(fixture.nativeElement.textContent).toContain('member@example.com');
     expect(fixture.nativeElement.textContent).toContain('ACCOUNT_MEMBER');
+  });
+
+  it('shows clear navigation actions in account detail', () => {
+    const { fixture } = configure();
+    const text = fixture.nativeElement.textContent;
+
+    expect(text).toContain('Volver a cuentas');
+    expect(text).toContain('Ir al dashboard');
+  });
+
+  it('selects the account before navigating to dashboard from detail', () => {
+    const { fixture, accountStore, router } = configure();
+
+    fixture.componentInstance.goToDashboard();
+
+    expect(accountStore.selectAccount).toHaveBeenCalledWith(jasmine.objectContaining({ id: 1 }));
+    expect(router.navigate).toHaveBeenCalledWith(['/app/accounts', 1, 'dashboard']);
   });
 
   it('validates required and valid email before adding a member', () => {
@@ -140,9 +166,68 @@ describe('AccountMembersPageComponent', () => {
     const { fixture, api } = configure();
     const select = { value: 'ACCOUNT_ADMIN' } as HTMLSelectElement;
 
-    fixture.componentInstance.changeRole(member, { target: select } as unknown as Event);
+    fixture.componentInstance.stageRoleChange(member, { target: select } as unknown as Event);
+    fixture.componentInstance.saveRoleChange(member);
 
     expect(api.changeMemberRole).toHaveBeenCalledWith(1, 10, { role: 'ACCOUNT_ADMIN' });
+  });
+
+  it('shows the real current admin role in the member select', () => {
+    const admin = { ...member, role: 'ACCOUNT_ADMIN' as const };
+    const { fixture } = configure({ members: [admin] });
+    const selects = fixture.nativeElement.querySelectorAll('select') as NodeListOf<HTMLSelectElement>;
+    const memberRoleSelect = selects[1];
+
+    expect(memberRoleSelect.value).toBe('ACCOUNT_ADMIN');
+  });
+
+  it('shows the real current member role in the member select', () => {
+    const { fixture } = configure();
+    const selects = fixture.nativeElement.querySelectorAll('select') as NodeListOf<HTMLSelectElement>;
+    const memberRoleSelect = selects[1];
+
+    expect(memberRoleSelect.value).toBe('ACCOUNT_MEMBER');
+  });
+
+  it('stages role changes without calling the backend immediately', () => {
+    const { fixture, api } = configure();
+    const select = { value: 'ACCOUNT_ADMIN' } as HTMLSelectElement;
+
+    fixture.componentInstance.stageRoleChange(member, { target: select } as unknown as Event);
+
+    expect(fixture.componentInstance.hasPendingRoleChange(member)).toBeTrue();
+    expect(api.changeMemberRole).not.toHaveBeenCalled();
+  });
+
+  it('shows the save action only when a role change is pending', () => {
+    const { fixture } = configure();
+
+    expect(fixture.nativeElement.textContent).not.toContain('Guardar');
+
+    fixture.componentInstance.stageRoleChange(member, { target: { value: 'ACCOUNT_ADMIN' } } as unknown as Event);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Guardar');
+  });
+
+  it('removes the pending role change when returning to the original role', () => {
+    const { fixture } = configure();
+
+    fixture.componentInstance.stageRoleChange(member, { target: { value: 'ACCOUNT_ADMIN' } } as unknown as Event);
+    expect(fixture.componentInstance.hasPendingRoleChange(member)).toBeTrue();
+
+    fixture.componentInstance.stageRoleChange(member, { target: { value: 'ACCOUNT_MEMBER' } } as unknown as Event);
+
+    expect(fixture.componentInstance.hasPendingRoleChange(member)).toBeFalse();
+  });
+
+  it('clears pending role changes after saving', () => {
+    const { fixture } = configure();
+
+    fixture.componentInstance.stageRoleChange(member, { target: { value: 'ACCOUNT_ADMIN' } } as unknown as Event);
+    fixture.componentInstance.saveRoleChange(member);
+
+    expect(fixture.componentInstance.hasPendingRoleChange(member)).toBeFalse();
   });
 
   it('removes an active member after confirmation', () => {
@@ -161,7 +246,8 @@ describe('AccountMembersPageComponent', () => {
     const select = { value: 'ACCOUNT_MEMBER' } as HTMLSelectElement;
     spyOn(globalThis, 'confirm').and.returnValue(true);
 
-    fixture.componentInstance.changeRole(admin, { target: select } as unknown as Event);
+    fixture.componentInstance.stageRoleChange(admin, { target: select } as unknown as Event);
+    fixture.componentInstance.saveRoleChange(admin);
 
     expect(fixture.componentInstance.errorMessage()).toBe('La cuenta debe conservar al menos un administrador activo.');
   });

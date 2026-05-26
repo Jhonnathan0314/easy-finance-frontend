@@ -81,7 +81,6 @@ import { AccountResponseDto } from '../../shared/models';
               <div class="actions">
                 <button type="button" (click)="selectAccount(account)">Seleccionar</button>
                 <a [routerLink]="['/app/accounts', account.id, 'settings', 'members']">Ver detalles</a>
-                <a [routerLink]="['/app/accounts', account.id, 'dashboard']">Abrir</a>
               </div>
             </article>
           }

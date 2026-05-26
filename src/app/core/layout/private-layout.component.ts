@@ -42,18 +42,15 @@ interface NavigationItem {
       <div class="content">
         <header class="topbar">
           <div class="account-context">
-            <label>
-              <span>Cuenta</span>
-              <select [value]="selectedAccountSelectValue()" (change)="changeAccount($event)">
-                <option value="">Sin seleccionar</option>
-                @for (account of accountStore.accounts(); track account.id) {
-                  <option [value]="account.id.toString()">{{ account.name }}</option>
-                }
-              </select>
-            </label>
             @if (accountStore.selectedAccount(); as account) {
-              <strong>{{ account.currentUserRole }}</strong>
+              <span>Cuenta</span>
+              <strong class="account-name">{{ account.name }}</strong>
+              <span class="account-role">{{ account.currentUserRole }}</span>
+            } @else {
+              <span>Cuenta</span>
+              <strong class="account-name">Sin seleccionar</strong>
             }
+            <button type="button" class="secondary-action" (click)="goToAccounts()">Cambiar de cuenta</button>
           </div>
 
           <div class="user-context">
@@ -123,58 +120,13 @@ export class PrivateLayoutComponent implements OnInit {
     return accountId ? ['/app/accounts', String(accountId), item.segment] : ['/app/accounts'];
   }
 
-  selectedAccountSelectValue(): string {
-    return this.accountStore.selectedAccountId()?.toString() ?? '';
-  }
-
-  changeAccount(event: Event): void {
-    const value = (event.target as HTMLSelectElement).value;
-
-    if (!value) {
-      this.accountStore.clearSelectedAccount();
-      void this.router.navigate(['/app/accounts']);
-      return;
-    }
-
-    const accountId = Number(value);
-
-    if (!Number.isFinite(accountId)) {
-      this.accountStore.clearSelectedAccount();
-      void this.router.navigate(['/app/accounts']);
-      return;
-    }
-
-    if (this.accountStore.selectedAccountId() === accountId) {
-      return;
-    }
-
-    const account = this.accountStore.accounts().find((item) => item.id === accountId);
-
-    if (!account) {
-      this.accountStore.clearSelectedAccount();
-      void this.router.navigate(['/app/accounts']);
-      return;
-    }
-
-    const nextRoute = this.nextAccountRoute(account.id);
-    this.accountStore.selectAccount(account);
-    void this.router.navigate(nextRoute);
+  goToAccounts(): void {
+    void this.router.navigate(['/app/accounts']);
   }
 
   logout(): void {
     this.authService.logout();
     this.accountStore.clear();
     void this.router.navigate(['/login']);
-  }
-
-  private nextAccountRoute(accountId: number): string[] {
-    const currentPath = this.router.url.split(/[?#]/)[0];
-    const accountScopedMatch = currentPath.match(/^\/app\/accounts\/\d+\/(.+)$/);
-
-    if (!accountScopedMatch) {
-      return ['/app/accounts', String(accountId), 'dashboard'];
-    }
-
-    return ['/app/accounts', String(accountId), ...accountScopedMatch[1].split('/').filter(Boolean)];
   }
 }
