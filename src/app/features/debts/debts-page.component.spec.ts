@@ -20,6 +20,7 @@ describe('DebtsPageComponent', () => {
     description: null,
     totalAmount: 1200000,
     totalCurrency: 'COP',
+    scheduledTotalAmount: 1440000,
     remainingAmount: 800000,
     remainingCurrency: 'COP',
     installmentCount: 12,
@@ -202,6 +203,31 @@ describe('DebtsPageComponent', () => {
     component.savePayment();
 
     expect(component.paymentFormError()).toContain('saldo pendiente');
+  });
+
+  it('shows debt capital and scheduled total in list and detail', () => {
+    const fixture = configure({ selectedDebt: debt });
+
+    expect(fixture.nativeElement.textContent).toContain('Capital pendiente');
+    expect(fixture.nativeElement.textContent).toContain('Capital original');
+    expect(fixture.nativeElement.textContent).toContain('Total programado');
+  });
+
+  it('shows estimated financing cost when scheduled total is greater than original capital', () => {
+    const fixture = configure({ selectedDebt: debt });
+    const component = fixture.componentInstance;
+
+    expect(component.scheduledTotal(debt)).toBe(1440000);
+    expect(component.financingCost(debt)).toBe(240000);
+    expect(fixture.nativeElement.textContent).toContain('Intereses/costos estimados');
+  });
+
+  it('does not show estimated financing cost when scheduled total equals original capital', () => {
+    const debtWithoutFinancingCost = { ...debt, scheduledTotalAmount: debt.totalAmount };
+    const fixture = configure({ debts: [debtWithoutFinancingCost], selectedDebt: debtWithoutFinancingCost });
+
+    expect(fixture.componentInstance.financingCost(debtWithoutFinancingCost)).toBe(0);
+    expect(fixture.nativeElement.textContent).not.toContain('Intereses/costos estimados');
   });
 
   it('keeps current payment behavior when associated expense is disabled', () => {

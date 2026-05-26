@@ -47,7 +47,11 @@
 
 - Manual debts do not create expenses or budget impacts.
 - Installment debts are derived from installment expenses.
-- A debt payment reduces `remainingAmount`.
+- Debt amount semantics:
+  - `totalAmount` is original capital.
+  - `remainingAmount` is pending capital balance.
+  - `scheduledTotalAmount` is the scheduled/estimated total to pay.
+- A debt payment reduces pending capital balance (`remainingAmount` in the frontend DTO).
 - Payment amount cannot exceed the remaining debt balance.
 - A total payment marks the debt `PAID`.
 - Payments on `PAID` or `CANCELLED` debts are rejected.
@@ -60,7 +64,9 @@
 - Budgets are monthly per account: unique `(accountId, year, month)`.
 - Budget impacts are generated from derived installment debts.
 - One impact is created per installment period.
-- `installmentAmount * installmentCount` must equal `totalAmount`.
+- For installment expenses, the original expense `totalAmount` may be lower than the financed debt total.
+- Budget impacts must total the financed debt amount: `installmentAmount * installmentCount`.
+- `installmentAmount * installmentCount` cannot be lower than the original expense `totalAmount`.
 - Debt payments are applied chronologically to unpaid impacts.
 - Full impact payment marks impact `PAID`; partial payment keeps it `ACTIVE`.
 - Manual sub-budgets can be edited; derived sub-budgets cannot.

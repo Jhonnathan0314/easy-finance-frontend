@@ -238,7 +238,7 @@ type ExpenseDateSort = 'expenseDate,asc' | 'expenseDate,desc';
             </label>
           } @else {
             <label class="field">
-              <span>Total</span>
+              <span>Valor original / capital</span>
               <input type="number" min="0.01" step="0.01" formControlName="totalAmount">
             </label>
             <label class="field">
@@ -265,8 +265,19 @@ type ExpenseDateSort = 'expenseDate,asc' | 'expenseDate,desc';
               <span>Notas</span>
               <textarea rows="3" formControlName="notes"></textarea>
             </label>
-            @if (installmentForm.hasError('installmentTotalMismatch')) {
-              <p class="form-error">El total debe coincidir con cuotas x valor cuota.</p>
+            <div class="installment-summary wide">
+              <span>Total financiado/programado</span>
+              <strong>{{ installmentFinancedTotal() | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
+              <p class="hint">El valor original queda en el gasto; el total financiado/programado queda en la deuda.</p>
+              @if (installmentFinancingDifference() > 0) {
+                <p class="hint">
+                  La diferencia corresponde a intereses o costos financieros:
+                  {{ installmentFinancingDifference() | currency: 'COP':'symbol-narrow':'1.0-0' }}.
+                </p>
+              }
+            </div>
+            @if (installmentForm.hasError('installmentFinancedTotalTooLow')) {
+              <p class="form-error">El total financiado no puede ser menor al valor original del gasto.</p>
             }
           }
 
@@ -808,6 +819,16 @@ export class ExpensesPageComponent implements OnInit {
       });
   }
 
+  installmentFinancedTotal(): number {
+    const raw = this.installmentForm.getRawValue();
+
+    return Number(raw.installmentCount ?? 0) * Number(raw.installmentAmount ?? 0);
+  }
+
+  installmentFinancingDifference(): number {
+    return Math.max(0, this.installmentFinancedTotal() - Number(this.installmentForm.controls.totalAmount.value ?? 0));
+  }
+
   cancelExpense(expense: ExpenseResponseDto): void {
     if (!this.canMutateExpense(expense) || !globalThis.confirm(`Cancelar gasto "${expense.description}"?`)) {
       return;
@@ -851,6 +872,7 @@ export class ExpensesPageComponent implements OnInit {
       EXPENSE_NOT_FOUND: 'No se encontro el gasto origen.',
       EXPENSE_UPDATE_NOT_ALLOWED: 'No se puede actualizar este gasto.',
       ACCOUNT_NOT_ACTIVE: 'La cuenta no permite modificar gastos.',
+      INSTALLMENT_FINANCED_TOTAL_INVALID: 'El total financiado no puede ser menor al valor original del gasto.',
       INSTALLMENT_EXPENSE_UPDATE_NOT_ALLOWED: 'Los gastos en cuotas no se actualizan desde esta pantalla.',
       INSTALLMENT_EXPENSE_CANCEL_NOT_ALLOWED: 'Los gastos en cuotas no se cancelan desde esta pantalla.',
       VALIDATION_ERROR: 'Revisa los datos del formulario.'
@@ -917,10 +939,16 @@ export function installmentTotalValidator(control: { get(path: string): { value:
   const totalAmount = Number(control.get('totalAmount')?.value ?? 0);
   const installmentCount = Number(control.get('installmentCount')?.value ?? 0);
   const installmentAmount = Number(control.get('installmentAmount')?.value ?? 0);
+  const originalTotalInCents = Math.round(totalAmount * 100);
+  const financedTotalInCents = Math.round(installmentCount * installmentAmount * 100);
 
-  return Math.round(totalAmount * 100) === Math.round(installmentCount * installmentAmount * 100)
+  if (totalAmount <= 0 || installmentCount <= 0 || installmentAmount <= 0) {
+    return null;
+  }
+
+  return financedTotalInCents >= originalTotalInCents
     ? null
-    : { installmentTotalMismatch: true };
+    : { installmentFinancedTotalTooLow: true };
 }
 
 function today(): string {

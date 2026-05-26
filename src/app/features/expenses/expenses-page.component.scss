@@ -168,18 +168,38 @@
 .duplicate-expense-form h2,
 .duplicate-expense-form .form-note,
 .field.wide,
+.installment-summary,
 .form-actions,
 .form-error {
   grid-column: 1 / -1;
 }
 
 .form-note,
-.form-error {
+.form-error,
+.installment-summary p {
   margin: 0;
 }
 
 .form-error {
   color: #b42318;
+}
+
+.installment-summary {
+  display: grid;
+  gap: 0.25rem;
+  border: 1px solid #dce2ea;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 0.75rem;
+}
+
+.installment-summary span,
+.hint {
+  color: #4b5563;
+}
+
+.installment-summary strong {
+  color: #1d2433;
 }
 
 .quick-expense-form .amount-field input {

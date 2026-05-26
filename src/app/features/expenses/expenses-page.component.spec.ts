@@ -145,14 +145,94 @@ describe('ExpensesPageComponent', () => {
     expect(component.simpleForm.controls.amount.hasError('min')).toBeTrue();
   });
 
-  it('validates installment total equals count times amount', () => {
+  it('allows installment total equal to count times amount', () => {
+    const fixture = configure();
+    const component = fixture.componentInstance;
+
+    component.startCreateInstallment();
+    component.installmentForm.patchValue({ totalAmount: 100, installmentCount: 2, installmentAmount: 50 });
+
+    expect(component.installmentForm.hasError('installmentFinancedTotalTooLow')).toBeFalse();
+  });
+
+  it('allows installment total greater than original amount as financing cost', () => {
+    const fixture = configure();
+    const component = fixture.componentInstance;
+
+    component.startCreateInstallment();
+    component.installmentForm.patchValue({ totalAmount: 100, installmentCount: 3, installmentAmount: 40 });
+
+    expect(component.installmentForm.hasError('installmentFinancedTotalTooLow')).toBeFalse();
+    expect(component.installmentFinancedTotal()).toBe(120);
+    expect(component.installmentFinancingDifference()).toBe(20);
+  });
+
+  it('shows financing cost hint when installment total is greater than original amount', () => {
+    const fixture = configure();
+    const component = fixture.componentInstance;
+
+    component.startCreateInstallment();
+    component.installmentForm.patchValue({ totalAmount: 100, installmentCount: 3, installmentAmount: 40 });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('La diferencia corresponde a intereses o costos financieros');
+    expect(fixture.nativeElement.textContent).toContain('Total financiado/programado');
+    expect(fixture.nativeElement.textContent).toContain('El valor original queda en el gasto');
+  });
+
+  it('rejects installment total lower than original amount', () => {
     const fixture = configure();
     const component = fixture.componentInstance;
 
     component.startCreateInstallment();
     component.installmentForm.patchValue({ totalAmount: 100, installmentCount: 3, installmentAmount: 20 });
 
-    expect(component.installmentForm.hasError('installmentTotalMismatch')).toBeTrue();
+    expect(component.installmentForm.hasError('installmentFinancedTotalTooLow')).toBeTrue();
+  });
+
+  it('shows a clear error when installment total is lower than original amount', () => {
+    const fixture = configure();
+    const component = fixture.componentInstance;
+
+    component.startCreateInstallment();
+    component.installmentForm.patchValue({ totalAmount: 100, installmentCount: 3, installmentAmount: 20 });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('El total financiado no puede ser menor al valor original del gasto.');
+  });
+
+  it('sends the same installment request shape when financing cost exists', () => {
+    const fixture = configure();
+    const component = fixture.componentInstance;
+    const expensesStore = TestBed.inject(ExpensesStore);
+
+    component.startCreateInstallment();
+    component.installmentForm.patchValue({
+      categoryId: 1,
+      paymentMethodId: 2,
+      description: 'Laptop',
+      totalAmount: 100,
+      expenseDate: '2026-05-12',
+      installmentCount: 3,
+      installmentAmount: 40,
+      firstInstallmentDate: '2026-06-12',
+      debtName: 'Laptop financiada',
+      notes: 'Con intereses'
+    });
+    component.saveInstallmentExpense();
+
+    expect(expensesStore.createInstallmentExpense).toHaveBeenCalledWith(1, {
+      categoryId: 1,
+      paymentMethodId: 2,
+      description: 'Laptop',
+      totalAmount: 100,
+      expenseDate: '2026-05-12',
+      installmentCount: 3,
+      installmentAmount: 40,
+      firstInstallmentDate: '2026-06-12',
+      debtName: 'Laptop financiada',
+      notes: 'Con intereses'
+    });
   });
 
   it('hides edit and cancel for member viewing another participant expense', () => {

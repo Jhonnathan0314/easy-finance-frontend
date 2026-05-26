@@ -33,6 +33,7 @@ export interface DebtResponse {
   description?: string | null;
   totalAmount: number;
   totalCurrency: CurrencyCode;
+  scheduledTotalAmount: number;
   remainingAmount: number;
   remainingCurrency: CurrencyCode;
   installmentCount?: number | null;

@@ -16,6 +16,7 @@ describe('DebtsStore', () => {
     description: null,
     totalAmount: 1200000,
     totalCurrency: 'COP',
+    scheduledTotalAmount: 1440000,
     remainingAmount: 800000,
     remainingCurrency: 'COP',
     installmentCount: 12,

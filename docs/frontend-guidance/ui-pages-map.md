@@ -38,14 +38,8 @@
   - `GET /analytics/debt-summary`
   - `GET /analytics/budget-summary`
   - `GET /analytics/budget-vs-expenses-by-category`
-- Actions: use quick presets, select a specific year/month, change manual date range, participant, category, payment method, payment state, expense type, and cashflow grouping.
-- Components:
-  - Global filters remain above all dashboard content.
-  - Local tabs: `Resumen`, `Cashflow`, `Gastos`, `Presupuesto`.
-  - `Resumen`: real cashflow cards and conceptual expense cards.
-  - `Cashflow`: cashflow timeline.
-  - `Gastos`: expense category breakdown, payment-method breakdown, income category breakdown.
-  - `Presupuesto`: budget-vs-expense category comparison when the active range is exactly one calendar month.
+- Actions: change month/date range, participant, category, payment method, payment state, expense type, and cashflow grouping.
+- Components: real cashflow metrics, conceptual expense metrics, cashflow series, category/payment-method breakdown tables/charts, budget-vs-expense category comparison.
 - Errors: `ANALYTICS_PERIOD_INVALID`, `ANALYTICS_DATE_RANGE_INVALID`, `ANALYTICS_DATE_RANGE_TOO_LARGE`.
 
 ## Catalogs
@@ -66,8 +60,8 @@
   - `PUT/PATCH /expenses/{expenseId}`
   - `POST /expenses/{expenseId}/duplicate`
   - `POST /expenses/installments`
-- Actions: create simple, quick create simple, create installment, update/cancel/duplicate simple, search by description, filter, sort by date, paginate.
-- Components: expense table, expense form, quick expense panel, installment form, filters, top/bottom pagination, page-size selector.
+- Actions: create simple, create installment, update/cancel/duplicate simple, filter.
+- Components: expense table, expense form, installment form, filters.
 - Errors: invalid category/payment method, update/cancel not allowed, account not active.
 
 ## Debts
@@ -88,7 +82,7 @@
   - `POST /debts/{debtId}/payments`
   - `GET /debts/{debtId}/payments`
   - `GET /debts/{debtId}/payments/{paymentId}`
-- Actions: register payment, optionally create an associated conceptual expense, filter payment history.
+- Actions: register payment, filter payment history.
 - Components: payment form, optional associated-expense fields, payment history table.
 - Errors: overpayment, debt already paid, debt cancelled.
 
@@ -99,10 +93,9 @@
   - `GET/PUT /budgets/{year}/{month}`
   - `GET /budgets`
   - `POST/PUT/DELETE /budgets/{budgetId}/sub-budgets`
-- Actions: select month, filter/sort list, upsert budget, duplicate budget, create/update/deactivate manual sub-budget.
-- Components: monthly budget header with overall progress, top metrics from `budget-summary`, simplified sub-budget cards/table, impact table.
+- Actions: select month, upsert budget, create/update/deactivate manual sub-budget.
+- Components: monthly budget header, sub-budget table, impact table.
 - Notes: manual sub-budget execution is returned by backend from active simple expenses in the same month/category; associated debt-payment expenses are excluded to avoid double counting.
-- UI note: individual sub-budgets intentionally show base data only: name, category, planned amount, status/source and actions. Individual spent/remaining/progress values are hidden to keep the section simple.
 - Errors: invalid period, derived sub-budget not editable, admin required.
 
 ## Income
@@ -111,9 +104,8 @@
 - Endpoints:
   - `GET/POST /incomes`
   - `GET/PUT/PATCH /incomes/{incomeId}`
-- Actions: create, update, cancel, duplicate to another date, search by description, filter by visible fields, sort by date, paginate.
-- Components: income table, income form, filters, top/bottom pagination, page-size selector.
-- UI note: `participantId` and `status` remain supported by the API, but are hidden from the main Income filters because they are not useful as manual end-user inputs in the current UI.
+- Actions: create, update, cancel, duplicate to another date, filter, search by description.
+- Components: income table, income form.
 - Errors: category invalid type, category inactive, update/cancel not allowed.
 
 ## Imports
@@ -124,8 +116,8 @@
   - `POST /imports/expenses/preview`
   - `GET /imports/expenses/{batchId}`
   - `POST /imports/expenses/{batchId}/confirm`
-- Actions: download dynamic template, upload, inspect row errors, confirm, clear/load another file.
-- Components: template download action, upload input, preview summary, row error table, debt-payment columns, clear action.
+- Actions: download dynamic template, upload, inspect row errors, confirm.
+- Components: template download action, upload dropzone, preview summary, row error table, debt-payment columns.
 - Notes: rows marked `AplicaPagoDeuda = SI` create both the imported expense and the debt payment during confirm.
 - Errors: file required, invalid type, template invalid, row limit exceeded, already confirmed.
 

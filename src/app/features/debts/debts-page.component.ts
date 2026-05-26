@@ -97,7 +97,7 @@ import {
             <input type="text" formControlName="name">
           </label>
           <label class="field">
-            <span>Monto total</span>
+            <span>Capital original</span>
             <input type="number" min="0.01" step="0.01" formControlName="totalAmount">
           </label>
           <label class="field">
@@ -124,7 +124,7 @@ import {
             <span>Notas</span>
             <textarea rows="3" formControlName="notes"></textarea>
           </label>
-          <p class="hint wide">Si registras numero de cuotas, tambien debes indicar valor de cuota. No se exige que coincidan con el total.</p>
+          <p class="hint wide">Si registras numero de cuotas, tambien debes indicar valor de cuota. El total programado puede incluir intereses o costos.</p>
           @if (manualDebtForm.hasError('installmentsPairRequired')) {
             <p class="form-error">Numero de cuotas y valor cuota deben completarse juntos.</p>
           }
@@ -155,11 +155,20 @@ import {
                     <h3>{{ debt.name }}</h3>
                     <p>{{ debt.startDate }} @if (debt.endDate) { <span>hasta {{ debt.endDate }}</span> }</p>
                   </div>
-                  <strong>{{ debt.remainingAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
+                  <div class="debt-card-amount">
+                    <span>Capital pendiente</span>
+                    <strong>{{ debt.remainingAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
+                  </div>
                   <div class="progress">
                     <div class="progress-label">
-                      <span>Pagado {{ paidPercent(debt) }}%</span>
-                      <span>{{ debt.totalAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}</span>
+                      <span>Capital pagado {{ paidPercent(debt) }}%</span>
+                      <span>Capital original {{ debt.totalAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}</span>
+                    </div>
+                    <div class="progress-label">
+                      <span>Total programado {{ scheduledTotal(debt) | currency: 'COP':'symbol-narrow':'1.0-0' }}</span>
+                      @if (financingCost(debt) > 0) {
+                        <span>Intereses/costos estimados {{ financingCost(debt) | currency: 'COP':'symbol-narrow':'1.0-0' }}</span>
+                      }
                     </div>
                     <div class="progress-track">
                       <span [style.width.%]="paidPercent(debt)"></span>
@@ -203,13 +212,23 @@ import {
 
             <dl class="summary-grid">
               <div>
-                <dt>Total</dt>
+                <dt>Capital original</dt>
                 <dd>{{ debt.totalAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}</dd>
               </div>
               <div>
-                <dt>Pendiente</dt>
+                <dt>Capital pendiente</dt>
                 <dd>{{ debt.remainingAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}</dd>
               </div>
+              <div>
+                <dt>Total programado</dt>
+                <dd>{{ scheduledTotal(debt) | currency: 'COP':'symbol-narrow':'1.0-0' }}</dd>
+              </div>
+              @if (financingCost(debt) > 0) {
+                <div>
+                  <dt>Intereses/costos estimados</dt>
+                  <dd>{{ financingCost(debt) | currency: 'COP':'symbol-narrow':'1.0-0' }}</dd>
+                </div>
+              }
               <div>
                 <dt>Estado</dt>
                 <dd>{{ debt.state }}</dd>
@@ -232,7 +251,7 @@ import {
                   </select>
                 </label>
                 <label class="field">
-                  <span>Monto</span>
+                  <span>Monto que reduce capital pendiente</span>
                   <input type="number" min="0.01" step="0.01" formControlName="amount">
                 </label>
                 <label class="field">
@@ -243,6 +262,7 @@ import {
                   <span>Notas</span>
                   <textarea rows="3" formControlName="notes"></textarea>
                 </label>
+                <p class="hint wide">Los pagos se validan contra el capital pendiente y lo reducen al registrarse.</p>
                 <label class="checkbox-field wide">
                   <input type="checkbox" formControlName="createExpense">
                   <span>Crear gasto asociado</span>
@@ -625,6 +645,14 @@ export class DebtsPageComponent implements OnInit {
     }
 
     return Math.max(0, Math.min(100, Math.round(((debt.totalAmount - debt.remainingAmount) / debt.totalAmount) * 100)));
+  }
+
+  scheduledTotal(debt: DebtResponseDto): number {
+    return debt.scheduledTotalAmount ?? debt.totalAmount;
+  }
+
+  financingCost(debt: DebtResponseDto): number {
+    return Math.max(0, this.scheduledTotal(debt) - debt.totalAmount);
   }
 
   friendlyError(code: string, fallback: string): string {

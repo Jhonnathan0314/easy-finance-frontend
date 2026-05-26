@@ -153,11 +153,24 @@
 
 .debt-card h3,
 .debt-card p,
+.debt-card-amount span,
 .detail-panel h2,
 .detail-panel p,
 .payment-form h3,
 .summary-grid dd {
   margin: 0;
+}
+
+.debt-card-amount {
+  display: grid;
+  justify-items: end;
+  gap: 0.2rem;
+}
+
+.debt-card-amount span {
+  color: #65738a;
+  font-size: 0.8rem;
+  font-weight: 700;
 }
 
 .progress,
