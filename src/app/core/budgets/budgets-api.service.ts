@@ -2,9 +2,11 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import {
+  AnnualBudgetResponseDto,
   BudgetDetailResponseDto,
   BudgetListFilters,
   BudgetResponseDto,
+  CreateAnnualBudgetRequest,
   CreateSubBudgetRequest,
   DuplicateBudgetRequest,
   PageResponseDto,
@@ -45,6 +47,10 @@ export class BudgetsApiService {
       `/accounts/${accountId}/budgets/${sourceYear}/${sourceMonth}/duplicate`,
       request
     );
+  }
+
+  createAnnualBudget(accountId: number, request: CreateAnnualBudgetRequest): Observable<AnnualBudgetResponseDto> {
+    return this.api.post<AnnualBudgetResponseDto, CreateAnnualBudgetRequest>(`/accounts/${accountId}/budgets/annual`, request);
   }
 
   createSubBudget(

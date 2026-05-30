@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 
 import { BudgetDetailResponseDto, BudgetResponseDto, BudgetSummaryResponseDto, SubBudgetResponseDto } from '../../shared/models';
 import { AnalyticsApiService } from '../analytics/analytics-api.service';
@@ -62,6 +62,7 @@ describe('BudgetsStore', () => {
       'listBudgets',
       'upsertBudget',
       'duplicateBudget',
+      'createAnnualBudget',
       'getBudgetDetail',
       'createSubBudget',
       'updateSubBudget',
@@ -70,6 +71,7 @@ describe('BudgetsStore', () => {
     service.listBudgets.and.returnValue(of({ content: [budget], page: 0, size: 20, totalElements: 1, totalPages: 1 }));
     service.upsertBudget.and.returnValue(of(budget));
     service.duplicateBudget.and.returnValue(of(detail));
+    service.createAnnualBudget.and.returnValue(of({ accountId: 10, year: 2026, createdBudgets: [budget] }));
     service.getBudgetDetail.and.returnValue(of(detail));
     service.createSubBudget.and.returnValue(of(subBudget));
     service.updateSubBudget.and.returnValue(of(subBudget));
@@ -113,6 +115,26 @@ describe('BudgetsStore', () => {
     });
   });
 
+  it('treats BUDGET_NOT_FOUND as empty-state condition without global error', (done) => {
+    service.getBudgetDetail.and.returnValue(
+      throwError(() => ({
+        error: {
+          code: 'BUDGET_NOT_FOUND',
+          message: 'No budget for this month'
+        }
+      }))
+    );
+
+    store.getBudgetDetail(10, 2026, 5).subscribe({
+      error: () => {
+        expect(store.selectedBudgetDetail()).toBeNull();
+        expect(store.budgetSummary()).toBeNull();
+        expect(store.error()).toBeNull();
+        done();
+      }
+    });
+  });
+
   it('upserts a budget and refreshes list and detail', (done) => {
     store.upsertBudget(10, 2026, 5, { name: 'Mayo', status: 'ACTIVE' }).subscribe(() => {
       expect(service.upsertBudget).toHaveBeenCalledWith(10, 2026, 5, { name: 'Mayo', status: 'ACTIVE' });
@@ -133,6 +155,27 @@ describe('BudgetsStore', () => {
       expect(service.getBudgetDetail).toHaveBeenCalledWith(10, 2026, 6);
       done();
     });
+  });
+
+  it('creates annual budget and refreshes target year list and detail', (done) => {
+    store
+      .createAnnualBudget(10, {
+        year: 2026,
+        name: 'Presupuesto 2026',
+        status: 'ACTIVE',
+        subBudgets: [{ name: 'Mercado', categoryId: 3, plannedAmount: 500000 }]
+      })
+      .subscribe(() => {
+        expect(service.createAnnualBudget).toHaveBeenCalledWith(10, {
+          year: 2026,
+          name: 'Presupuesto 2026',
+          status: 'ACTIVE',
+          subBudgets: [{ name: 'Mercado', categoryId: 3, plannedAmount: 500000 }]
+        });
+        expect(service.listBudgets).toHaveBeenCalledWith(10, jasmine.objectContaining({ year: 2026, page: 0 }));
+        expect(service.getBudgetDetail).toHaveBeenCalled();
+        done();
+      });
   });
 
   it('refreshes detail after sub budget changes', (done) => {

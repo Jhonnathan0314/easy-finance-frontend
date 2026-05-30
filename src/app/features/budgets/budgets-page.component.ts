@@ -1,6 +1,6 @@
 import { CurrencyPipe } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
-import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormArray, NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { take } from 'rxjs';
 
@@ -12,6 +12,7 @@ import {
   BudgetResponseDto,
   BudgetStatus,
   CategoryResponseDto,
+  CreateAnnualBudgetRequest,
   SubBudgetResponseDto
 } from '../../shared/models';
 import { enumLabel } from '../../shared/ui/enum-labels';
@@ -38,7 +39,12 @@ interface BudgetCategorySummary {
           <p class="page-subtitle">Presupuestos mensuales de la cuenta {{ accountId() }}.</p>
         </div>
         @if (canWrite()) {
-          <button class="button" type="button" (click)="startUpsertBudget()">Crear/actualizar presupuesto</button>
+          <div class="header-actions">
+            <button class="button" type="button" (click)="startUpsertBudget()">Crear/actualizar presupuesto</button>
+            <button class="button" type="button" [disabled]="!expenseCategories().length" (click)="startAnnualBudget()">
+              Crear presupuesto anual
+            </button>
+          </div>
         } @else {
           <span class="permission-note">Solo lectura</span>
         }
@@ -167,6 +173,69 @@ interface BudgetCategorySummary {
           <div class="form-actions">
             <button class="button" type="submit" [disabled]="budgetForm.invalid || budgetsStore.isSaving()">Guardar</button>
             <button type="button" (click)="showBudgetForm.set(false)">Cancelar</button>
+          </div>
+        </form>
+      }
+
+      @if (showAnnualBudgetForm()) {
+        <form class="panel form-grid annual-form" [formGroup]="annualBudgetForm" (ngSubmit)="saveAnnualBudget()">
+          <h2>Presupuesto anual</h2>
+          @if (annualBudgetError(); as error) {
+            <p class="form-error">{{ error }}</p>
+          }
+          <label class="field">
+            <span>Anio</span>
+            <input type="number" min="2000" max="2100" formControlName="year">
+          </label>
+          <label class="field">
+            <span>Nombre base</span>
+            <input type="text" formControlName="name">
+          </label>
+          <label class="field">
+            <span>Status</span>
+            <select formControlName="status">
+              @for (status of budgetStatuses; track status) {
+                <option [value]="status">{{ enumLabel(status) }}</option>
+              }
+            </select>
+          </label>
+          <div class="annual-subbudget-grid">
+            <div class="section-heading">
+              <h3>Subpresupuestos base</h3>
+              <button class="button" type="button" (click)="addAnnualSubBudget()">Agregar base</button>
+            </div>
+            <div class="annual-subbudget-list" formArrayName="subBudgets">
+              @for (group of annualSubBudgets.controls; track $index) {
+                <div class="annual-subbudget-row" [formGroupName]="$index">
+                  <label class="field">
+                    <span>Nombre</span>
+                    <input type="text" formControlName="name">
+                  </label>
+                  <label class="field">
+                    <span>Categoria</span>
+                    <select formControlName="categoryId">
+                      <option value="">Sin categoria</option>
+                      @for (category of expenseCategories(); track category.id) {
+                        <option [ngValue]="category.id">{{ category.name }}</option>
+                      }
+                    </select>
+                  </label>
+                  <label class="field">
+                    <span>Presupuestado</span>
+                    <input type="number" min="0.01" step="0.01" formControlName="plannedAmount">
+                  </label>
+                  <div class="annual-subbudget-actions">
+                    <button type="button" (click)="removeAnnualSubBudget($index)" [disabled]="annualSubBudgets.length <= 1">
+                      Quitar
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="button" type="submit" [disabled]="annualBudgetForm.invalid || budgetsStore.isSaving()">Crear anual</button>
+            <button type="button" (click)="cancelAnnualBudgetForm()">Cancelar</button>
           </div>
         </form>
       }
@@ -431,12 +500,17 @@ interface BudgetCategorySummary {
               }
             </section>
           } @else {
-            <div class="panel empty-state">
-              <h2>No hay presupuesto para este mes</h2>
-              <p>Selecciona otro periodo o crea el presupuesto mensual para comenzar.</p>
-              @if (canWrite()) {
-                <button class="button" type="button" (click)="startUpsertBudget()">Crear presupuesto mensual</button>
-              }
+            <div class="detail-empty-state">
+              <div class="section-heading detail-empty-heading">
+                <h2>Detalle mensual</h2>
+              </div>
+              <div class="panel empty-state">
+                <h2>No hay presupuesto para este mes</h2>
+                <p>Selecciona otro periodo o crea el presupuesto mensual para comenzar.</p>
+                @if (canWrite()) {
+                  <button class="button" type="button" (click)="startUpsertBudget()">Crear presupuesto mensual</button>
+                }
+              </div>
             </div>
           }
         </section>
@@ -454,11 +528,13 @@ export class BudgetsPageComponent implements OnInit {
   readonly currentDate = new Date();
   readonly expenseCategories = signal<CategoryResponseDto[]>([]);
   readonly showBudgetForm = signal(false);
+  readonly showAnnualBudgetForm = signal(false);
   readonly showDuplicateBudgetForm = signal(false);
   readonly showSubBudgetForm = signal(false);
   readonly editingSubBudget = signal<SubBudgetResponseDto | null>(null);
   readonly successMessage = signal<string | null>(null);
   readonly duplicateBudgetError = signal<string | null>(null);
+  readonly annualBudgetError = signal<string | null>(null);
   readonly accountId = computed(() => this.accountStore.selectedAccountId() ?? 0);
   readonly canWrite = computed(
     () => this.accountStore.selectedAccount()?.currentUserRole === 'ACCOUNT_ADMIN' && !this.accountStore.selectedAccountArchived()
@@ -563,11 +639,22 @@ export class BudgetsPageComponent implements OnInit {
     name: ['', [Validators.required, Validators.maxLength(150)]],
     plannedAmount: [0, [Validators.required, Validators.min(0)]]
   });
+  readonly annualBudgetForm = this.fb.group({
+    year: [this.currentDate.getFullYear(), [Validators.required, Validators.min(2000), Validators.max(2100)]],
+    name: ['', [Validators.maxLength(120)]],
+    status: ['ACTIVE' as BudgetStatus, [Validators.required]],
+    subBudgets: this.fb.array([this.createAnnualSubBudgetGroup()])
+  });
+
+  get annualSubBudgets(): FormArray {
+    return this.annualBudgetForm.controls.subBudgets;
+  }
 
   ngOnInit(): void {
     this.loadCategories();
     this.patchFilters(this.budgetsStore.loadPersistedFilters(this.accountId()));
     this.loadBudgets();
+    this.loadSelectedBudgetDetail();
   }
 
   loadBudgets(): void {
@@ -642,6 +729,19 @@ export class BudgetsPageComponent implements OnInit {
       status: source?.status ?? 'ACTIVE'
     });
     this.showBudgetForm.set(true);
+    this.showAnnualBudgetForm.set(false);
+  }
+
+  startAnnualBudget(): void {
+    if (!this.canWrite() || !this.expenseCategories().length) {
+      return;
+    }
+
+    this.successMessage.set(null);
+    this.annualBudgetError.set(null);
+    this.showBudgetForm.set(false);
+    this.showAnnualBudgetForm.set(true);
+    this.resetAnnualBudgetForm();
   }
 
   startDuplicateBudget(): void {
@@ -707,6 +807,58 @@ export class BudgetsPageComponent implements OnInit {
   cancelDuplicateBudgetForm(): void {
     this.showDuplicateBudgetForm.set(false);
     this.duplicateBudgetError.set(null);
+  }
+
+  saveAnnualBudget(): void {
+    if (this.annualBudgetForm.invalid || !this.canWrite()) {
+      this.annualBudgetForm.markAllAsTouched();
+      return;
+    }
+
+    this.successMessage.set(null);
+    this.annualBudgetError.set(null);
+    const raw = this.annualBudgetForm.getRawValue();
+    const request: CreateAnnualBudgetRequest = {
+      year: raw.year,
+      name: raw.name || null,
+      status: raw.status,
+      subBudgets: raw.subBudgets.map((item) => ({
+        name: item.name,
+        categoryId: item.categoryId || null,
+        plannedAmount: item.plannedAmount
+      }))
+    };
+
+    this.budgetsStore
+      .createAnnualBudget(this.accountId(), request)
+      .pipe(take(1))
+      .subscribe({
+        next: () => {
+          const monthToShow = raw.year === this.currentDate.getFullYear() ? this.currentDate.getMonth() + 1 : 1;
+          this.periodForm.patchValue({ year: raw.year, month: monthToShow });
+          this.listFilterForm.patchValue({ year: raw.year });
+          this.successMessage.set('Presupuesto anual creado correctamente.');
+          this.cancelAnnualBudgetForm();
+        },
+        error: () => undefined
+      });
+  }
+
+  addAnnualSubBudget(): void {
+    this.annualSubBudgets.push(this.createAnnualSubBudgetGroup());
+  }
+
+  removeAnnualSubBudget(index: number): void {
+    if (this.annualSubBudgets.length <= 1) {
+      return;
+    }
+
+    this.annualSubBudgets.removeAt(index);
+  }
+
+  cancelAnnualBudgetForm(): void {
+    this.showAnnualBudgetForm.set(false);
+    this.annualBudgetError.set(null);
   }
 
   saveBudget(): void {
@@ -859,6 +1011,7 @@ export class BudgetsPageComponent implements OnInit {
       BUDGET_NOT_FOUND: 'No se encontro el presupuesto origen.',
       ACCOUNT_NOT_ACTIVE: 'La cuenta no permite modificar presupuestos.',
       BUDGET_ALREADY_ARCHIVED: 'El presupuesto esta archivado.',
+      ANNUAL_BUDGET_MONTH_ALREADY_EXISTS: 'Ya existe al menos un presupuesto para este anio.',
       SUB_BUDGET_NOT_FOUND: 'El subpresupuesto no existe.',
       SUB_BUDGET_DERIVED_NOT_EDITABLE: 'Los subpresupuestos derivados no se editan manualmente.',
       ACCOUNT_ADMIN_REQUIRED: 'Necesitas rol administrador para esta accion.',
@@ -887,5 +1040,23 @@ export class BudgetsPageComponent implements OnInit {
       year: filters.selectedYear,
       month: filters.selectedMonth
     });
+  }
+
+  private createAnnualSubBudgetGroup() {
+    return this.fb.group({
+      categoryId: [null as number | null],
+      name: ['', [Validators.required, Validators.maxLength(150)]],
+      plannedAmount: [0, [Validators.required, Validators.min(0.01)]]
+    });
+  }
+
+  private resetAnnualBudgetForm(): void {
+    this.annualBudgetForm.patchValue({
+      year: this.currentDate.getFullYear(),
+      name: '',
+      status: 'ACTIVE'
+    });
+    this.annualSubBudgets.clear();
+    this.annualSubBudgets.push(this.createAnnualSubBudgetGroup());
   }
 }

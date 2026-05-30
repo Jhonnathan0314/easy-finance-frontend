@@ -5,6 +5,7 @@
 .filters,
 .sort-actions,
 .filter-actions,
+.header-actions,
 .detail-heading,
 .detail-actions,
 .section-heading {
@@ -17,6 +18,11 @@
 .detail-heading,
 .section-heading {
   justify-content: space-between;
+}
+
+.header-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .permission-note,
@@ -107,7 +113,8 @@
 .actions button,
 .form-actions button,
 .filter-actions button,
-.sort-actions button {
+.sort-actions button,
+.annual-subbudget-actions button {
   border: 1px solid #c9d2df;
   border-radius: 6px;
   background: #fff;
@@ -124,6 +131,7 @@
 }
 
 .budget-form,
+.annual-form,
 .duplicate-form,
 .subbudget-form {
   display: grid;
@@ -132,12 +140,36 @@
 }
 
 .budget-form h2,
+.annual-form h2,
 .duplicate-form h2,
 .duplicate-form .form-note,
 .duplicate-form .form-error,
 .subbudget-form h3,
 .form-actions {
   grid-column: 1 / -1;
+}
+
+.annual-subbudget-grid,
+.annual-subbudget-list,
+.annual-subbudget-row {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.annual-subbudget-grid {
+  grid-column: 1 / -1;
+}
+
+.annual-subbudget-row {
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  border: 1px solid #dce2ea;
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.annual-subbudget-actions {
+  display: flex;
+  align-items: end;
 }
 
 .form-note,
@@ -159,6 +191,7 @@
 
 .budget-list-panel,
 .detail-column,
+.detail-empty-state,
 .budget-list,
 .detail-panel,
 .category-budget-section,
@@ -312,6 +345,7 @@ button:disabled {
   .filters,
   .sort-actions,
   .filter-actions,
+  .header-actions,
   .filter-panel-heading,
   .detail-heading,
   .detail-actions,

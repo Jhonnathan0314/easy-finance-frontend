@@ -8,6 +8,7 @@ import {
   BudgetResponseDto,
   BudgetSummaryResponseDto,
   BudgetStatus,
+  CreateAnnualBudgetRequest,
   CreateSubBudgetRequest,
   DuplicateBudgetRequest,
   UpdateSubBudgetRequest,
@@ -126,6 +127,10 @@ export class BudgetsStore {
       catchError((error: unknown) => {
         this.selectedBudgetDetail.set(null);
         this.budgetSummary.set(null);
+        if (isBudgetNotFoundError(error)) {
+          this.error.set(null);
+          return throwError(() => error);
+        }
         return this.handleError(error);
       }),
       finalize(() => this.isLoading.set(false))
@@ -165,6 +170,25 @@ export class BudgetsStore {
     return this.budgetsApi.duplicateBudget(accountId, sourceYear, sourceMonth, request).pipe(
       switchMap(() => this.loadBudgets(accountId, { year: request.targetYear })),
       switchMap(() => this.getBudgetDetail(accountId, request.targetYear, request.targetMonth)),
+      catchError((error: unknown) => this.handleError(error)),
+      finalize(() => this.isSaving.set(false))
+    );
+  }
+
+  createAnnualBudget(
+    accountId: number,
+    request: CreateAnnualBudgetRequest
+  ): Observable<BudgetDetailResponseDto> {
+    this.ensureAccount(accountId);
+    this.isSaving.set(true);
+    this.error.set(null);
+
+    const targetMonth = request.year === new Date().getFullYear() ? new Date().getMonth() + 1 : 1;
+    this.selectedPeriod.set({ year: request.year, month: targetMonth });
+
+    return this.budgetsApi.createAnnualBudget(accountId, request).pipe(
+      switchMap(() => this.loadBudgets(accountId, { year: request.year, page: 0 })),
+      switchMap(() => this.getBudgetDetail(accountId, request.year, targetMonth)),
       catchError((error: unknown) => this.handleError(error)),
       finalize(() => this.isSaving.set(false))
     );
@@ -392,4 +416,14 @@ function toApiError(error: unknown): ApiErrorResponse {
 
 function isApiErrorResponse(value: unknown): value is ApiErrorResponse {
   return Boolean(value && typeof value === 'object' && 'code' in value && 'message' in value);
+}
+
+function isBudgetNotFoundError(error: unknown): boolean {
+  if (!error || typeof error !== 'object' || !('error' in error)) {
+    return false;
+  }
+
+  const apiError = (error as { error?: unknown }).error;
+
+  return Boolean(apiError && typeof apiError === 'object' && 'code' in apiError && (apiError as { code?: unknown }).code === 'BUDGET_NOT_FOUND');
 }

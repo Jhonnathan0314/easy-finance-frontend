@@ -20,6 +20,19 @@ export interface DuplicateBudgetRequest {
   name?: string | null;
 }
 
+export interface CreateAnnualSubBudgetBaseRequest {
+  categoryId?: number | null;
+  name: string;
+  plannedAmount: number;
+}
+
+export interface CreateAnnualBudgetRequest {
+  year: number;
+  name?: string | null;
+  status?: BudgetStatus | null;
+  subBudgets: CreateAnnualSubBudgetBaseRequest[];
+}
+
 export interface CreateSubBudgetRequest {
   categoryId?: number | null;
   name: string;
@@ -44,6 +57,14 @@ export interface BudgetResponse {
 }
 
 export type BudgetResponseDto = BudgetResponse;
+
+export interface AnnualBudgetResponse {
+  accountId: number;
+  year: number;
+  createdBudgets: BudgetResponse[];
+}
+
+export type AnnualBudgetResponseDto = AnnualBudgetResponse;
 
 export interface SubBudgetResponse {
   id: number;

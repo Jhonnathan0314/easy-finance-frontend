@@ -68,6 +68,28 @@ describe('BudgetsApiService', () => {
     request.flush({ budget: {}, subBudgets: [], impacts: [] });
   });
 
+  it('builds annual budget creation endpoint', () => {
+    service
+      .createAnnualBudget(4, {
+        year: 2026,
+        name: 'Presupuesto 2026',
+        status: 'ACTIVE',
+        subBudgets: [{ name: 'Mercado', categoryId: 2, plannedAmount: 500000 }]
+      })
+      .subscribe();
+
+    const request = httpTesting.expectOne('http://localhost:8080/api/v1/accounts/4/budgets/annual');
+
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({
+      year: 2026,
+      name: 'Presupuesto 2026',
+      status: 'ACTIVE',
+      subBudgets: [{ name: 'Mercado', categoryId: 2, plannedAmount: 500000 }]
+    });
+    request.flush({ accountId: 4, year: 2026, createdBudgets: [] });
+  });
+
   it('builds sub budget mutation endpoints', () => {
     service.createSubBudget(5, 9, { categoryId: 2, name: 'Mercado', plannedAmount: 500000 }).subscribe();
     service.updateSubBudget(5, 9, 12, { categoryId: null, name: 'Casa', plannedAmount: 800000 }).subscribe();

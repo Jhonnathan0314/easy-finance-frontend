@@ -1,6 +1,6 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 
 import { BudgetPersistedFilters, BudgetsStore } from '../../core/budgets/budgets.store';
 import { CatalogsApiService } from '../../core/catalogs/catalogs-api.service';
@@ -113,6 +113,10 @@ describe('BudgetsPageComponent', () => {
     sort: 'month,desc'
   };
 
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth() + 1;
+
   function configure(
     options: {
       role?: 'ACCOUNT_ADMIN' | 'ACCOUNT_MEMBER';
@@ -161,6 +165,7 @@ describe('BudgetsPageComponent', () => {
             loadBudgets: jasmine.createSpy('loadBudgets').and.returnValue(of(budgets)),
             getBudgetDetail: jasmine.createSpy('getBudgetDetail').and.callFake(() => of(selectedBudgetDetail())),
             upsertBudget: jasmine.createSpy('upsertBudget').and.callFake(() => of(selectedBudgetDetail())),
+            createAnnualBudget: jasmine.createSpy('createAnnualBudget').and.callFake(() => of(selectedBudgetDetail() ?? detail)),
             duplicateBudget: jasmine.createSpy('duplicateBudget').and.callFake(() => of(selectedBudgetDetail() ?? detail)),
             createSubBudget: jasmine.createSpy('createSubBudget').and.callFake(() => of(selectedBudgetDetail())),
             updateSubBudget: jasmine.createSpy('updateSubBudget').and.callFake(() => of(selectedBudgetDetail())),
@@ -218,6 +223,59 @@ describe('BudgetsPageComponent', () => {
     const fixture = configure();
 
     expect(fixture.nativeElement.textContent).toContain('Duplicar presupuesto');
+  });
+
+  it('renders annual budget action for account admins', () => {
+    const fixture = configure();
+    expect(fixture.nativeElement.textContent).toContain('Crear presupuesto anual');
+    expect(fixture.nativeElement.querySelector('.header-actions')).not.toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Crear/actualizar presupuesto');
+  });
+
+  it('opens annual form and validates planned amount as positive', () => {
+    const fixture = configure();
+    const component = fixture.componentInstance;
+
+    component.startAnnualBudget();
+    component.annualSubBudgets.at(0).patchValue({ name: 'Mercado', plannedAmount: 0 });
+
+    expect(component.showAnnualBudgetForm()).toBeTrue();
+    expect(component.annualBudgetForm.valid).toBeFalse();
+  });
+
+  it('adds and removes annual sub budget base rows', () => {
+    const fixture = configure();
+    const component = fixture.componentInstance;
+
+    component.startAnnualBudget();
+    component.addAnnualSubBudget();
+
+    expect(component.annualSubBudgets.length).toBe(2);
+
+    component.removeAnnualSubBudget(1);
+    expect(component.annualSubBudgets.length).toBe(1);
+  });
+
+  it('submits annual budget request and reloads target year detail', () => {
+    const fixture = configure();
+    const component = fixture.componentInstance;
+    const store = TestBed.inject(BudgetsStore) as jasmine.SpyObj<BudgetsStore>;
+
+    component.startAnnualBudget();
+    component.annualBudgetForm.patchValue({ year: 2027, name: 'Presupuesto 2027', status: 'ACTIVE' });
+    component.annualSubBudgets.at(0).patchValue({ name: 'Mercado', categoryId: 3, plannedAmount: 800000 });
+    component.saveAnnualBudget();
+
+    expect(store.createAnnualBudget).toHaveBeenCalledWith(
+      1,
+      jasmine.objectContaining({
+        year: 2027,
+        name: 'Presupuesto 2027',
+        status: 'ACTIVE',
+        subBudgets: [{ name: 'Mercado', categoryId: 3, plannedAmount: 800000 }]
+      })
+    );
+    expect(component.successMessage()).toBe('Presupuesto anual creado correctamente.');
   });
 
   it('prefills duplicate form with next month', () => {
@@ -282,6 +340,50 @@ describe('BudgetsPageComponent', () => {
     expect(component.listFilterForm.getRawValue()).toEqual({ year: 2026, status: 'ACTIVE' });
   });
 
+  it('loads budget detail for current period by default on init', () => {
+    const currentPersisted: BudgetPersistedFilters = {
+      selectedYear: currentYear,
+      selectedMonth: currentMonth,
+      year: currentYear,
+      status: null,
+      sort: 'month,desc'
+    };
+    const fixture = configure({ persistedFilters: currentPersisted });
+    const store = TestBed.inject(BudgetsStore) as jasmine.SpyObj<BudgetsStore>;
+
+    expect(store.getBudgetDetail).toHaveBeenCalledWith(1, currentYear, currentMonth, { persist: true });
+    expect(fixture.componentInstance.periodForm.getRawValue()).toEqual({ year: currentYear, month: currentMonth });
+  });
+
+  it('does not auto-select a future month when current month budget is missing', () => {
+    const currentPersisted: BudgetPersistedFilters = {
+      selectedYear: currentYear,
+      selectedMonth: currentMonth,
+      year: currentYear,
+      status: null,
+      sort: 'month,desc'
+    };
+    const futureBudget: BudgetResponseDto = {
+      ...budget,
+      id: 88,
+      year: currentYear,
+      month: Math.min(12, currentMonth === 12 ? 12 : currentMonth + 1),
+      name: 'Futuro'
+    };
+    const fixture = configure({
+      budgets: [futureBudget],
+      selectedDetail: null,
+      persistedFilters: currentPersisted
+    });
+    const store = TestBed.inject(BudgetsStore) as jasmine.SpyObj<BudgetsStore>;
+    store.getBudgetDetail.and.returnValue(throwError(() => new Error('not found')));
+
+    fixture.componentInstance.loadSelectedBudgetDetail();
+
+    expect(store.getBudgetDetail).toHaveBeenCalledWith(1, currentYear, currentMonth, { persist: true });
+    expect(fixture.nativeElement.textContent).toContain('No hay presupuesto para este mes');
+  });
+
   it('persists filters and clears period back to defaults', () => {
     const fixture = configure();
     const component = fixture.componentInstance;
@@ -338,6 +440,17 @@ describe('BudgetsPageComponent', () => {
     });
 
     expect(fixture.nativeElement.textContent).toContain('Ya existe un presupuesto para el mes destino.');
+  });
+
+  it('shows annual budget existing month error message', () => {
+    const fixture = configure({
+      error: {
+        code: 'ANNUAL_BUDGET_MONTH_ALREADY_EXISTS',
+        message: 'target exists'
+      }
+    });
+
+    expect(fixture.nativeElement.textContent).toContain('Ya existe al menos un presupuesto para este anio.');
   });
 
   it('does not show edit or deactivate actions for derived sub budgets', () => {
@@ -469,5 +582,6 @@ describe('BudgetsPageComponent', () => {
     const fixture = configure({ budgets: [], selectedDetail: null });
 
     expect(fixture.nativeElement.textContent).toContain('No hay presupuesto para este mes');
+    expect(fixture.nativeElement.querySelector('.error-panel')).toBeNull();
   });
 });
