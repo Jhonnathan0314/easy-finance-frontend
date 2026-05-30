@@ -268,9 +268,9 @@ describe('ExpensesPageComponent', () => {
     expect(text).toContain('2026-05-12');
     expect(text).toContain('Food');
     expect(text).toContain('Cash');
-    expect(text).toContain('PAID');
-    expect(text).toContain('ACTIVE');
-    expect(text).toContain('SIMPLE');
+    expect(text).toContain('Pagado');
+    expect(text).toContain('Activo');
+    expect(text).toContain('Simple');
     expect(findButton(fixture, 'Detalle')).toBeUndefined();
   });
 
@@ -429,7 +429,7 @@ describe('ExpensesPageComponent', () => {
     const fixture = configure({ catalogs: false });
 
     expect(fixture.componentInstance.hasRequiredCatalogs()).toBeFalse();
-    expect(fixture.nativeElement.textContent).toContain('Necesitas al menos una categoria');
+    expect(fixture.nativeElement.textContent).toContain('Necesitas al menos una categoría');
   });
 
   it('clears persisted filters and reloads defaults', () => {

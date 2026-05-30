@@ -6,6 +6,7 @@ import { take } from 'rxjs';
 import { ImportsStore } from '../../core/imports/imports.store';
 import { AccountStore } from '../../core/state/account.store';
 import { ApiErrorResponse, ExpenseImportRowResponseDto } from '../../shared/models';
+import { enumLabel } from '../../shared/ui/enum-labels';
 
 type RowFilter = 'all' | 'valid' | 'invalid';
 
@@ -51,7 +52,7 @@ export const EXPENSE_IMPORT_TEMPLATE_FILENAME = 'easy-finance-expense-import-tem
         }
         <ul>
           <li>Solo .xlsx, maximo 5MB y maximo 1000 filas.</li>
-          <li>Categoria debe existir, estar activa y ser EXPENSE.</li>
+          <li>La categoría debe existir, estar activa y ser de gasto.</li>
           <li>MedioPago debe existir y estar activo.</li>
           <li>EstadoPago: PENDING, PARTIAL, PAID.</li>
           <li>Opcionalmente puedes asociar una fila a pago de deuda con AplicaPagoDeuda, Deuda, TipoPagoDeuda y NotasPagoDeuda.</li>
@@ -117,12 +118,12 @@ export const EXPENSE_IMPORT_TEMPLATE_FILENAME = 'easy-finance-expense-import-tem
           <div class="summary-heading">
             <div>
               <h2>{{ batch.originalFilename }}</h2>
-              <p>Batch {{ batch.batchId }} - {{ batch.status }}</p>
+              <p>Batch {{ batch.batchId }} - {{ enumLabel(batch.status) }}</p>
             </div>
             @if (batch.confirmedAt) {
               <span class="badge success">Confirmado {{ batch.confirmedAt }}</span>
             } @else {
-              <span class="badge">{{ batch.status }}</span>
+              <span class="badge">{{ enumLabel(batch.status) }}</span>
             }
           </div>
 
@@ -141,7 +142,7 @@ export const EXPENSE_IMPORT_TEMPLATE_FILENAME = 'easy-finance-expense-import-tem
             </div>
             <div>
               <dt>Status</dt>
-              <dd>{{ batch.status }}</dd>
+              <dd>{{ enumLabel(batch.status) }}</dd>
             </div>
           </dl>
 
@@ -211,14 +212,14 @@ export const EXPENSE_IMPORT_TEMPLATE_FILENAME = 'easy-finance-expense-import-tem
                       </td>
                       <td>{{ row.categoryName || categoryLabel(row.categoryId) }}</td>
                       <td>{{ row.paymentMethodName || paymentMethodLabel(row.paymentMethodId) }}</td>
-                      <td>{{ row.paymentState || '-' }}</td>
+                      <td>{{ row.paymentState ? enumLabel(row.paymentState) : '-' }}</td>
                       <td>
                         <span class="badge" [class.debt]="row.appliesDebtPayment">
                           {{ row.appliesDebtPayment ? 'SI' : 'NO' }}
                         </span>
                       </td>
                       <td>{{ debtLabel(row) }}</td>
-                      <td>{{ row.debtPaymentType || '-' }}</td>
+                      <td>{{ row.debtPaymentType ? enumLabel(row.debtPaymentType) : '-' }}</td>
                       <td>{{ row.debtPaymentNotes || '-' }}</td>
                       <td>
                         @if (row.createdDebtPaymentId) {
@@ -259,6 +260,7 @@ export const EXPENSE_IMPORT_TEMPLATE_FILENAME = 'easy-finance-expense-import-tem
 export class ImportsPageComponent {
   protected readonly importsStore = inject(ImportsStore);
   protected readonly accountStore = inject(AccountStore);
+  protected readonly enumLabel = enumLabel;
 
   readonly rowFilter = signal<RowFilter>('all');
   readonly fileError = signal<string | null>(null);

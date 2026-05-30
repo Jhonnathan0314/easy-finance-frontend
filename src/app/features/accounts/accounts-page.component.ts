@@ -5,6 +5,7 @@ import { finalize, take } from 'rxjs';
 
 import { AccountStore } from '../../core/state/account.store';
 import { AccountResponseDto } from '../../shared/models';
+import { enumLabel } from '../../shared/ui/enum-labels';
 
 @Component({
   selector: 'ef-accounts-page',
@@ -71,11 +72,11 @@ import { AccountResponseDto } from '../../shared/models';
             <article class="account-card" [class.selected]="accountStore.selectedAccountId() === account.id">
               <div class="account-card__header">
                 <h2>{{ account.name }}</h2>
-                <span class="status" [class.archived]="account.status === 'ARCHIVED'">{{ account.status }}</span>
+                <span class="status" [class.archived]="account.status === 'ARCHIVED'">{{ enumLabel(account.status) }}</span>
               </div>
               <p>{{ account.description || 'Sin descripcion.' }}</p>
               <div class="meta">
-                <span>{{ account.currentUserRole }}</span>
+                <span>{{ enumLabel(account.currentUserRole) }}</span>
                 <span>ID {{ account.id }}</span>
               </div>
               <div class="actions">
@@ -91,6 +92,7 @@ import { AccountResponseDto } from '../../shared/models';
 })
 export class AccountsPageComponent implements OnInit {
   protected readonly accountStore = inject(AccountStore);
+  protected readonly enumLabel = enumLabel;
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly router = inject(Router);
 

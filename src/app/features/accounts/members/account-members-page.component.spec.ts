@@ -102,7 +102,7 @@ describe('AccountMembersPageComponent', () => {
 
     expect(api.listMembers).toHaveBeenCalledWith(1);
     expect(fixture.nativeElement.textContent).toContain('member@example.com');
-    expect(fixture.nativeElement.textContent).toContain('ACCOUNT_MEMBER');
+    expect(fixture.nativeElement.textContent).toContain('Miembro');
   });
 
   it('shows clear navigation actions in account detail', () => {

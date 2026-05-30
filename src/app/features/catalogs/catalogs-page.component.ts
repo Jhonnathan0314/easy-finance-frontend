@@ -11,6 +11,7 @@ import {
   PaymentMethodResponseDto,
   PaymentMethodType
 } from '../../shared/models';
+import { enumLabel } from '../../shared/ui/enum-labels';
 
 type CatalogTab = 'categories' | 'paymentMethods';
 
@@ -70,7 +71,7 @@ type CatalogTab = 'categories' | 'paymentMethods';
               <select formControlName="type">
                 <option value="">Todos</option>
                 @for (type of categoryTypes; track type) {
-                  <option [value]="type">{{ type }}</option>
+                  <option [value]="type">{{ enumLabel(type) }}</option>
                 }
               </select>
             </label>
@@ -78,7 +79,7 @@ type CatalogTab = 'categories' | 'paymentMethods';
               <span>Status</span>
               <select formControlName="status">
                 @for (status of catalogStatuses; track status) {
-                  <option [value]="status">{{ status }}</option>
+                  <option [value]="status">{{ enumLabel(status) }}</option>
                 }
               </select>
             </label>
@@ -106,7 +107,7 @@ type CatalogTab = 'categories' | 'paymentMethods';
                 <span>Tipo</span>
                 <select formControlName="type">
                   @for (type of categoryTypes; track type) {
-                    <option [value]="type">{{ type }}</option>
+                    <option [value]="type">{{ enumLabel(type) }}</option>
                   }
                 </select>
                 @if (editingCategory()) {
@@ -135,8 +136,8 @@ type CatalogTab = 'categories' | 'paymentMethods';
                     <p>{{ category.description || 'Sin descripcion.' }}</p>
                   </div>
                   <div class="badges">
-                    <span>{{ category.type }}</span>
-                    <span [class.inactive]="category.status === 'INACTIVE'">{{ category.status }}</span>
+                    <span>{{ enumLabel(category.type) }}</span>
+                    <span [class.inactive]="category.status === 'INACTIVE'">{{ enumLabel(category.status) }}</span>
                   </div>
                   @if (canWrite()) {
                     <div class="actions">
@@ -170,7 +171,7 @@ type CatalogTab = 'categories' | 'paymentMethods';
               <select formControlName="type">
                 <option value="">Todos</option>
                 @for (type of paymentMethodTypes; track type) {
-                  <option [value]="type">{{ type }}</option>
+                  <option [value]="type">{{ enumLabel(type) }}</option>
                 }
               </select>
             </label>
@@ -178,7 +179,7 @@ type CatalogTab = 'categories' | 'paymentMethods';
               <span>Status</span>
               <select formControlName="status">
                 @for (status of catalogStatuses; track status) {
-                  <option [value]="status">{{ status }}</option>
+                  <option [value]="status">{{ enumLabel(status) }}</option>
                 }
               </select>
             </label>
@@ -206,7 +207,7 @@ type CatalogTab = 'categories' | 'paymentMethods';
                 <span>Tipo</span>
                 <select formControlName="type">
                   @for (type of paymentMethodTypes; track type) {
-                    <option [value]="type">{{ type }}</option>
+                    <option [value]="type">{{ enumLabel(type) }}</option>
                   }
                 </select>
                 @if (editingPaymentMethod()) {
@@ -235,8 +236,8 @@ type CatalogTab = 'categories' | 'paymentMethods';
                     <p>{{ paymentMethod.description || 'Sin descripcion.' }}</p>
                   </div>
                   <div class="badges">
-                    <span>{{ paymentMethod.type }}</span>
-                    <span [class.inactive]="paymentMethod.status === 'INACTIVE'">{{ paymentMethod.status }}</span>
+                    <span>{{ enumLabel(paymentMethod.type) }}</span>
+                    <span [class.inactive]="paymentMethod.status === 'INACTIVE'">{{ enumLabel(paymentMethod.status) }}</span>
                   </div>
                   @if (canWrite()) {
                     <div class="actions">
@@ -262,6 +263,7 @@ type CatalogTab = 'categories' | 'paymentMethods';
 export class CatalogsPageComponent implements OnInit {
   protected readonly catalogStore = inject(CatalogStore);
   protected readonly accountStore = inject(AccountStore);
+  protected readonly enumLabel = enumLabel;
   private readonly fb = inject(NonNullableFormBuilder);
 
   readonly activeTab = signal<CatalogTab>('categories');

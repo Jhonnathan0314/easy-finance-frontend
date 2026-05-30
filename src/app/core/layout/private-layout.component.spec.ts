@@ -87,7 +87,7 @@ describe('PrivateLayoutComponent', () => {
     const text = fixture.nativeElement.textContent;
 
     expect(text).toContain('Casa');
-    expect(text).toContain('ACCOUNT_ADMIN');
+    expect(text).toContain('Administrador');
   });
 
   it('does not render the topbar account select', () => {

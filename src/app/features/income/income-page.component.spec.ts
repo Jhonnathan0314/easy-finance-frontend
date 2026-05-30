@@ -150,7 +150,7 @@ describe('IncomePageComponent', () => {
     expect(text).toContain('2026-05-12');
     expect(text).toContain('Salary');
     expect(text).toContain('Participante 7');
-    expect(text).toContain('ACTIVE');
+    expect(text).toContain('Activo');
     expect(text).not.toContain('Detalle');
   });
 
@@ -178,7 +178,7 @@ describe('IncomePageComponent', () => {
     const fixture = configure({ categories: false });
 
     expect(fixture.componentInstance.hasRequiredCatalogs()).toBeFalse();
-    expect(fixture.nativeElement.textContent).toContain('Necesitas al menos una categoria INCOME activa');
+    expect(fixture.nativeElement.textContent).toContain('Necesitas al menos una categoría de ingreso activa');
   });
 
   it('creates income through the store', () => {

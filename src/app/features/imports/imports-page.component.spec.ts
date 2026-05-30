@@ -218,7 +218,7 @@ describe('ImportsPageComponent', () => {
 
     expect(text).toContain('Pago deuda');
     expect(text).toContain('Credito cocina');
-    expect(text).toContain('INSTALLMENT');
+    expect(text).toContain('En cuotas');
     expect(text).toContain('Cuota mayo');
   });
 

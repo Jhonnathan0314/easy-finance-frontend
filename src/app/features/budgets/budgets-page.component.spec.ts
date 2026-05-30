@@ -343,7 +343,7 @@ describe('BudgetsPageComponent', () => {
   it('does not show edit or deactivate actions for derived sub budgets', () => {
     const fixture = configure({ budgets: [], selectedDetail: { ...detail, subBudgets: [derivedSubBudget], impacts: [] } });
 
-    expect(fixture.nativeElement.textContent).toContain('DEBT_DERIVED');
+    expect(fixture.nativeElement.textContent).toContain('Derivado de deuda');
     expect(fixture.nativeElement.textContent).not.toContain('Editar');
     expect(fixture.nativeElement.textContent).not.toContain('Desactivar');
   });
@@ -429,7 +429,7 @@ describe('BudgetsPageComponent', () => {
     const card = fixture.nativeElement.querySelector('.subbudget-card') as HTMLElement;
 
     expect(card.textContent).toContain('Mercado');
-    expect(card.textContent).toContain('MANUAL');
+    expect(card.textContent).toContain('Manual');
     expect(card.textContent).toContain('Presupuestado');
     expect(card.textContent).toContain('$500,000');
     expect(card.textContent).not.toContain('$250,000');

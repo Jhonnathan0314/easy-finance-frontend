@@ -9,6 +9,7 @@ import { CatalogsApiService } from '../../core/catalogs/catalogs-api.service';
 import { IncomeFilters, IncomeStore } from '../../core/income/income.store';
 import { AccountStore } from '../../core/state/account.store';
 import { CategoryResponseDto, IncomeResponseDto } from '../../shared/models';
+import { enumLabel } from '../../shared/ui/enum-labels';
 
 type IncomeDateSort = 'incomeDate,asc' | 'incomeDate,desc';
 
@@ -37,8 +38,8 @@ type IncomeDateSort = 'incomeDate,asc' | 'incomeDate,desc';
 
       @if (!hasRequiredCatalogs()) {
         <div class="panel warning-panel">
-          Necesitas al menos una categoria INCOME activa.
-          <a [routerLink]="['/app/accounts', accountId(), 'catalogs']">Ir a catalogos</a>
+          Necesitas al menos una categoría de ingreso activa.
+          <a [routerLink]="['/app/accounts', accountId(), 'catalogs']">Ir a catálogos</a>
         </div>
       }
 
@@ -166,7 +167,7 @@ type IncomeDateSort = 'incomeDate,asc' | 'incomeDate,desc';
           </div>
           <strong>{{ income.amount | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
           <div class="badges">
-            <span>{{ income.status }}</span>
+            <span>{{ enumLabel(income.status) }}</span>
           </div>
           <button type="button" (click)="selectedDetail.set(null)">Cerrar detalle</button>
         </section>
@@ -211,7 +212,7 @@ type IncomeDateSort = 'incomeDate,asc' | 'incomeDate,desc';
               </div>
               <strong>{{ income.amount | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
               <div class="badges">
-                <span [class.cancelled]="income.status === 'CANCELLED'">{{ income.status }}</span>
+                <span [class.cancelled]="income.status === 'CANCELLED'">{{ enumLabel(income.status) }}</span>
               </div>
               <div class="actions">
                 @if (canMutateIncome(income)) {
@@ -242,6 +243,7 @@ type IncomeDateSort = 'incomeDate,asc' | 'incomeDate,desc';
 export class IncomePageComponent implements OnInit {
   protected readonly incomeStore = inject(IncomeStore);
   protected readonly accountStore = inject(AccountStore);
+  protected readonly enumLabel = enumLabel;
   private readonly authStore = inject(AuthStore);
   private readonly catalogsApi = inject(CatalogsApiService);
   private readonly fb = inject(NonNullableFormBuilder);

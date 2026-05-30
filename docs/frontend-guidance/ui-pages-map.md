@@ -71,9 +71,9 @@
   - `GET/POST /debts`
   - `GET /debts/{debtId}`
   - `PATCH /debts/{debtId}/cancel`
-- Actions: create manual debt, cancel active debt, open detail.
+- Actions: create manual debt, cancel manual debt, open detail.
 - Components: debt table, debt detail, debt form.
-- Errors: cancel not allowed, debt not active, derived debt already has payments.
+- Errors: cancel not allowed, debt not active.
 
 ## Debt Payments
 

@@ -16,6 +16,7 @@ import {
   ExpenseStatus,
   PaymentMethodResponseDto
 } from '../../shared/models';
+import { enumLabel } from '../../shared/ui/enum-labels';
 
 type ExpenseFormMode = 'simple' | 'installment';
 type ExpenseDateSort = 'expenseDate,asc' | 'expenseDate,desc';
@@ -53,8 +54,8 @@ type ExpenseDateSort = 'expenseDate,asc' | 'expenseDate,desc';
 
       @if (!hasRequiredCatalogs()) {
         <div class="panel warning-panel">
-          Necesitas al menos una categoria EXPENSE activa y un medio de pago activo.
-          <a [routerLink]="['/app/accounts', accountId(), 'catalogs']">Ir a catalogos</a>
+          Necesitas al menos una categoría de gasto activa y un medio de pago activo.
+          <a [routerLink]="['/app/accounts', accountId(), 'catalogs']">Ir a catálogos</a>
         </div>
       }
 
@@ -105,7 +106,7 @@ type ExpenseDateSort = 'expenseDate,asc' | 'expenseDate,desc';
           <select formControlName="paymentState">
             <option value="">Todos</option>
             @for (state of paymentStates; track state) {
-              <option [value]="state">{{ state }}</option>
+              <option [value]="state">{{ enumLabel(state) }}</option>
             }
           </select>
         </label>
@@ -113,7 +114,7 @@ type ExpenseDateSort = 'expenseDate,asc' | 'expenseDate,desc';
           <span>Status</span>
           <select formControlName="status">
             @for (status of expenseStatuses; track status) {
-              <option [value]="status">{{ status }}</option>
+              <option [value]="status">{{ enumLabel(status) }}</option>
             }
           </select>
         </label>
@@ -176,7 +177,7 @@ type ExpenseDateSort = 'expenseDate,asc' | 'expenseDate,desc';
             <span>Pago</span>
             <select formControlName="paymentState">
               @for (state of paymentStates; track state) {
-                <option [value]="state">{{ state }}</option>
+                <option [value]="state">{{ enumLabel(state) }}</option>
               }
             </select>
           </label>
@@ -232,7 +233,7 @@ type ExpenseDateSort = 'expenseDate,asc' | 'expenseDate,desc';
               <span>Estado de pago</span>
               <select formControlName="paymentState">
                 @for (state of paymentStates; track state) {
-                  <option [value]="state">{{ state }}</option>
+                  <option [value]="state">{{ enumLabel(state) }}</option>
                 }
               </select>
             </label>
@@ -312,7 +313,7 @@ type ExpenseDateSort = 'expenseDate,asc' | 'expenseDate,desc';
             <select formControlName="paymentState">
               <option value="">Usar estado origen</option>
               @for (state of paymentStates; track state) {
-                <option [value]="state">{{ state }}</option>
+                <option [value]="state">{{ enumLabel(state) }}</option>
               }
             </select>
           </label>
@@ -363,9 +364,9 @@ type ExpenseDateSort = 'expenseDate,asc' | 'expenseDate,desc';
               </div>
               <strong>{{ expense.amount | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
               <div class="badges">
-                <span>{{ expense.paymentState }}</span>
-                <span [class.cancelled]="expense.status === 'CANCELLED'">{{ expense.status }}</span>
-                <span>{{ expense.expenseType }}</span>
+                <span>{{ enumLabel(expense.paymentState) }}</span>
+                <span [class.cancelled]="expense.status === 'CANCELLED'">{{ enumLabel(expense.status) }}</span>
+                <span>{{ enumLabel(expense.expenseType) }}</span>
               </div>
               <div class="actions">
                 @if (canMutateExpense(expense)) {
@@ -396,6 +397,7 @@ type ExpenseDateSort = 'expenseDate,asc' | 'expenseDate,desc';
 export class ExpensesPageComponent implements OnInit {
   protected readonly expensesStore = inject(ExpensesStore);
   protected readonly accountStore = inject(AccountStore);
+  protected readonly enumLabel = enumLabel;
   private readonly authStore = inject(AuthStore);
   private readonly catalogsApi = inject(CatalogsApiService);
   private readonly fb = inject(NonNullableFormBuilder);

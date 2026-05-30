@@ -4,6 +4,7 @@ import { take } from 'rxjs';
 
 import { AuthService } from '../auth/auth.service';
 import { AuthStore } from '../auth/auth.store';
+import { enumLabel } from '../../shared/ui/enum-labels';
 import { AccountStore } from '../state/account.store';
 import { GlobalErrorStore } from '../state/global-error.store';
 
@@ -45,7 +46,7 @@ interface NavigationItem {
             @if (accountStore.selectedAccount(); as account) {
               <span>Cuenta</span>
               <strong class="account-name">{{ account.name }}</strong>
-              <span class="account-role">{{ account.currentUserRole }}</span>
+              <span class="account-role">{{ enumLabel(account.currentUserRole) }}</span>
             } @else {
               <span>Cuenta</span>
               <strong class="account-name">Sin seleccionar</strong>
@@ -93,6 +94,7 @@ export class PrivateLayoutComponent implements OnInit {
   protected readonly authStore = inject(AuthStore);
   protected readonly accountStore = inject(AccountStore);
   protected readonly errorStore = inject(GlobalErrorStore);
+  protected readonly enumLabel = enumLabel;
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
 

@@ -6,6 +6,7 @@ import { finalize, take } from 'rxjs';
 import { AccountsApiService } from '../../../core/accounts/accounts-api.service';
 import { AccountStore } from '../../../core/state/account.store';
 import { AccountMemberResponseDto, AccountRole, ApiErrorResponse } from '../../../shared/models';
+import { enumLabel } from '../../../shared/ui/enum-labels';
 
 @Component({
   selector: 'ef-account-members-page',
@@ -33,11 +34,11 @@ import { AccountMemberResponseDto, AccountRole, ApiErrorResponse } from '../../.
           </div>
           <div>
             <span>Status</span>
-            <strong class="badge" [class.archived]="account.status === 'ARCHIVED'">{{ account.status }}</strong>
+            <strong class="badge" [class.archived]="account.status === 'ARCHIVED'">{{ enumLabel(account.status) }}</strong>
           </div>
           <div>
             <span>Rol actual</span>
-            <strong class="badge role">{{ account.currentUserRole }}</strong>
+            <strong class="badge role">{{ enumLabel(account.currentUserRole) }}</strong>
           </div>
         </section>
       }
@@ -73,7 +74,7 @@ import { AccountMemberResponseDto, AccountRole, ApiErrorResponse } from '../../.
             <span>Rol inicial</span>
             <select formControlName="role">
               @for (role of roles; track role) {
-                <option [value]="role">{{ role }}</option>
+                <option [value]="role">{{ enumLabel(role) }}</option>
               }
             </select>
           </label>
@@ -104,8 +105,8 @@ import { AccountMemberResponseDto, AccountRole, ApiErrorResponse } from '../../.
                 </div>
 
                 <div class="member-meta">
-                  <span class="badge role">{{ member.role }}</span>
-                  <span class="badge" [class.inactive]="member.status === 'INACTIVE'">{{ member.status }}</span>
+                  <span class="badge role">{{ enumLabel(member.role) }}</span>
+                  <span class="badge" [class.inactive]="member.status === 'INACTIVE'">{{ enumLabel(member.status) }}</span>
                 </div>
 
                 @if (canWrite()) {
@@ -119,7 +120,7 @@ import { AccountMemberResponseDto, AccountRole, ApiErrorResponse } from '../../.
                           (change)="stageRoleChange(member, $event)"
                         >
                           @for (role of roles; track role) {
-                            <option [value]="role" [selected]="role === pendingRole(member)">{{ role }}</option>
+                            <option [value]="role" [selected]="role === pendingRole(member)">{{ enumLabel(role) }}</option>
                           }
                         </select>
                       </label>
@@ -154,6 +155,7 @@ import { AccountMemberResponseDto, AccountRole, ApiErrorResponse } from '../../.
 })
 export class AccountMembersPageComponent implements OnInit {
   protected readonly accountStore = inject(AccountStore);
+  protected readonly enumLabel = enumLabel;
   private readonly accountsApi = inject(AccountsApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);

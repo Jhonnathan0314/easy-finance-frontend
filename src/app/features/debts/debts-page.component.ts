@@ -18,6 +18,7 @@ import {
   PaymentMethodResponseDto,
   RegisterDebtPaymentRequest
 } from '../../shared/models';
+import { enumLabel } from '../../shared/ui/enum-labels';
 
 @Component({
   selector: 'ef-debts-page',
@@ -60,7 +61,7 @@ import {
           <span>Estado</span>
           <select formControlName="state">
             @for (state of debtStates; track state) {
-              <option [value]="state">{{ state }}</option>
+              <option [value]="state">{{ enumLabel(state) }}</option>
             }
           </select>
         </label>
@@ -69,7 +70,7 @@ import {
           <select formControlName="sourceType">
             <option value="">Todos</option>
             @for (sourceType of sourceTypes; track sourceType) {
-              <option [value]="sourceType">{{ sourceType }}</option>
+              <option [value]="sourceType">{{ enumLabel(sourceType) }}</option>
             }
           </select>
         </label>
@@ -175,8 +176,8 @@ import {
                     </div>
                   </div>
                   <div class="badges">
-                    <span>{{ debt.state }}</span>
-                    <span>{{ debt.sourceType }}</span>
+                    <span>{{ enumLabel(debt.state) }}</span>
+                    <span>{{ enumLabel(debt.sourceType) }}</span>
                     @if (debt.sourceType === 'INSTALLMENT_EXPENSE') {
                       <span>Desde gasto en cuotas</span>
                     }
@@ -231,11 +232,11 @@ import {
               }
               <div>
                 <dt>Estado</dt>
-                <dd>{{ debt.state }}</dd>
+                <dd>{{ enumLabel(debt.state) }}</dd>
               </div>
               <div>
                 <dt>Origen</dt>
-                <dd>{{ debt.sourceType }}</dd>
+                <dd>{{ enumLabel(debt.sourceType) }}</dd>
               </div>
             </dl>
 
@@ -246,7 +247,7 @@ import {
                   <span>Tipo</span>
                   <select formControlName="paymentType">
                     @for (type of paymentTypes; track type) {
-                      <option [value]="type">{{ type }}</option>
+                      <option [value]="type">{{ enumLabel(type) }}</option>
                     }
                   </select>
                 </label>
@@ -296,7 +297,7 @@ import {
                       <p class="form-error">Categoria, medio de pago y descripcion son requeridos para crear el gasto asociado.</p>
                     }
                     @if (!expenseCategories().length || !paymentMethods().length) {
-                      <p class="form-error">Necesitas categorias EXPENSE activas y medios de pago activos para crear el gasto asociado.</p>
+                      <p class="form-error">Necesitas categorías de gasto activas y medios de pago activos para crear el gasto asociado.</p>
                     }
                   </div>
                 }
@@ -323,7 +324,7 @@ import {
                 <select formControlName="paymentType">
                   <option value="">Todos</option>
                   @for (type of paymentTypes; track type) {
-                    <option [value]="type">{{ type }}</option>
+                    <option [value]="type">{{ enumLabel(type) }}</option>
                   }
                 </select>
               </label>
@@ -331,7 +332,7 @@ import {
                 <span>Status</span>
                 <select formControlName="status">
                   @for (status of paymentStatuses; track status) {
-                    <option [value]="status">{{ status }}</option>
+                    <option [value]="status">{{ enumLabel(status) }}</option>
                   }
                 </select>
               </label>
@@ -349,7 +350,7 @@ import {
                   <article class="payment-row">
                     <div>
                       <strong>{{ payment.paymentDate }}</strong>
-                      <span>{{ payment.paymentType }} - {{ payment.status }}</span>
+                      <span>{{ enumLabel(payment.paymentType) }} - {{ enumLabel(payment.status) }}</span>
                     </div>
                     <span>{{ payment.amount | currency: 'COP':'symbol-narrow':'1.0-0' }}</span>
                   </article>
@@ -365,6 +366,7 @@ import {
 export class DebtsPageComponent implements OnInit {
   protected readonly debtsStore = inject(DebtsStore);
   protected readonly accountStore = inject(AccountStore);
+  protected readonly enumLabel = enumLabel;
   private readonly authStore = inject(AuthStore);
   private readonly catalogsApi = inject(CatalogsApiService);
   private readonly fb = inject(NonNullableFormBuilder);

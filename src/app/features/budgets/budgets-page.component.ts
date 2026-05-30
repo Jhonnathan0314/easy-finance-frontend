@@ -14,6 +14,7 @@ import {
   CategoryResponseDto,
   SubBudgetResponseDto
 } from '../../shared/models';
+import { enumLabel } from '../../shared/ui/enum-labels';
 
 type BudgetPeriodSort = 'month,desc' | 'month,asc';
 
@@ -49,8 +50,8 @@ interface BudgetCategorySummary {
 
       @if (!expenseCategories().length) {
         <div class="panel warning-panel">
-          No hay categorias EXPENSE activas para subpresupuestos manuales.
-          <a [routerLink]="['/app/accounts', accountId(), 'catalogs']">Ir a catalogos</a>
+          No hay categorías de gasto activas para subpresupuestos manuales.
+          <a [routerLink]="['/app/accounts', accountId(), 'catalogs']">Ir a catálogos</a>
         </div>
       }
 
@@ -83,7 +84,7 @@ interface BudgetCategorySummary {
             <select formControlName="status">
               <option value="">Todos</option>
               @for (status of budgetStatuses; track status) {
-                <option [value]="status">{{ status }}</option>
+                <option [value]="status">{{ enumLabel(status) }}</option>
               }
             </select>
           </label>
@@ -159,7 +160,7 @@ interface BudgetCategorySummary {
             <span>Status</span>
             <select formControlName="status">
               @for (status of budgetStatuses; track status) {
-                <option [value]="status">{{ status }}</option>
+                <option [value]="status">{{ enumLabel(status) }}</option>
               }
             </select>
           </label>
@@ -197,7 +198,7 @@ interface BudgetCategorySummary {
                     <h3>{{ budget.name || monthLabel(budget.month) }}</h3>
                     <p>{{ monthLabel(budget.month) }} {{ budget.year }}</p>
                   </div>
-                  <span class="status-badge">{{ budget.status }}</span>
+                  <span class="status-badge">{{ enumLabel(budget.status) }}</span>
                   <div class="actions">
                     <button type="button" (click)="selectBudget(budget)">Ver detalle</button>
                     @if (canWrite()) {
@@ -219,7 +220,7 @@ interface BudgetCategorySummary {
                   <p>{{ monthLabel(detail.budget.month) }} {{ detail.budget.year }}</p>
                 </div>
                 <div class="detail-actions">
-                  <span class="status-badge">{{ detail.budget.status }}</span>
+                  <span class="status-badge">{{ enumLabel(detail.budget.status) }}</span>
                   @if (canWrite()) {
                     <button class="button" type="button" (click)="startDuplicateBudget()">Duplicar presupuesto</button>
                   }
@@ -364,15 +365,15 @@ interface BudgetCategorySummary {
                     <article class="subbudget-card">
                       <div>
                         <h3>{{ subBudget.name }}</h3>
-                        <p>{{ categoryName(subBudget.categoryId) }} - {{ subBudget.sourceType }}</p>
+                        <p>{{ categoryName(subBudget.categoryId) }} - {{ enumLabel(subBudget.sourceType) }}</p>
                       </div>
                       <div class="amount-block">
                         <span>Presupuestado</span>
                         <strong>{{ subBudget.plannedAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
                       </div>
                       <div class="badges">
-                        <span>{{ subBudget.status }}</span>
-                        <span>{{ subBudget.sourceType }}</span>
+                        <span>{{ enumLabel(subBudget.status) }}</span>
+                        <span>{{ enumLabel(subBudget.sourceType) }}</span>
                       </div>
                       @if (canMutateSubBudget(subBudget)) {
                         <div class="actions">
@@ -421,8 +422,8 @@ interface BudgetCategorySummary {
                         <strong>{{ impactPending(impact) | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
                       </div>
                       <div class="badges">
-                        <span>{{ impact.status }}</span>
-                        <span>{{ impact.sourceType }}</span>
+                        <span>{{ enumLabel(impact.status) }}</span>
+                        <span>{{ enumLabel(impact.sourceType) }}</span>
                       </div>
                     </article>
                   }
@@ -446,6 +447,7 @@ interface BudgetCategorySummary {
 export class BudgetsPageComponent implements OnInit {
   protected readonly budgetsStore = inject(BudgetsStore);
   protected readonly accountStore = inject(AccountStore);
+  protected readonly enumLabel = enumLabel;
   private readonly catalogsApi = inject(CatalogsApiService);
   private readonly fb = inject(NonNullableFormBuilder);
 

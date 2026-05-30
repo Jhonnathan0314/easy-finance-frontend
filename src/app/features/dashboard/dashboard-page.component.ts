@@ -13,6 +13,7 @@ import {
   CategoryAmountItemDto,
   PaymentMethodAmountItemDto
 } from '../../shared/models';
+import { enumLabel } from '../../shared/ui/enum-labels';
 
 type QuickPreset = 'THIS_MONTH' | 'LAST_30_DAYS' | 'LAST_3_MONTHS' | 'THIS_YEAR';
 type DashboardTab = 'summary' | 'cashflow' | 'expenses' | 'budget';
@@ -136,40 +137,40 @@ type DashboardTab = 'summary' | 'cashflow' | 'expenses' | 'budget';
               <span>Status gasto</span>
               <select formControlName="expenseStatus">
                 <option value="">Todos</option>
-                <option value="ACTIVE">ACTIVE</option>
-                <option value="CANCELLED">CANCELLED</option>
+                <option value="ACTIVE">{{ enumLabel('ACTIVE') }}</option>
+                <option value="CANCELLED">{{ enumLabel('CANCELLED') }}</option>
               </select>
             </label>
             <label>
               <span>Estado pago gasto</span>
               <select formControlName="expensePaymentState">
                 <option value="">Todos</option>
-                <option value="PENDING">PENDING</option>
-                <option value="PARTIAL">PARTIAL</option>
-                <option value="PAID">PAID</option>
+                <option value="PENDING">{{ enumLabel('PENDING') }}</option>
+                <option value="PARTIAL">{{ enumLabel('PARTIAL') }}</option>
+                <option value="PAID">{{ enumLabel('PAID') }}</option>
               </select>
             </label>
             <label>
               <span>Status ingreso</span>
               <select formControlName="incomeStatus">
                 <option value="">Todos</option>
-                <option value="ACTIVE">ACTIVE</option>
-                <option value="CANCELLED">CANCELLED</option>
+                <option value="ACTIVE">{{ enumLabel('ACTIVE') }}</option>
+                <option value="CANCELLED">{{ enumLabel('CANCELLED') }}</option>
               </select>
             </label>
             <label>
               <span>Tipo gasto</span>
               <select formControlName="expenseType">
                 <option value="">Todos</option>
-                <option value="SIMPLE">SIMPLE</option>
-                <option value="INSTALLMENT">INSTALLMENT</option>
+                <option value="SIMPLE">{{ enumLabel('SIMPLE') }}</option>
+                <option value="INSTALLMENT">{{ enumLabel('INSTALLMENT') }}</option>
               </select>
             </label>
             <label>
               <span>Agrupar cashflow</span>
               <select formControlName="groupBy">
                 @for (group of groupByOptions; track group) {
-                  <option [value]="group">{{ group }}</option>
+                  <option [value]="group">{{ enumLabel(group) }}</option>
                 }
               </select>
             </label>
@@ -291,7 +292,7 @@ type DashboardTab = 'summary' | 'cashflow' | 'expenses' | 'budget';
             <div class="section-heading">
               <h2>Timeline cashflow</h2>
               @if (analyticsStore.cashflowTimeline(); as timeline) {
-                <span>{{ timeline.groupBy }}</span>
+                <span>{{ enumLabel(timeline.groupBy) }}</span>
               }
             </div>
             @if (analyticsStore.cashflowTimeline()?.items?.length) {
@@ -479,6 +480,7 @@ type DashboardTab = 'summary' | 'cashflow' | 'expenses' | 'budget';
 export class DashboardPageComponent implements OnInit {
   protected readonly analyticsStore = inject(AnalyticsStore);
   protected readonly accountStore = inject(AccountStore);
+  protected readonly enumLabel = enumLabel;
   private readonly fb = inject(NonNullableFormBuilder);
 
   readonly groupByOptions: CashflowGroupBy[] = ['DAY', 'WEEK', 'MONTH'];
