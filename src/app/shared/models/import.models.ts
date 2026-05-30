@@ -74,3 +74,26 @@ export interface IncomeImportResponse {
 }
 
 export type IncomeImportResponseDto = IncomeImportResponse;
+
+export interface CategoryImportRowResponse {
+  rowNumber: number;
+  name?: string | null;
+  type?: string | null;
+  valid: boolean;
+  errors: ImportRowError[];
+  createdCategoryId?: number | null;
+}
+
+export type CategoryImportRowResponseDto = CategoryImportRowResponse;
+
+export interface CategoryImportResponse {
+  accountId: number;
+  participantId: number;
+  originalFilename: string;
+  totalRows: number;
+  createdCount: number;
+  invalidRows: number;
+  rows: CategoryImportRowResponse[];
+}
+
+export type CategoryImportResponseDto = CategoryImportResponse;

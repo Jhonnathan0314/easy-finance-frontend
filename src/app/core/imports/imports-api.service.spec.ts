@@ -81,4 +81,28 @@ describe('ImportsApiService', () => {
     expect(request.request.headers.has('Content-Type')).toBeFalse();
     request.flush({ createdCount: 0, rows: [] });
   });
+
+  it('downloads the category import template as a blob', () => {
+    service.downloadCategoryImportTemplate(8).subscribe();
+
+    const request = httpTesting.expectOne('http://localhost:8080/api/v1/accounts/8/imports/categories/template');
+    expect(request.request.method).toBe('GET');
+    expect(request.request.responseType).toBe('blob');
+    request.flush(new Blob(['template']));
+  });
+
+  it('builds direct category import multipart request', () => {
+    const file = new File(['excel'], 'categories.xlsx', {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+
+    service.importCategories(9, file).subscribe();
+
+    const request = httpTesting.expectOne('http://localhost:8080/api/v1/accounts/9/imports/categories');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body instanceof FormData).toBeTrue();
+    expect(request.request.body.get('file')).toBe(file);
+    expect(request.request.headers.has('Content-Type')).toBeFalse();
+    request.flush({ createdCount: 0, rows: [] });
+  });
 });

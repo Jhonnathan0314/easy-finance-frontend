@@ -5,15 +5,16 @@ import { take } from 'rxjs';
 
 import { ImportsStore } from '../../core/imports/imports.store';
 import { AccountStore } from '../../core/state/account.store';
-import { ApiErrorResponse, ExpenseImportRowResponseDto, IncomeImportRowResponseDto } from '../../shared/models';
+import { ApiErrorResponse, ExpenseImportRowResponseDto } from '../../shared/models';
 import { enumLabel } from '../../shared/ui/enum-labels';
 
 type RowFilter = 'all' | 'valid' | 'invalid';
-type ImportMode = 'expenses' | 'incomes';
+type ImportMode = 'expenses' | 'incomes' | 'categories';
 
 export const MAX_IMPORT_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 export const EXPENSE_IMPORT_TEMPLATE_FILENAME = 'easy-finance-expense-import-template.xlsx';
 export const INCOME_IMPORT_TEMPLATE_FILENAME = 'easy-finance-income-import-template.xlsx';
+export const CATEGORY_IMPORT_TEMPLATE_FILENAME = 'easy-finance-category-import-template.xlsx';
 
 @Component({
   selector: 'ef-imports-page',
@@ -32,6 +33,7 @@ export const INCOME_IMPORT_TEMPLATE_FILENAME = 'easy-finance-income-import-templ
       <div class="mode-tabs" role="tablist" aria-label="Tipo de importacion">
         <button type="button" [class.active]="activeMode() === 'expenses'" (click)="activeMode.set('expenses')">Gastos</button>
         <button type="button" [class.active]="activeMode() === 'incomes'" (click)="activeMode.set('incomes')">Ingresos</button>
+        <button type="button" [class.active]="activeMode() === 'categories'" (click)="activeMode.set('categories')">Categorias</button>
       </div>
 
       @if (accountStore.selectedAccountArchived()) {
@@ -262,7 +264,7 @@ export const INCOME_IMPORT_TEMPLATE_FILENAME = 'easy-finance-income-import-templ
           }
         </section>
       }
-      } @else {
+      } @else if (activeMode() === 'incomes') {
       <section class="panel instructions">
         <div>
           <h2>Importar ingresos desde Excel</h2>
@@ -425,6 +427,166 @@ export const INCOME_IMPORT_TEMPLATE_FILENAME = 'easy-finance-income-import-templ
           <p>Sube un Excel y el sistema intentara crear todos los ingresos en un solo paso.</p>
         </div>
       }
+      } @else {
+      <section class="panel instructions">
+        <div>
+          <h2>Importar categorias desde Excel</h2>
+          <p>Usa un archivo .xlsx con estas cabeceras exactas:</p>
+          <div class="headers-list">
+            @for (header of categoryRequiredHeaders; track header) {
+              <span>{{ header }}</span>
+            }
+          </div>
+        </div>
+        <div class="template-download">
+          <p>La plantilla se genera para importar categorias de gasto e ingreso.</p>
+          <button type="button" (click)="downloadCategoryTemplate()" [disabled]="importsStore.isDownloadingTemplate()">
+            {{ importsStore.isDownloadingTemplate() ? 'Descargando...' : 'Descargar plantilla de categorias' }}
+          </button>
+        </div>
+        @if (importsStore.categoryTemplateDownloadError(); as templateError) {
+          <p class="form-error" role="alert">{{ templateError }}</p>
+        }
+        <ul>
+          <li>Solo .xlsx, maximo 5MB y maximo 1000 filas.</li>
+          <li>Columnas requeridas: Nombre y Tipo.</li>
+          <li>Tipo acepta: Gasto, Ingreso, EXPENSE o INCOME.</li>
+          <li>Si alguna fila es invalida, no se crea ninguna categoria.</li>
+        </ul>
+      </section>
+
+      <section class="panel upload-panel">
+        <label class="file-field">
+          <span>Archivo Excel</span>
+          <input
+            #categoryFileInput
+            type="file"
+            accept=".xlsx"
+            (change)="onCategoryFileSelected($event)"
+            [disabled]="!canWrite()"
+          >
+        </label>
+
+        @if (importsStore.selectedCategoryFile(); as file) {
+          <div class="selected-file">
+            <strong>{{ file.name }}</strong>
+            <span>{{ fileSizeLabel(file.size) }}</span>
+            <button type="button" (click)="clearCategoryFile(categoryFileInput)">Quitar</button>
+          </div>
+        } @else {
+          <p class="muted">Selecciona un archivo .xlsx para importar categorias.</p>
+        }
+
+        @if (categoryFileError(); as error) {
+          <p class="form-error" role="alert">{{ error }}</p>
+        }
+
+        <div class="actions">
+          <button class="button" type="button" (click)="importCategories()" [disabled]="!canImportCategories()">
+            {{ importsStore.isImportingCategory() ? 'Importando...' : 'Importar categorias' }}
+          </button>
+          @if (hasCategoryImportState()) {
+            <button type="button" (click)="clearCategoryImport(categoryFileInput)">Cargar otro archivo</button>
+          }
+        </div>
+      </section>
+
+      @if (importsStore.categoryError(); as error) {
+        <div class="panel error-panel" role="alert">
+          <strong>{{ error.code }}</strong>
+          <span>{{ friendlyCategoryError(error) }}</span>
+        </div>
+      }
+
+      @if (categorySuccessMessage(); as message) {
+        <div class="panel success-panel">{{ message }}</div>
+      }
+
+      @if (importsStore.currentCategoryImportResult(); as result) {
+        <section class="panel batch-summary">
+          <div class="summary-heading">
+            <div>
+              <h2>{{ result.originalFilename }}</h2>
+              <p>Importacion directa de categorias</p>
+            </div>
+          </div>
+          <dl class="summary-grid">
+            <div>
+              <dt>Total filas</dt>
+              <dd>{{ result.totalRows }}</dd>
+            </div>
+            <div>
+              <dt>Creadas</dt>
+              <dd>{{ result.createdCount }}</dd>
+            </div>
+            <div>
+              <dt>Invalidas</dt>
+              <dd>{{ result.invalidRows }}</dd>
+            </div>
+          </dl>
+
+          @if (result.invalidRows > 0) {
+            <div class="panel warning-panel">
+              No se creo ninguna categoria. Corrige el archivo y vuelve a cargarlo.
+            </div>
+          }
+        </section>
+
+        <section class="panel rows-panel">
+          <h2>Filas procesadas</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fila</th>
+                  <th>Nombre</th>
+                  <th>Tipo</th>
+                  <th>Resultado</th>
+                  <th>Valid</th>
+                  <th>Errores</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of result.rows; track row.rowNumber) {
+                  <tr [class.invalid]="!row.valid">
+                    <td>{{ row.rowNumber }}</td>
+                    <td>{{ row.name || '-' }}</td>
+                    <td>{{ row.type ? enumLabel(row.type) : '-' }}</td>
+                    <td>
+                      @if (row.createdCategoryId) {
+                        <span class="badge success">Categoria #{{ row.createdCategoryId }}</span>
+                      } @else {
+                        -
+                      }
+                    </td>
+                    <td>
+                      <span class="badge" [class.success]="row.valid" [class.danger]="!row.valid">
+                        {{ row.valid ? 'VALID' : 'INVALID' }}
+                      </span>
+                    </td>
+                    <td>
+                      @if (row.errors.length) {
+                        <ul class="row-errors">
+                          @for (error of row.errors; track error.column + error.code + error.message) {
+                            <li><strong>{{ error.column }}</strong>: {{ error.message }}</li>
+                          }
+                        </ul>
+                      } @else {
+                        -
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      } @else if (!importsStore.isImportingCategory()) {
+        <div class="panel empty-state">
+          <h2>Sin importacion de categorias</h2>
+          <p>Sube un Excel y el sistema intentara crear todas las categorias en un solo paso.</p>
+        </div>
+      }
       }
     </section>
   `
@@ -438,8 +600,10 @@ export class ImportsPageComponent {
   readonly activeMode = signal<ImportMode>('expenses');
   readonly fileError = signal<string | null>(null);
   readonly incomeFileError = signal<string | null>(null);
+  readonly categoryFileError = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
   readonly incomeSuccessMessage = signal<string | null>(null);
+  readonly categorySuccessMessage = signal<string | null>(null);
   readonly accountId = computed(() => this.accountStore.selectedAccountId() ?? 0);
   readonly canWrite = computed(() => this.accountStore.selectedAccount()?.status === 'ACTIVE');
   readonly hasImportState = computed(
@@ -460,6 +624,15 @@ export class ImportsPageComponent {
       Boolean(this.incomeFileError()) ||
       Boolean(this.incomeSuccessMessage())
   );
+  readonly hasCategoryImportState = computed(
+    () =>
+      Boolean(this.importsStore.selectedCategoryFile()) ||
+      Boolean(this.importsStore.currentCategoryImportResult()) ||
+      Boolean(this.importsStore.categoryError()) ||
+      Boolean(this.importsStore.categoryTemplateDownloadError()) ||
+      Boolean(this.categoryFileError()) ||
+      Boolean(this.categorySuccessMessage())
+  );
   readonly filteredRows = computed(() => {
     const rows = this.importsStore.currentBatch()?.rows ?? [];
 
@@ -475,6 +648,7 @@ export class ImportsPageComponent {
   });
   readonly requiredHeaders = ['Fecha', 'Descripcion', 'Monto', 'Categoria', 'MedioPago', 'EstadoPago'];
   readonly incomeRequiredHeaders = ['Fecha', 'Descripcion', 'Categoria', 'Monto'];
+  readonly categoryRequiredHeaders = ['Nombre', 'Tipo'];
 
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -526,6 +700,31 @@ export class ImportsPageComponent {
     this.importsStore.selectIncomeFile(file);
   }
 
+  onCategoryFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+
+    this.categoryFileError.set(null);
+    this.categorySuccessMessage.set(null);
+
+    if (!file) {
+      this.importsStore.clearCategoryFile();
+      this.categoryFileError.set('Selecciona un archivo .xlsx.');
+      return;
+    }
+
+    const validationError = validateImportFile(file);
+
+    if (validationError) {
+      this.importsStore.clearCategoryFile();
+      this.categoryFileError.set(validationError);
+      input.value = '';
+      return;
+    }
+
+    this.importsStore.selectCategoryFile(file);
+  }
+
   clearFile(fileInput?: HTMLInputElement): void {
     this.importsStore.clearFile();
     this.fileError.set(null);
@@ -559,6 +758,25 @@ export class ImportsPageComponent {
     this.importsStore.clearIncomeImportState();
     this.incomeFileError.set(null);
     this.incomeSuccessMessage.set(null);
+
+    if (fileInput) {
+      fileInput.value = '';
+    }
+  }
+
+  clearCategoryFile(fileInput?: HTMLInputElement): void {
+    this.importsStore.clearCategoryFile();
+    this.categoryFileError.set(null);
+
+    if (fileInput) {
+      fileInput.value = '';
+    }
+  }
+
+  clearCategoryImport(fileInput?: HTMLInputElement): void {
+    this.importsStore.clearCategoryImportState();
+    this.categoryFileError.set(null);
+    this.categorySuccessMessage.set(null);
 
     if (fileInput) {
       fileInput.value = '';
@@ -611,6 +829,13 @@ export class ImportsPageComponent {
     });
   }
 
+  downloadCategoryTemplate(): void {
+    this.importsStore.downloadCategoryTemplate(this.accountId()).pipe(take(1)).subscribe({
+      next: (blob) => this.saveTemplateBlob(blob, CATEGORY_IMPORT_TEMPLATE_FILENAME),
+      error: () => undefined
+    });
+  }
+
   importIncomes(): void {
     this.incomeSuccessMessage.set(null);
     this.incomeFileError.set(null);
@@ -641,6 +866,36 @@ export class ImportsPageComponent {
     });
   }
 
+  importCategories(): void {
+    this.categorySuccessMessage.set(null);
+    this.categoryFileError.set(null);
+
+    if (!this.canWrite()) {
+      this.categoryFileError.set('La cuenta archivada no permite importar categorias.');
+      return;
+    }
+
+    const file = this.importsStore.selectedCategoryFile();
+    const validationError = file ? validateImportFile(file) : 'Selecciona un archivo .xlsx.';
+
+    if (validationError) {
+      this.categoryFileError.set(validationError);
+      return;
+    }
+
+    this.importsStore.importCategoryFile(this.accountId()).pipe(take(1)).subscribe({
+      next: (result) => {
+        if (result.invalidRows > 0) {
+          this.categorySuccessMessage.set('No se creo ninguna categoria. Corrige el archivo y vuelve a cargarlo.');
+          return;
+        }
+
+        this.categorySuccessMessage.set(`Se importaron ${result.createdCount} categorias.`);
+      },
+      error: () => undefined
+    });
+  }
+
   canPreview(): boolean {
     return this.canWrite() && Boolean(this.importsStore.selectedFile()) && !this.importsStore.isPreviewing();
   }
@@ -659,6 +914,10 @@ export class ImportsPageComponent {
 
   canImportIncomes(): boolean {
     return this.canWrite() && Boolean(this.importsStore.selectedIncomeFile()) && !this.importsStore.isImportingIncome();
+  }
+
+  canImportCategories(): boolean {
+    return this.canWrite() && Boolean(this.importsStore.selectedCategoryFile()) && !this.importsStore.isImportingCategory();
   }
 
   hasCatalogErrors(): boolean {
@@ -716,6 +975,20 @@ export class ImportsPageComponent {
       IMPORT_FILE_TOO_LARGE: 'El archivo supera el tamano maximo permitido.',
       IMPORT_TEMPLATE_INVALID: 'La plantilla no tiene las cabeceras esperadas.',
       IMPORT_ROW_LIMIT_EXCEEDED: 'El archivo supera el limite de filas.'
+    };
+
+    return messages[error.code] ?? error.message;
+  }
+
+  friendlyCategoryError(error: ApiErrorResponse): string {
+    const messages: Record<string, string> = {
+      IMPORT_FILE_REQUIRED: 'Selecciona un archivo para importar.',
+      IMPORT_FILE_INVALID_TYPE: 'El archivo debe ser .xlsx.',
+      IMPORT_FILE_TOO_LARGE: 'El archivo supera el tamano maximo permitido.',
+      IMPORT_TEMPLATE_INVALID: 'La plantilla no tiene las cabeceras esperadas.',
+      IMPORT_ROW_LIMIT_EXCEEDED: 'El archivo supera el limite de filas.',
+      CATEGORY_ALREADY_EXISTS: 'Ya existe una categoria con ese nombre.',
+      CATEGORY_TYPE_INVALID: 'El tipo de categoria no es valido.'
     };
 
     return messages[error.code] ?? error.message;

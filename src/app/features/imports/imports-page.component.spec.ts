@@ -7,6 +7,7 @@ import { ImportsStore } from '../../core/imports/imports.store';
 import { AccountStore } from '../../core/state/account.store';
 import { AccountResponseDto, ApiErrorResponse, ExpenseImportBatchResponseDto } from '../../shared/models';
 import {
+  CATEGORY_IMPORT_TEMPLATE_FILENAME,
   EXPENSE_IMPORT_TEMPLATE_FILENAME,
   INCOME_IMPORT_TEMPLATE_FILENAME,
   ImportsPageComponent,
@@ -107,8 +108,10 @@ describe('ImportsPageComponent', () => {
       downloadingTemplate?: boolean;
       templateDownloadError?: string | null;
       incomeTemplateDownloadError?: string | null;
+      categoryTemplateDownloadError?: string | null;
       selectedFile?: File | null;
       selectedIncomeFile?: File | null;
+      selectedCategoryFile?: File | null;
       incomeResult?: {
         accountId: number;
         participantId: number;
@@ -129,6 +132,7 @@ describe('ImportsPageComponent', () => {
         }>;
       } | null;
       importingIncome?: boolean;
+      importingCategory?: boolean;
     } = {}
   ): ComponentFixture<ImportsPageComponent> {
     const currentBatch = signal<ExpenseImportBatchResponseDto | null>(
@@ -142,6 +146,11 @@ describe('ImportsPageComponent', () => {
         ? options.selectedIncomeFile ?? null
         : new File(['excel'], 'incomes.xlsx')
     );
+    const selectedCategoryFile = signal<File | null>(
+      Object.prototype.hasOwnProperty.call(options, 'selectedCategoryFile')
+        ? options.selectedCategoryFile ?? null
+        : new File(['excel'], 'categories.xlsx')
+    );
     const incomeImportResult = signal(
       Object.prototype.hasOwnProperty.call(options, 'incomeResult') ? options.incomeResult ?? null : null
     );
@@ -150,6 +159,7 @@ describe('ImportsPageComponent', () => {
     const incomeStoreError = signal<ApiErrorResponse | null>(null);
     const templateDownloadError = signal(options.templateDownloadError ?? null);
     const incomeTemplateDownloadError = signal(options.incomeTemplateDownloadError ?? null);
+    const categoryTemplateDownloadError = signal(options.categoryTemplateDownloadError ?? null);
 
     if (options.validRows !== undefined && currentBatch()) {
       currentBatch.set({ ...currentBatch()!, validRows: options.validRows });
@@ -176,17 +186,24 @@ describe('ImportsPageComponent', () => {
             isLoading: signal(false),
             isDownloadingTemplate: signal(options.downloadingTemplate ?? false),
             isImportingIncome: signal(options.importingIncome ?? false),
+            isImportingCategory: signal(options.importingCategory ?? false),
             error: storeError,
             incomeError: incomeStoreError,
+            categoryError: signal<ApiErrorResponse | null>(null),
             templateDownloadError,
             incomeTemplateDownloadError,
+            categoryTemplateDownloadError,
             selectedFile,
             selectedIncomeFile,
+            selectedCategoryFile,
             currentIncomeImportResult: incomeImportResult,
+            currentCategoryImportResult: signal(null),
             selectFile: jasmine.createSpy('selectFile').and.callFake((file: File) => selectedFile.set(file)),
             clearFile: jasmine.createSpy('clearFile').and.callFake(() => selectedFile.set(null)),
             selectIncomeFile: jasmine.createSpy('selectIncomeFile').and.callFake((file: File) => selectedIncomeFile.set(file)),
             clearIncomeFile: jasmine.createSpy('clearIncomeFile').and.callFake(() => selectedIncomeFile.set(null)),
+            selectCategoryFile: jasmine.createSpy('selectCategoryFile').and.callFake((file: File) => selectedCategoryFile.set(file)),
+            clearCategoryFile: jasmine.createSpy('clearCategoryFile').and.callFake(() => selectedCategoryFile.set(null)),
             preview: jasmine.createSpy('preview').and.returnValue(of(currentBatch())),
             confirm: jasmine.createSpy('confirm').and.returnValue(of({ ...previewBatch, status: 'CONFIRMED' })),
             downloadTemplate: jasmine.createSpy('downloadTemplate').and.returnValue(of(new Blob(['template']))),
@@ -204,6 +221,20 @@ describe('ImportsPageComponent', () => {
                 rows: [{ rowNumber: 2, description: 'Nomina', amount: 100, valid: true, errors: [], createdIncomeId: 8 }]
               })
             ),
+            downloadCategoryTemplate: jasmine
+              .createSpy('downloadCategoryTemplate')
+              .and.returnValue(of(new Blob(['template']))),
+            importCategoryFile: jasmine.createSpy('importCategoryFile').and.returnValue(
+              of({
+                accountId: 1,
+                participantId: 7,
+                originalFilename: 'categories.xlsx',
+                totalRows: 1,
+                createdCount: 1,
+                invalidRows: 0,
+                rows: [{ rowNumber: 2, name: 'Mercado', type: 'EXPENSE', valid: true, errors: [], createdCategoryId: 12 }]
+              })
+            ),
             getBatch: jasmine.createSpy('getBatch').and.returnValue(of(currentBatch())),
             clear: jasmine.createSpy('clear').and.callFake(() => {
               currentBatch.set(null);
@@ -216,6 +247,10 @@ describe('ImportsPageComponent', () => {
               incomeImportResult.set(null);
               incomeStoreError.set(null);
               incomeTemplateDownloadError.set(null);
+            }),
+            clearCategoryImportState: jasmine.createSpy('clearCategoryImportState').and.callFake(() => {
+              selectedCategoryFile.set(null);
+              categoryTemplateDownloadError.set(null);
             })
           }
         }
@@ -470,6 +505,7 @@ describe('ImportsPageComponent', () => {
 
     expect(text).toContain('Gastos');
     expect(text).toContain('Ingresos');
+    expect(text).toContain('Categorias');
   });
 
   it('switches to incomes mode and shows direct import action', () => {
@@ -511,5 +547,46 @@ describe('ImportsPageComponent', () => {
 
     expect(store.importIncomeFile).toHaveBeenCalledWith(1);
     expect(fixture.componentInstance.incomeSuccessMessage()).toContain('Se importaron');
+  });
+
+  it('switches to categories mode and shows direct category import action', () => {
+    const fixture = configure();
+    fixture.componentInstance.activeMode.set('categories');
+    fixture.detectChanges();
+
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Importar categorias desde Excel');
+    expect(text).toContain('Importar categorias');
+  });
+
+  it('downloads category template using a temporary object url', () => {
+    const fixture = configure();
+    const store = TestBed.inject(ImportsStore) as jasmine.SpyObj<ImportsStore>;
+    fixture.componentInstance.activeMode.set('categories');
+    fixture.detectChanges();
+    spyOn(URL, 'createObjectURL').and.returnValue('blob:category-template');
+    spyOn(URL, 'revokeObjectURL');
+    const clickSpy = spyOn(HTMLAnchorElement.prototype, 'click').and.callFake(function (this: HTMLAnchorElement) {
+      expect(this.download).toBe(CATEGORY_IMPORT_TEMPLATE_FILENAME);
+    });
+
+    fixture.componentInstance.downloadCategoryTemplate();
+
+    expect(store.downloadCategoryTemplate).toHaveBeenCalledWith(1);
+    expect(URL.createObjectURL).toHaveBeenCalled();
+    expect(clickSpy).toHaveBeenCalled();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:category-template');
+  });
+
+  it('imports categories directly and shows created count', () => {
+    const fixture = configure();
+    const store = TestBed.inject(ImportsStore) as jasmine.SpyObj<ImportsStore>;
+    fixture.componentInstance.activeMode.set('categories');
+    fixture.detectChanges();
+
+    fixture.componentInstance.importCategories();
+
+    expect(store.importCategoryFile).toHaveBeenCalledWith(1);
+    expect(fixture.componentInstance.categorySuccessMessage()).toContain('Se importaron');
   });
 });

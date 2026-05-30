@@ -1,7 +1,12 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { Observable, catchError, finalize, tap, throwError } from 'rxjs';
 
-import { ApiErrorResponse, ExpenseImportBatchResponseDto, IncomeImportResponseDto } from '../../shared/models';
+import {
+  ApiErrorResponse,
+  CategoryImportResponseDto,
+  ExpenseImportBatchResponseDto,
+  IncomeImportResponseDto
+} from '../../shared/models';
 import { ImportsApiService } from './imports-api.service';
 
 @Injectable({ providedIn: 'root' })
@@ -11,17 +16,22 @@ export class ImportsStore {
 
   readonly currentBatch = signal<ExpenseImportBatchResponseDto | null>(null);
   readonly currentIncomeImportResult = signal<IncomeImportResponseDto | null>(null);
+  readonly currentCategoryImportResult = signal<CategoryImportResponseDto | null>(null);
   readonly isPreviewing = signal(false);
   readonly isConfirming = signal(false);
   readonly isLoading = signal(false);
   readonly isDownloadingTemplate = signal(false);
   readonly isImportingIncome = signal(false);
+  readonly isImportingCategory = signal(false);
   readonly error = signal<ApiErrorResponse | null>(null);
   readonly templateDownloadError = signal<string | null>(null);
   readonly selectedFile = signal<File | null>(null);
   readonly selectedIncomeFile = signal<File | null>(null);
+  readonly selectedCategoryFile = signal<File | null>(null);
   readonly incomeError = signal<ApiErrorResponse | null>(null);
+  readonly categoryError = signal<ApiErrorResponse | null>(null);
   readonly incomeTemplateDownloadError = signal<string | null>(null);
+  readonly categoryTemplateDownloadError = signal<string | null>(null);
 
   selectFile(file: File): void {
     this.selectedFile.set(file);
@@ -39,6 +49,15 @@ export class ImportsStore {
 
   clearIncomeFile(): void {
     this.selectedIncomeFile.set(null);
+  }
+
+  selectCategoryFile(file: File): void {
+    this.selectedCategoryFile.set(file);
+    this.categoryError.set(null);
+  }
+
+  clearCategoryFile(): void {
+    this.selectedCategoryFile.set(null);
   }
 
   preview(accountId: number): Observable<ExpenseImportBatchResponseDto> {
@@ -145,28 +164,76 @@ export class ImportsStore {
     );
   }
 
+  downloadCategoryTemplate(accountId: number): Observable<Blob> {
+    this.ensureAccount(accountId);
+    this.isDownloadingTemplate.set(true);
+    this.categoryTemplateDownloadError.set(null);
+
+    return this.importsApi.downloadCategoryImportTemplate(accountId).pipe(
+      catchError((error: unknown) => {
+        this.categoryTemplateDownloadError.set('No se pudo descargar la plantilla de categorias. Intenta nuevamente.');
+        return throwError(() => error);
+      }),
+      finalize(() => this.isDownloadingTemplate.set(false))
+    );
+  }
+
+  importCategoryFile(accountId: number): Observable<CategoryImportResponseDto> {
+    this.ensureAccount(accountId);
+    const file = this.selectedCategoryFile();
+
+    if (!file) {
+      const error = createLocalError('IMPORT_FILE_REQUIRED', 'Selecciona un archivo .xlsx para continuar.');
+      this.categoryError.set(error);
+      return throwError(() => error);
+    }
+
+    this.isImportingCategory.set(true);
+    this.categoryError.set(null);
+
+    return this.importsApi.importCategories(accountId, file).pipe(
+      tap((result) => this.currentCategoryImportResult.set(result)),
+      catchError((error: unknown) => this.handleCategoryError(error)),
+      finalize(() => this.isImportingCategory.set(false))
+    );
+  }
+
   clear(): void {
     this.currentAccountId.set(null);
     this.currentBatch.set(null);
     this.currentIncomeImportResult.set(null);
+    this.currentCategoryImportResult.set(null);
     this.selectedFile.set(null);
     this.selectedIncomeFile.set(null);
+    this.selectedCategoryFile.set(null);
     this.isPreviewing.set(false);
     this.isConfirming.set(false);
     this.isLoading.set(false);
     this.isImportingIncome.set(false);
+    this.isImportingCategory.set(false);
     this.error.set(null);
     this.incomeError.set(null);
+    this.categoryError.set(null);
     this.templateDownloadError.set(null);
     this.incomeTemplateDownloadError.set(null);
+    this.categoryTemplateDownloadError.set(null);
   }
 
   clearIncomeImportState(): void {
     this.currentIncomeImportResult.set(null);
+    this.currentCategoryImportResult.set(null);
     this.selectedIncomeFile.set(null);
     this.isImportingIncome.set(false);
     this.incomeError.set(null);
     this.incomeTemplateDownloadError.set(null);
+  }
+
+  clearCategoryImportState(): void {
+    this.currentCategoryImportResult.set(null);
+    this.selectedCategoryFile.set(null);
+    this.isImportingCategory.set(false);
+    this.categoryError.set(null);
+    this.categoryTemplateDownloadError.set(null);
   }
 
   private ensureAccount(accountId: number): void {
@@ -182,12 +249,16 @@ export class ImportsStore {
     this.currentAccountId.set(accountId);
     this.currentBatch.set(null);
     this.currentIncomeImportResult.set(null);
+    this.currentCategoryImportResult.set(null);
     this.selectedFile.set(null);
     this.selectedIncomeFile.set(null);
+    this.selectedCategoryFile.set(null);
     this.error.set(null);
     this.incomeError.set(null);
+    this.categoryError.set(null);
     this.templateDownloadError.set(null);
     this.incomeTemplateDownloadError.set(null);
+    this.categoryTemplateDownloadError.set(null);
   }
 
   private handleError(error: unknown): Observable<never> {
@@ -197,6 +268,11 @@ export class ImportsStore {
 
   private handleIncomeError(error: unknown): Observable<never> {
     this.incomeError.set(toApiError(error));
+    return throwError(() => error);
+  }
+
+  private handleCategoryError(error: unknown): Observable<never> {
+    this.categoryError.set(toApiError(error));
     return throwError(() => error);
   }
 }
