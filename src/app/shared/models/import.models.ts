@@ -48,3 +48,29 @@ export interface ExpenseImportBatchResponse {
 }
 
 export type ExpenseImportBatchResponseDto = ExpenseImportBatchResponse;
+
+export interface IncomeImportRowResponse {
+  rowNumber: number;
+  incomeDate?: string | null;
+  description?: string | null;
+  amount?: number | null;
+  categoryName?: string | null;
+  categoryId?: number | null;
+  valid: boolean;
+  errors: ImportRowError[];
+  createdIncomeId?: number | null;
+}
+
+export type IncomeImportRowResponseDto = IncomeImportRowResponse;
+
+export interface IncomeImportResponse {
+  accountId: number;
+  participantId: number;
+  originalFilename: string;
+  totalRows: number;
+  createdCount: number;
+  invalidRows: number;
+  rows: IncomeImportRowResponse[];
+}
+
+export type IncomeImportResponseDto = IncomeImportResponse;

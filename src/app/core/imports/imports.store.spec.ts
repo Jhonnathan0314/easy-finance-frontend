@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { Subject, of, throwError } from 'rxjs';
 
-import { ExpenseImportBatchResponseDto } from '../../shared/models';
+import { ExpenseImportBatchResponseDto, IncomeImportResponseDto } from '../../shared/models';
 import { ImportsApiService } from './imports-api.service';
 import { ImportsStore } from './imports.store';
 
@@ -19,6 +19,15 @@ describe('ImportsStore', () => {
     confirmedAt: null,
     rows: []
   };
+  const incomeResult: IncomeImportResponseDto = {
+    accountId: 10,
+    participantId: 7,
+    originalFilename: 'incomes.xlsx',
+    totalRows: 2,
+    createdCount: 2,
+    invalidRows: 0,
+    rows: []
+  };
 
   let service: jasmine.SpyObj<ImportsApiService>;
   let store: ImportsStore;
@@ -28,12 +37,16 @@ describe('ImportsStore', () => {
       'previewExpenseImport',
       'confirmExpenseImport',
       'getExpenseImportBatch',
-      'downloadExpenseImportTemplate'
+      'downloadExpenseImportTemplate',
+      'downloadIncomeImportTemplate',
+      'importIncomes'
     ]);
     service.previewExpenseImport.and.returnValue(of(batch));
     service.confirmExpenseImport.and.returnValue(of({ ...batch, status: 'CONFIRMED', confirmedAt: '2026-05-14T00:00:00Z' }));
     service.getExpenseImportBatch.and.returnValue(of(batch));
     service.downloadExpenseImportTemplate.and.returnValue(of(new Blob(['template'])));
+    service.downloadIncomeImportTemplate.and.returnValue(of(new Blob(['template'])));
+    service.importIncomes.and.returnValue(of(incomeResult));
 
     TestBed.configureTestingModule({
       providers: [ImportsStore, { provide: ImportsApiService, useValue: service }]
@@ -150,6 +163,29 @@ describe('ImportsStore', () => {
           done();
         });
       }
+    });
+  });
+
+  it('downloads income template', (done) => {
+    store.downloadIncomeTemplate(10).subscribe((blob) => {
+      expect(blob).toEqual(jasmine.any(Blob));
+      expect(service.downloadIncomeImportTemplate).toHaveBeenCalledWith(10);
+      expect(store.incomeTemplateDownloadError()).toBeNull();
+      done();
+    });
+  });
+
+  it('imports incomes and stores the result', (done) => {
+    const incomeFile = new File(['excel'], 'incomes.xlsx');
+    store.selectIncomeFile(incomeFile);
+
+    store.importIncomeFile(10).subscribe(() => {
+      expect(service.importIncomes).toHaveBeenCalledWith(10, incomeFile);
+      expect(store.currentIncomeImportResult()).toEqual(incomeResult);
+      setTimeout(() => {
+        expect(store.isImportingIncome()).toBeFalse();
+        done();
+      });
     });
   });
 });

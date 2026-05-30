@@ -1,7 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { Observable, catchError, finalize, tap, throwError } from 'rxjs';
 
-import { ApiErrorResponse, ExpenseImportBatchResponseDto } from '../../shared/models';
+import { ApiErrorResponse, ExpenseImportBatchResponseDto, IncomeImportResponseDto } from '../../shared/models';
 import { ImportsApiService } from './imports-api.service';
 
 @Injectable({ providedIn: 'root' })
@@ -10,13 +10,18 @@ export class ImportsStore {
   private readonly currentAccountId = signal<number | null>(null);
 
   readonly currentBatch = signal<ExpenseImportBatchResponseDto | null>(null);
+  readonly currentIncomeImportResult = signal<IncomeImportResponseDto | null>(null);
   readonly isPreviewing = signal(false);
   readonly isConfirming = signal(false);
   readonly isLoading = signal(false);
   readonly isDownloadingTemplate = signal(false);
+  readonly isImportingIncome = signal(false);
   readonly error = signal<ApiErrorResponse | null>(null);
   readonly templateDownloadError = signal<string | null>(null);
   readonly selectedFile = signal<File | null>(null);
+  readonly selectedIncomeFile = signal<File | null>(null);
+  readonly incomeError = signal<ApiErrorResponse | null>(null);
+  readonly incomeTemplateDownloadError = signal<string | null>(null);
 
   selectFile(file: File): void {
     this.selectedFile.set(file);
@@ -25,6 +30,15 @@ export class ImportsStore {
 
   clearFile(): void {
     this.selectedFile.set(null);
+  }
+
+  selectIncomeFile(file: File): void {
+    this.selectedIncomeFile.set(file);
+    this.incomeError.set(null);
+  }
+
+  clearIncomeFile(): void {
+    this.selectedIncomeFile.set(null);
   }
 
   preview(accountId: number): Observable<ExpenseImportBatchResponseDto> {
@@ -97,15 +111,62 @@ export class ImportsStore {
     );
   }
 
+  downloadIncomeTemplate(accountId: number): Observable<Blob> {
+    this.ensureAccount(accountId);
+    this.isDownloadingTemplate.set(true);
+    this.incomeTemplateDownloadError.set(null);
+
+    return this.importsApi.downloadIncomeImportTemplate(accountId).pipe(
+      catchError((error: unknown) => {
+        this.incomeTemplateDownloadError.set('No se pudo descargar la plantilla de ingresos. Intenta nuevamente.');
+        return throwError(() => error);
+      }),
+      finalize(() => this.isDownloadingTemplate.set(false))
+    );
+  }
+
+  importIncomeFile(accountId: number): Observable<IncomeImportResponseDto> {
+    this.ensureAccount(accountId);
+    const file = this.selectedIncomeFile();
+
+    if (!file) {
+      const error = createLocalError('IMPORT_FILE_REQUIRED', 'Selecciona un archivo .xlsx para continuar.');
+      this.incomeError.set(error);
+      return throwError(() => error);
+    }
+
+    this.isImportingIncome.set(true);
+    this.incomeError.set(null);
+
+    return this.importsApi.importIncomes(accountId, file).pipe(
+      tap((result) => this.currentIncomeImportResult.set(result)),
+      catchError((error: unknown) => this.handleIncomeError(error)),
+      finalize(() => this.isImportingIncome.set(false))
+    );
+  }
+
   clear(): void {
     this.currentAccountId.set(null);
     this.currentBatch.set(null);
+    this.currentIncomeImportResult.set(null);
     this.selectedFile.set(null);
+    this.selectedIncomeFile.set(null);
     this.isPreviewing.set(false);
     this.isConfirming.set(false);
     this.isLoading.set(false);
+    this.isImportingIncome.set(false);
     this.error.set(null);
+    this.incomeError.set(null);
     this.templateDownloadError.set(null);
+    this.incomeTemplateDownloadError.set(null);
+  }
+
+  clearIncomeImportState(): void {
+    this.currentIncomeImportResult.set(null);
+    this.selectedIncomeFile.set(null);
+    this.isImportingIncome.set(false);
+    this.incomeError.set(null);
+    this.incomeTemplateDownloadError.set(null);
   }
 
   private ensureAccount(accountId: number): void {
@@ -120,13 +181,22 @@ export class ImportsStore {
 
     this.currentAccountId.set(accountId);
     this.currentBatch.set(null);
+    this.currentIncomeImportResult.set(null);
     this.selectedFile.set(null);
+    this.selectedIncomeFile.set(null);
     this.error.set(null);
+    this.incomeError.set(null);
     this.templateDownloadError.set(null);
+    this.incomeTemplateDownloadError.set(null);
   }
 
   private handleError(error: unknown): Observable<never> {
     this.error.set(toApiError(error));
+    return throwError(() => error);
+  }
+
+  private handleIncomeError(error: unknown): Observable<never> {
+    this.incomeError.set(toApiError(error));
     return throwError(() => error);
   }
 }

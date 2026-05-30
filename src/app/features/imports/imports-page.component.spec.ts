@@ -8,6 +8,7 @@ import { AccountStore } from '../../core/state/account.store';
 import { AccountResponseDto, ApiErrorResponse, ExpenseImportBatchResponseDto } from '../../shared/models';
 import {
   EXPENSE_IMPORT_TEMPLATE_FILENAME,
+  INCOME_IMPORT_TEMPLATE_FILENAME,
   ImportsPageComponent,
   MAX_IMPORT_FILE_SIZE_BYTES
 } from './imports-page.component';
@@ -105,7 +106,29 @@ describe('ImportsPageComponent', () => {
       confirming?: boolean;
       downloadingTemplate?: boolean;
       templateDownloadError?: string | null;
+      incomeTemplateDownloadError?: string | null;
       selectedFile?: File | null;
+      selectedIncomeFile?: File | null;
+      incomeResult?: {
+        accountId: number;
+        participantId: number;
+        originalFilename: string;
+        totalRows: number;
+        createdCount: number;
+        invalidRows: number;
+        rows: Array<{
+          rowNumber: number;
+          incomeDate?: string | null;
+          description?: string | null;
+          amount?: number | null;
+          categoryName?: string | null;
+          categoryId?: number | null;
+          valid: boolean;
+          errors: Array<{ column: string; code: string; message: string }>;
+          createdIncomeId?: number | null;
+        }>;
+      } | null;
+      importingIncome?: boolean;
     } = {}
   ): ComponentFixture<ImportsPageComponent> {
     const currentBatch = signal<ExpenseImportBatchResponseDto | null>(
@@ -114,9 +137,19 @@ describe('ImportsPageComponent', () => {
     const selectedFile = signal<File | null>(
       Object.prototype.hasOwnProperty.call(options, 'selectedFile') ? options.selectedFile ?? null : new File(['excel'], 'expenses.xlsx')
     );
+    const selectedIncomeFile = signal<File | null>(
+      Object.prototype.hasOwnProperty.call(options, 'selectedIncomeFile')
+        ? options.selectedIncomeFile ?? null
+        : new File(['excel'], 'incomes.xlsx')
+    );
+    const incomeImportResult = signal(
+      Object.prototype.hasOwnProperty.call(options, 'incomeResult') ? options.incomeResult ?? null : null
+    );
     const accountState = { ...account, status: options.archived ? 'ARCHIVED' : 'ACTIVE' };
     const storeError = signal<ApiErrorResponse | null>(null);
+    const incomeStoreError = signal<ApiErrorResponse | null>(null);
     const templateDownloadError = signal(options.templateDownloadError ?? null);
+    const incomeTemplateDownloadError = signal(options.incomeTemplateDownloadError ?? null);
 
     if (options.validRows !== undefined && currentBatch()) {
       currentBatch.set({ ...currentBatch()!, validRows: options.validRows });
@@ -142,20 +175,47 @@ describe('ImportsPageComponent', () => {
             isConfirming: signal(options.confirming ?? false),
             isLoading: signal(false),
             isDownloadingTemplate: signal(options.downloadingTemplate ?? false),
+            isImportingIncome: signal(options.importingIncome ?? false),
             error: storeError,
+            incomeError: incomeStoreError,
             templateDownloadError,
+            incomeTemplateDownloadError,
             selectedFile,
+            selectedIncomeFile,
+            currentIncomeImportResult: incomeImportResult,
             selectFile: jasmine.createSpy('selectFile').and.callFake((file: File) => selectedFile.set(file)),
             clearFile: jasmine.createSpy('clearFile').and.callFake(() => selectedFile.set(null)),
+            selectIncomeFile: jasmine.createSpy('selectIncomeFile').and.callFake((file: File) => selectedIncomeFile.set(file)),
+            clearIncomeFile: jasmine.createSpy('clearIncomeFile').and.callFake(() => selectedIncomeFile.set(null)),
             preview: jasmine.createSpy('preview').and.returnValue(of(currentBatch())),
             confirm: jasmine.createSpy('confirm').and.returnValue(of({ ...previewBatch, status: 'CONFIRMED' })),
             downloadTemplate: jasmine.createSpy('downloadTemplate').and.returnValue(of(new Blob(['template']))),
+            downloadIncomeTemplate: jasmine
+              .createSpy('downloadIncomeTemplate')
+              .and.returnValue(of(new Blob(['template']))),
+            importIncomeFile: jasmine.createSpy('importIncomeFile').and.returnValue(
+              of({
+                accountId: 1,
+                participantId: 7,
+                originalFilename: 'incomes.xlsx',
+                totalRows: 1,
+                createdCount: 1,
+                invalidRows: 0,
+                rows: [{ rowNumber: 2, description: 'Nomina', amount: 100, valid: true, errors: [], createdIncomeId: 8 }]
+              })
+            ),
             getBatch: jasmine.createSpy('getBatch').and.returnValue(of(currentBatch())),
             clear: jasmine.createSpy('clear').and.callFake(() => {
               currentBatch.set(null);
               selectedFile.set(null);
               storeError.set(null);
               templateDownloadError.set(null);
+            }),
+            clearIncomeImportState: jasmine.createSpy('clearIncomeImportState').and.callFake(() => {
+              selectedIncomeFile.set(null);
+              incomeImportResult.set(null);
+              incomeStoreError.set(null);
+              incomeTemplateDownloadError.set(null);
             })
           }
         }
@@ -402,5 +462,54 @@ describe('ImportsPageComponent', () => {
     const fixture = configure({ templateDownloadError: 'No se pudo descargar la plantilla. Intenta nuevamente.' });
 
     expect(fixture.nativeElement.textContent).toContain('No se pudo descargar la plantilla. Intenta nuevamente.');
+  });
+
+  it('shows tabs for expense and income imports', () => {
+    const fixture = configure();
+    const text = fixture.nativeElement.textContent;
+
+    expect(text).toContain('Gastos');
+    expect(text).toContain('Ingresos');
+  });
+
+  it('switches to incomes mode and shows direct import action', () => {
+    const fixture = configure();
+    fixture.componentInstance.activeMode.set('incomes');
+    fixture.detectChanges();
+
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Importar ingresos desde Excel');
+    expect(text).toContain('Importar ingresos');
+  });
+
+  it('downloads income template using a temporary object url', () => {
+    const fixture = configure();
+    const store = TestBed.inject(ImportsStore) as jasmine.SpyObj<ImportsStore>;
+    fixture.componentInstance.activeMode.set('incomes');
+    fixture.detectChanges();
+    spyOn(URL, 'createObjectURL').and.returnValue('blob:income-template');
+    spyOn(URL, 'revokeObjectURL');
+    const clickSpy = spyOn(HTMLAnchorElement.prototype, 'click').and.callFake(function (this: HTMLAnchorElement) {
+      expect(this.download).toBe(INCOME_IMPORT_TEMPLATE_FILENAME);
+    });
+
+    fixture.componentInstance.downloadIncomeTemplate();
+
+    expect(store.downloadIncomeTemplate).toHaveBeenCalledWith(1);
+    expect(URL.createObjectURL).toHaveBeenCalled();
+    expect(clickSpy).toHaveBeenCalled();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:income-template');
+  });
+
+  it('imports incomes directly and shows created count', () => {
+    const fixture = configure();
+    const store = TestBed.inject(ImportsStore) as jasmine.SpyObj<ImportsStore>;
+    fixture.componentInstance.activeMode.set('incomes');
+    fixture.detectChanges();
+
+    fixture.componentInstance.importIncomes();
+
+    expect(store.importIncomeFile).toHaveBeenCalledWith(1);
+    expect(fixture.componentInstance.incomeSuccessMessage()).toContain('Se importaron');
   });
 });

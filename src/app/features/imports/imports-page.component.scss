@@ -4,7 +4,8 @@
 .confirm-row,
 .actions,
 .selected-file,
-.tabs {
+.tabs,
+.mode-tabs {
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -116,7 +117,8 @@
 .actions button,
 .template-download button,
 .selected-file button,
-.tabs button {
+.tabs button,
+.mode-tabs button {
   border: 1px solid #c9d2df;
   border-radius: 6px;
   background: #ffffff;
@@ -130,6 +132,17 @@
 }
 
 .tabs button.active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.mode-tabs {
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 0.75rem;
+}
+
+.mode-tabs button.active {
   border-color: #2563eb;
   background: #eff6ff;
   color: #1d4ed8;
@@ -227,6 +240,11 @@ button:disabled {
   .confirm-row,
   .template-download,
   .tabs {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .mode-tabs {
     align-items: stretch;
     flex-direction: column;
   }

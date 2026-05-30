@@ -5,13 +5,15 @@ import { take } from 'rxjs';
 
 import { ImportsStore } from '../../core/imports/imports.store';
 import { AccountStore } from '../../core/state/account.store';
-import { ApiErrorResponse, ExpenseImportRowResponseDto } from '../../shared/models';
+import { ApiErrorResponse, ExpenseImportRowResponseDto, IncomeImportRowResponseDto } from '../../shared/models';
 import { enumLabel } from '../../shared/ui/enum-labels';
 
 type RowFilter = 'all' | 'valid' | 'invalid';
+type ImportMode = 'expenses' | 'incomes';
 
 export const MAX_IMPORT_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 export const EXPENSE_IMPORT_TEMPLATE_FILENAME = 'easy-finance-expense-import-template.xlsx';
+export const INCOME_IMPORT_TEMPLATE_FILENAME = 'easy-finance-income-import-template.xlsx';
 
 @Component({
   selector: 'ef-imports-page',
@@ -23,14 +25,20 @@ export const EXPENSE_IMPORT_TEMPLATE_FILENAME = 'easy-finance-expense-import-tem
       <div class="page-header">
         <div>
           <h1 class="page-title">Importaciones</h1>
-          <p class="page-subtitle">Preview y confirmacion de importaciones de la cuenta {{ accountId() }}.</p>
+          <p class="page-subtitle">Importaciones de la cuenta {{ accountId() }}.</p>
         </div>
       </div>
 
+      <div class="mode-tabs" role="tablist" aria-label="Tipo de importacion">
+        <button type="button" [class.active]="activeMode() === 'expenses'" (click)="activeMode.set('expenses')">Gastos</button>
+        <button type="button" [class.active]="activeMode() === 'incomes'" (click)="activeMode.set('incomes')">Ingresos</button>
+      </div>
+
       @if (accountStore.selectedAccountArchived()) {
-        <div class="panel warning-panel">La cuenta esta archivada. Preview y confirmacion estan bloqueados.</div>
+        <div class="panel warning-panel">La cuenta esta archivada. Las importaciones de gasto estan bloqueadas.</div>
       }
 
+      @if (activeMode() === 'expenses') {
       <section class="panel instructions">
         <div>
           <h2>Importar gastos desde Excel</h2>
@@ -254,6 +262,170 @@ export const EXPENSE_IMPORT_TEMPLATE_FILENAME = 'easy-finance-expense-import-tem
           }
         </section>
       }
+      } @else {
+      <section class="panel instructions">
+        <div>
+          <h2>Importar ingresos desde Excel</h2>
+          <p>Usa un archivo .xlsx con estas cabeceras exactas:</p>
+          <div class="headers-list">
+            @for (header of incomeRequiredHeaders; track header) {
+              <span>{{ header }}</span>
+            }
+          </div>
+        </div>
+        <div class="template-download">
+          <p>La plantilla se genera con las categorias de ingreso activas de esta cuenta.</p>
+          <button type="button" (click)="downloadIncomeTemplate()" [disabled]="importsStore.isDownloadingTemplate()">
+            {{ importsStore.isDownloadingTemplate() ? 'Descargando...' : 'Descargar plantilla de ingresos' }}
+          </button>
+        </div>
+        @if (importsStore.incomeTemplateDownloadError(); as templateError) {
+          <p class="form-error" role="alert">{{ templateError }}</p>
+        }
+        <ul>
+          <li>Solo .xlsx, maximo 5MB y maximo 1000 filas.</li>
+          <li>Columnas requeridas: Fecha, Descripcion, Categoria, Monto.</li>
+          <li>Si alguna fila es invalida, no se crea ningun ingreso.</li>
+        </ul>
+      </section>
+
+      <section class="panel upload-panel">
+        <label class="file-field">
+          <span>Archivo Excel</span>
+          <input #incomeFileInput type="file" accept=".xlsx" (change)="onIncomeFileSelected($event)" [disabled]="!canWrite()">
+        </label>
+
+        @if (importsStore.selectedIncomeFile(); as file) {
+          <div class="selected-file">
+            <strong>{{ file.name }}</strong>
+            <span>{{ fileSizeLabel(file.size) }}</span>
+            <button type="button" (click)="clearIncomeFile(incomeFileInput)">Quitar</button>
+          </div>
+        } @else {
+          <p class="muted">Selecciona un archivo .xlsx para importar ingresos.</p>
+        }
+
+        @if (incomeFileError(); as error) {
+          <p class="form-error" role="alert">{{ error }}</p>
+        }
+
+        <div class="actions">
+          <button class="button" type="button" (click)="importIncomes()" [disabled]="!canImportIncomes()">
+            {{ importsStore.isImportingIncome() ? 'Importando...' : 'Importar ingresos' }}
+          </button>
+          @if (hasIncomeImportState()) {
+            <button type="button" (click)="clearIncomeImport(incomeFileInput)">Cargar otro archivo</button>
+          }
+        </div>
+      </section>
+
+      @if (importsStore.incomeError(); as error) {
+        <div class="panel error-panel" role="alert">
+          <strong>{{ error.code }}</strong>
+          <span>{{ friendlyIncomeError(error) }}</span>
+        </div>
+      }
+
+      @if (incomeSuccessMessage(); as message) {
+        <div class="panel success-panel">{{ message }}</div>
+      }
+
+      @if (importsStore.currentIncomeImportResult(); as result) {
+        <section class="panel batch-summary">
+          <div class="summary-heading">
+            <div>
+              <h2>{{ result.originalFilename }}</h2>
+              <p>Importacion directa de ingresos</p>
+            </div>
+          </div>
+          <dl class="summary-grid">
+            <div>
+              <dt>Total filas</dt>
+              <dd>{{ result.totalRows }}</dd>
+            </div>
+            <div>
+              <dt>Creados</dt>
+              <dd>{{ result.createdCount }}</dd>
+            </div>
+            <div>
+              <dt>Invalidos</dt>
+              <dd>{{ result.invalidRows }}</dd>
+            </div>
+          </dl>
+
+          @if (result.invalidRows > 0) {
+            <div class="panel warning-panel">
+              No se creo ningun ingreso. Corrige el archivo y vuelve a cargarlo.
+            </div>
+          }
+        </section>
+
+        <section class="panel rows-panel">
+          <h2>Filas procesadas</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fila</th>
+                  <th>Fecha</th>
+                  <th>Descripcion</th>
+                  <th>Monto</th>
+                  <th>Categoria</th>
+                  <th>Resultado</th>
+                  <th>Valid</th>
+                  <th>Errores</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of result.rows; track row.rowNumber) {
+                  <tr [class.invalid]="!row.valid">
+                    <td>{{ row.rowNumber }}</td>
+                    <td>{{ row.incomeDate || '-' }}</td>
+                    <td>{{ row.description || '-' }}</td>
+                    <td>
+                      @if (row.amount !== null && row.amount !== undefined) {
+                        {{ row.amount | currency: 'COP':'symbol-narrow':'1.0-0' }}
+                      } @else {
+                        -
+                      }
+                    </td>
+                    <td>{{ row.categoryName || categoryLabel(row.categoryId) }}</td>
+                    <td>
+                      @if (row.createdIncomeId) {
+                        <span class="badge success">Ingreso #{{ row.createdIncomeId }}</span>
+                      } @else {
+                        -
+                      }
+                    </td>
+                    <td>
+                      <span class="badge" [class.success]="row.valid" [class.danger]="!row.valid">
+                        {{ row.valid ? 'VALID' : 'INVALID' }}
+                      </span>
+                    </td>
+                    <td>
+                      @if (row.errors.length) {
+                        <ul class="row-errors">
+                          @for (error of row.errors; track error.column + error.code + error.message) {
+                            <li><strong>{{ error.column }}</strong>: {{ error.message }}</li>
+                          }
+                        </ul>
+                      } @else {
+                        -
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      } @else if (!importsStore.isImportingIncome()) {
+        <div class="panel empty-state">
+          <h2>Sin importacion de ingresos</h2>
+          <p>Sube un Excel y el sistema intentara crear todos los ingresos en un solo paso.</p>
+        </div>
+      }
+      }
     </section>
   `
 })
@@ -263,8 +435,11 @@ export class ImportsPageComponent {
   protected readonly enumLabel = enumLabel;
 
   readonly rowFilter = signal<RowFilter>('all');
+  readonly activeMode = signal<ImportMode>('expenses');
   readonly fileError = signal<string | null>(null);
+  readonly incomeFileError = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
+  readonly incomeSuccessMessage = signal<string | null>(null);
   readonly accountId = computed(() => this.accountStore.selectedAccountId() ?? 0);
   readonly canWrite = computed(() => this.accountStore.selectedAccount()?.status === 'ACTIVE');
   readonly hasImportState = computed(
@@ -275,6 +450,15 @@ export class ImportsPageComponent {
       Boolean(this.importsStore.templateDownloadError()) ||
       Boolean(this.fileError()) ||
       Boolean(this.successMessage())
+  );
+  readonly hasIncomeImportState = computed(
+    () =>
+      Boolean(this.importsStore.selectedIncomeFile()) ||
+      Boolean(this.importsStore.currentIncomeImportResult()) ||
+      Boolean(this.importsStore.incomeError()) ||
+      Boolean(this.importsStore.incomeTemplateDownloadError()) ||
+      Boolean(this.incomeFileError()) ||
+      Boolean(this.incomeSuccessMessage())
   );
   readonly filteredRows = computed(() => {
     const rows = this.importsStore.currentBatch()?.rows ?? [];
@@ -290,6 +474,7 @@ export class ImportsPageComponent {
     return rows;
   });
   readonly requiredHeaders = ['Fecha', 'Descripcion', 'Monto', 'Categoria', 'MedioPago', 'EstadoPago'];
+  readonly incomeRequiredHeaders = ['Fecha', 'Descripcion', 'Categoria', 'Monto'];
 
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -316,6 +501,31 @@ export class ImportsPageComponent {
     this.importsStore.selectFile(file);
   }
 
+  onIncomeFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+
+    this.incomeFileError.set(null);
+    this.incomeSuccessMessage.set(null);
+
+    if (!file) {
+      this.importsStore.clearIncomeFile();
+      this.incomeFileError.set('Selecciona un archivo .xlsx.');
+      return;
+    }
+
+    const validationError = validateImportFile(file);
+
+    if (validationError) {
+      this.importsStore.clearIncomeFile();
+      this.incomeFileError.set(validationError);
+      input.value = '';
+      return;
+    }
+
+    this.importsStore.selectIncomeFile(file);
+  }
+
   clearFile(fileInput?: HTMLInputElement): void {
     this.importsStore.clearFile();
     this.fileError.set(null);
@@ -330,6 +540,25 @@ export class ImportsPageComponent {
     this.fileError.set(null);
     this.successMessage.set(null);
     this.rowFilter.set('all');
+
+    if (fileInput) {
+      fileInput.value = '';
+    }
+  }
+
+  clearIncomeFile(fileInput?: HTMLInputElement): void {
+    this.importsStore.clearIncomeFile();
+    this.incomeFileError.set(null);
+
+    if (fileInput) {
+      fileInput.value = '';
+    }
+  }
+
+  clearIncomeImport(fileInput?: HTMLInputElement): void {
+    this.importsStore.clearIncomeImportState();
+    this.incomeFileError.set(null);
+    this.incomeSuccessMessage.set(null);
 
     if (fileInput) {
       fileInput.value = '';
@@ -375,6 +604,43 @@ export class ImportsPageComponent {
     });
   }
 
+  downloadIncomeTemplate(): void {
+    this.importsStore.downloadIncomeTemplate(this.accountId()).pipe(take(1)).subscribe({
+      next: (blob) => this.saveTemplateBlob(blob, INCOME_IMPORT_TEMPLATE_FILENAME),
+      error: () => undefined
+    });
+  }
+
+  importIncomes(): void {
+    this.incomeSuccessMessage.set(null);
+    this.incomeFileError.set(null);
+
+    if (!this.canWrite()) {
+      this.incomeFileError.set('La cuenta archivada no permite importar ingresos.');
+      return;
+    }
+
+    const file = this.importsStore.selectedIncomeFile();
+    const validationError = file ? validateImportFile(file) : 'Selecciona un archivo .xlsx.';
+
+    if (validationError) {
+      this.incomeFileError.set(validationError);
+      return;
+    }
+
+    this.importsStore.importIncomeFile(this.accountId()).pipe(take(1)).subscribe({
+      next: (result) => {
+        if (result.invalidRows > 0) {
+          this.incomeSuccessMessage.set('No se creo ningun ingreso. Corrige el archivo y vuelve a cargarlo.');
+          return;
+        }
+
+        this.incomeSuccessMessage.set(`Se importaron ${result.createdCount} ingresos.`);
+      },
+      error: () => undefined
+    });
+  }
+
   canPreview(): boolean {
     return this.canWrite() && Boolean(this.importsStore.selectedFile()) && !this.importsStore.isPreviewing();
   }
@@ -389,6 +655,10 @@ export class ImportsPageComponent {
       (batch?.validRows ?? 0) > 0 &&
       !this.importsStore.isConfirming()
     );
+  }
+
+  canImportIncomes(): boolean {
+    return this.canWrite() && Boolean(this.importsStore.selectedIncomeFile()) && !this.importsStore.isImportingIncome();
   }
 
   hasCatalogErrors(): boolean {
@@ -439,12 +709,24 @@ export class ImportsPageComponent {
     return messages[error.code] ?? error.message;
   }
 
-  private saveTemplateBlob(blob: Blob): void {
+  friendlyIncomeError(error: ApiErrorResponse): string {
+    const messages: Record<string, string> = {
+      IMPORT_FILE_REQUIRED: 'Selecciona un archivo para importar.',
+      IMPORT_FILE_INVALID_TYPE: 'El archivo debe ser .xlsx.',
+      IMPORT_FILE_TOO_LARGE: 'El archivo supera el tamano maximo permitido.',
+      IMPORT_TEMPLATE_INVALID: 'La plantilla no tiene las cabeceras esperadas.',
+      IMPORT_ROW_LIMIT_EXCEEDED: 'El archivo supera el limite de filas.'
+    };
+
+    return messages[error.code] ?? error.message;
+  }
+
+  private saveTemplateBlob(blob: Blob, fileName: string = EXPENSE_IMPORT_TEMPLATE_FILENAME): void {
     const url = globalThis.URL.createObjectURL(blob);
     const anchor = globalThis.document.createElement('a');
 
     anchor.href = url;
-    anchor.download = EXPENSE_IMPORT_TEMPLATE_FILENAME;
+    anchor.download = fileName;
     anchor.style.display = 'none';
     globalThis.document.body.append(anchor);
     anchor.click();

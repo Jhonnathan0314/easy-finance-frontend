@@ -57,4 +57,28 @@ describe('ImportsApiService', () => {
     expect(request.request.responseType).toBe('blob');
     request.flush(new Blob(['template']));
   });
+
+  it('downloads the income import template as a blob', () => {
+    service.downloadIncomeImportTemplate(6).subscribe();
+
+    const request = httpTesting.expectOne('http://localhost:8080/api/v1/accounts/6/imports/incomes/template');
+    expect(request.request.method).toBe('GET');
+    expect(request.request.responseType).toBe('blob');
+    request.flush(new Blob(['template']));
+  });
+
+  it('builds direct income import multipart request', () => {
+    const file = new File(['excel'], 'incomes.xlsx', {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+
+    service.importIncomes(7, file).subscribe();
+
+    const request = httpTesting.expectOne('http://localhost:8080/api/v1/accounts/7/imports/incomes');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body instanceof FormData).toBeTrue();
+    expect(request.request.body.get('file')).toBe(file);
+    expect(request.request.headers.has('Content-Type')).toBeFalse();
+    request.flush({ createdCount: 0, rows: [] });
+  });
 });
