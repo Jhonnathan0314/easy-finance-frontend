@@ -10,6 +10,7 @@ import {
   CATEGORY_IMPORT_TEMPLATE_FILENAME,
   EXPENSE_IMPORT_TEMPLATE_FILENAME,
   INCOME_IMPORT_TEMPLATE_FILENAME,
+  PAYMENT_METHOD_IMPORT_TEMPLATE_FILENAME,
   ImportsPageComponent,
   MAX_IMPORT_FILE_SIZE_BYTES
 } from './imports-page.component';
@@ -109,9 +110,11 @@ describe('ImportsPageComponent', () => {
       templateDownloadError?: string | null;
       incomeTemplateDownloadError?: string | null;
       categoryTemplateDownloadError?: string | null;
+      paymentMethodTemplateDownloadError?: string | null;
       selectedFile?: File | null;
       selectedIncomeFile?: File | null;
       selectedCategoryFile?: File | null;
+      selectedPaymentMethodFile?: File | null;
       incomeResult?: {
         accountId: number;
         participantId: number;
@@ -133,6 +136,7 @@ describe('ImportsPageComponent', () => {
       } | null;
       importingIncome?: boolean;
       importingCategory?: boolean;
+      importingPaymentMethod?: boolean;
     } = {}
   ): ComponentFixture<ImportsPageComponent> {
     const currentBatch = signal<ExpenseImportBatchResponseDto | null>(
@@ -151,15 +155,22 @@ describe('ImportsPageComponent', () => {
         ? options.selectedCategoryFile ?? null
         : new File(['excel'], 'categories.xlsx')
     );
+    const selectedPaymentMethodFile = signal<File | null>(
+      Object.prototype.hasOwnProperty.call(options, 'selectedPaymentMethodFile')
+        ? options.selectedPaymentMethodFile ?? null
+        : new File(['excel'], 'payment-methods.xlsx')
+    );
     const incomeImportResult = signal(
       Object.prototype.hasOwnProperty.call(options, 'incomeResult') ? options.incomeResult ?? null : null
     );
+    const paymentMethodImportResult = signal(null);
     const accountState = { ...account, status: options.archived ? 'ARCHIVED' : 'ACTIVE' };
     const storeError = signal<ApiErrorResponse | null>(null);
     const incomeStoreError = signal<ApiErrorResponse | null>(null);
     const templateDownloadError = signal(options.templateDownloadError ?? null);
     const incomeTemplateDownloadError = signal(options.incomeTemplateDownloadError ?? null);
     const categoryTemplateDownloadError = signal(options.categoryTemplateDownloadError ?? null);
+    const paymentMethodTemplateDownloadError = signal(options.paymentMethodTemplateDownloadError ?? null);
 
     if (options.validRows !== undefined && currentBatch()) {
       currentBatch.set({ ...currentBatch()!, validRows: options.validRows });
@@ -187,23 +198,32 @@ describe('ImportsPageComponent', () => {
             isDownloadingTemplate: signal(options.downloadingTemplate ?? false),
             isImportingIncome: signal(options.importingIncome ?? false),
             isImportingCategory: signal(options.importingCategory ?? false),
+            isImportingPaymentMethod: signal(options.importingPaymentMethod ?? false),
             error: storeError,
             incomeError: incomeStoreError,
             categoryError: signal<ApiErrorResponse | null>(null),
+            paymentMethodError: signal<ApiErrorResponse | null>(null),
             templateDownloadError,
             incomeTemplateDownloadError,
             categoryTemplateDownloadError,
+            paymentMethodTemplateDownloadError,
             selectedFile,
             selectedIncomeFile,
             selectedCategoryFile,
+            selectedPaymentMethodFile,
             currentIncomeImportResult: incomeImportResult,
             currentCategoryImportResult: signal(null),
+            currentPaymentMethodImportResult: paymentMethodImportResult,
             selectFile: jasmine.createSpy('selectFile').and.callFake((file: File) => selectedFile.set(file)),
             clearFile: jasmine.createSpy('clearFile').and.callFake(() => selectedFile.set(null)),
             selectIncomeFile: jasmine.createSpy('selectIncomeFile').and.callFake((file: File) => selectedIncomeFile.set(file)),
             clearIncomeFile: jasmine.createSpy('clearIncomeFile').and.callFake(() => selectedIncomeFile.set(null)),
             selectCategoryFile: jasmine.createSpy('selectCategoryFile').and.callFake((file: File) => selectedCategoryFile.set(file)),
             clearCategoryFile: jasmine.createSpy('clearCategoryFile').and.callFake(() => selectedCategoryFile.set(null)),
+            selectPaymentMethodFile: jasmine
+              .createSpy('selectPaymentMethodFile')
+              .and.callFake((file: File) => selectedPaymentMethodFile.set(file)),
+            clearPaymentMethodFile: jasmine.createSpy('clearPaymentMethodFile').and.callFake(() => selectedPaymentMethodFile.set(null)),
             preview: jasmine.createSpy('preview').and.returnValue(of(currentBatch())),
             confirm: jasmine.createSpy('confirm').and.returnValue(of({ ...previewBatch, status: 'CONFIRMED' })),
             downloadTemplate: jasmine.createSpy('downloadTemplate').and.returnValue(of(new Blob(['template']))),
@@ -235,6 +255,20 @@ describe('ImportsPageComponent', () => {
                 rows: [{ rowNumber: 2, name: 'Mercado', type: 'EXPENSE', valid: true, errors: [], createdCategoryId: 12 }]
               })
             ),
+            downloadPaymentMethodTemplate: jasmine
+              .createSpy('downloadPaymentMethodTemplate')
+              .and.returnValue(of(new Blob(['template']))),
+            importPaymentMethodFile: jasmine.createSpy('importPaymentMethodFile').and.returnValue(
+              of({
+                accountId: 1,
+                participantId: 7,
+                originalFilename: 'payment-methods.xlsx',
+                totalRows: 1,
+                createdCount: 1,
+                invalidRows: 0,
+                rows: [{ rowNumber: 2, name: 'Cuenta principal', type: 'BANK_ACCOUNT', valid: true, errors: [], createdPaymentMethodId: 22 }]
+              })
+            ),
             getBatch: jasmine.createSpy('getBatch').and.returnValue(of(currentBatch())),
             clear: jasmine.createSpy('clear').and.callFake(() => {
               currentBatch.set(null);
@@ -251,6 +285,11 @@ describe('ImportsPageComponent', () => {
             clearCategoryImportState: jasmine.createSpy('clearCategoryImportState').and.callFake(() => {
               selectedCategoryFile.set(null);
               categoryTemplateDownloadError.set(null);
+            }),
+            clearPaymentMethodImportState: jasmine.createSpy('clearPaymentMethodImportState').and.callFake(() => {
+              selectedPaymentMethodFile.set(null);
+              paymentMethodImportResult.set(null);
+              paymentMethodTemplateDownloadError.set(null);
             })
           }
         }
@@ -506,6 +545,7 @@ describe('ImportsPageComponent', () => {
     expect(text).toContain('Gastos');
     expect(text).toContain('Ingresos');
     expect(text).toContain('Categorias');
+    expect(text).toContain('Medios de pago');
   });
 
   it('switches to incomes mode and shows direct import action', () => {
@@ -588,5 +628,46 @@ describe('ImportsPageComponent', () => {
 
     expect(store.importCategoryFile).toHaveBeenCalledWith(1);
     expect(fixture.componentInstance.categorySuccessMessage()).toContain('Se importaron');
+  });
+
+  it('switches to payment methods mode and shows direct import action', () => {
+    const fixture = configure();
+    fixture.componentInstance.activeMode.set('paymentMethods');
+    fixture.detectChanges();
+
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Importar medios de pago desde Excel');
+    expect(text).toContain('Importar medios de pago');
+  });
+
+  it('downloads payment method template using a temporary object url', () => {
+    const fixture = configure();
+    const store = TestBed.inject(ImportsStore) as jasmine.SpyObj<ImportsStore>;
+    fixture.componentInstance.activeMode.set('paymentMethods');
+    fixture.detectChanges();
+    spyOn(URL, 'createObjectURL').and.returnValue('blob:payment-method-template');
+    spyOn(URL, 'revokeObjectURL');
+    const clickSpy = spyOn(HTMLAnchorElement.prototype, 'click').and.callFake(function (this: HTMLAnchorElement) {
+      expect(this.download).toBe(PAYMENT_METHOD_IMPORT_TEMPLATE_FILENAME);
+    });
+
+    fixture.componentInstance.downloadPaymentMethodTemplate();
+
+    expect(store.downloadPaymentMethodTemplate).toHaveBeenCalledWith(1);
+    expect(URL.createObjectURL).toHaveBeenCalled();
+    expect(clickSpy).toHaveBeenCalled();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:payment-method-template');
+  });
+
+  it('imports payment methods directly and shows created count', () => {
+    const fixture = configure();
+    const store = TestBed.inject(ImportsStore) as jasmine.SpyObj<ImportsStore>;
+    fixture.componentInstance.activeMode.set('paymentMethods');
+    fixture.detectChanges();
+
+    fixture.componentInstance.importPaymentMethods();
+
+    expect(store.importPaymentMethodFile).toHaveBeenCalledWith(1);
+    expect(fixture.componentInstance.paymentMethodSuccessMessage()).toContain('Se importaron');
   });
 });

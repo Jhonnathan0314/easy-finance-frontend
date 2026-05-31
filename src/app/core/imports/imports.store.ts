@@ -5,7 +5,8 @@ import {
   ApiErrorResponse,
   CategoryImportResponseDto,
   ExpenseImportBatchResponseDto,
-  IncomeImportResponseDto
+  IncomeImportResponseDto,
+  PaymentMethodImportResponseDto
 } from '../../shared/models';
 import { ImportsApiService } from './imports-api.service';
 
@@ -17,21 +18,26 @@ export class ImportsStore {
   readonly currentBatch = signal<ExpenseImportBatchResponseDto | null>(null);
   readonly currentIncomeImportResult = signal<IncomeImportResponseDto | null>(null);
   readonly currentCategoryImportResult = signal<CategoryImportResponseDto | null>(null);
+  readonly currentPaymentMethodImportResult = signal<PaymentMethodImportResponseDto | null>(null);
   readonly isPreviewing = signal(false);
   readonly isConfirming = signal(false);
   readonly isLoading = signal(false);
   readonly isDownloadingTemplate = signal(false);
   readonly isImportingIncome = signal(false);
   readonly isImportingCategory = signal(false);
+  readonly isImportingPaymentMethod = signal(false);
   readonly error = signal<ApiErrorResponse | null>(null);
   readonly templateDownloadError = signal<string | null>(null);
   readonly selectedFile = signal<File | null>(null);
   readonly selectedIncomeFile = signal<File | null>(null);
   readonly selectedCategoryFile = signal<File | null>(null);
+  readonly selectedPaymentMethodFile = signal<File | null>(null);
   readonly incomeError = signal<ApiErrorResponse | null>(null);
   readonly categoryError = signal<ApiErrorResponse | null>(null);
+  readonly paymentMethodError = signal<ApiErrorResponse | null>(null);
   readonly incomeTemplateDownloadError = signal<string | null>(null);
   readonly categoryTemplateDownloadError = signal<string | null>(null);
+  readonly paymentMethodTemplateDownloadError = signal<string | null>(null);
 
   selectFile(file: File): void {
     this.selectedFile.set(file);
@@ -58,6 +64,15 @@ export class ImportsStore {
 
   clearCategoryFile(): void {
     this.selectedCategoryFile.set(null);
+  }
+
+  selectPaymentMethodFile(file: File): void {
+    this.selectedPaymentMethodFile.set(file);
+    this.paymentMethodError.set(null);
+  }
+
+  clearPaymentMethodFile(): void {
+    this.selectedPaymentMethodFile.set(null);
   }
 
   preview(accountId: number): Observable<ExpenseImportBatchResponseDto> {
@@ -198,25 +213,66 @@ export class ImportsStore {
     );
   }
 
+  downloadPaymentMethodTemplate(accountId: number): Observable<Blob> {
+    this.ensureAccount(accountId);
+    this.isDownloadingTemplate.set(true);
+    this.paymentMethodTemplateDownloadError.set(null);
+
+    return this.importsApi.downloadPaymentMethodImportTemplate(accountId).pipe(
+      catchError((error: unknown) => {
+        this.paymentMethodTemplateDownloadError.set(
+          'No se pudo descargar la plantilla de medios de pago. Intenta nuevamente.'
+        );
+        return throwError(() => error);
+      }),
+      finalize(() => this.isDownloadingTemplate.set(false))
+    );
+  }
+
+  importPaymentMethodFile(accountId: number): Observable<PaymentMethodImportResponseDto> {
+    this.ensureAccount(accountId);
+    const file = this.selectedPaymentMethodFile();
+
+    if (!file) {
+      const error = createLocalError('IMPORT_FILE_REQUIRED', 'Selecciona un archivo .xlsx para continuar.');
+      this.paymentMethodError.set(error);
+      return throwError(() => error);
+    }
+
+    this.isImportingPaymentMethod.set(true);
+    this.paymentMethodError.set(null);
+
+    return this.importsApi.importPaymentMethods(accountId, file).pipe(
+      tap((result) => this.currentPaymentMethodImportResult.set(result)),
+      catchError((error: unknown) => this.handlePaymentMethodError(error)),
+      finalize(() => this.isImportingPaymentMethod.set(false))
+    );
+  }
+
   clear(): void {
     this.currentAccountId.set(null);
     this.currentBatch.set(null);
     this.currentIncomeImportResult.set(null);
     this.currentCategoryImportResult.set(null);
+    this.currentPaymentMethodImportResult.set(null);
     this.selectedFile.set(null);
     this.selectedIncomeFile.set(null);
     this.selectedCategoryFile.set(null);
+    this.selectedPaymentMethodFile.set(null);
     this.isPreviewing.set(false);
     this.isConfirming.set(false);
     this.isLoading.set(false);
     this.isImportingIncome.set(false);
     this.isImportingCategory.set(false);
+    this.isImportingPaymentMethod.set(false);
     this.error.set(null);
     this.incomeError.set(null);
     this.categoryError.set(null);
+    this.paymentMethodError.set(null);
     this.templateDownloadError.set(null);
     this.incomeTemplateDownloadError.set(null);
     this.categoryTemplateDownloadError.set(null);
+    this.paymentMethodTemplateDownloadError.set(null);
   }
 
   clearIncomeImportState(): void {
@@ -236,6 +292,14 @@ export class ImportsStore {
     this.categoryTemplateDownloadError.set(null);
   }
 
+  clearPaymentMethodImportState(): void {
+    this.currentPaymentMethodImportResult.set(null);
+    this.selectedPaymentMethodFile.set(null);
+    this.isImportingPaymentMethod.set(false);
+    this.paymentMethodError.set(null);
+    this.paymentMethodTemplateDownloadError.set(null);
+  }
+
   private ensureAccount(accountId: number): void {
     if (this.currentAccountId() === accountId) {
       return;
@@ -250,15 +314,19 @@ export class ImportsStore {
     this.currentBatch.set(null);
     this.currentIncomeImportResult.set(null);
     this.currentCategoryImportResult.set(null);
+    this.currentPaymentMethodImportResult.set(null);
     this.selectedFile.set(null);
     this.selectedIncomeFile.set(null);
     this.selectedCategoryFile.set(null);
+    this.selectedPaymentMethodFile.set(null);
     this.error.set(null);
     this.incomeError.set(null);
     this.categoryError.set(null);
+    this.paymentMethodError.set(null);
     this.templateDownloadError.set(null);
     this.incomeTemplateDownloadError.set(null);
     this.categoryTemplateDownloadError.set(null);
+    this.paymentMethodTemplateDownloadError.set(null);
   }
 
   private handleError(error: unknown): Observable<never> {
@@ -273,6 +341,11 @@ export class ImportsStore {
 
   private handleCategoryError(error: unknown): Observable<never> {
     this.categoryError.set(toApiError(error));
+    return throwError(() => error);
+  }
+
+  private handlePaymentMethodError(error: unknown): Observable<never> {
+    this.paymentMethodError.set(toApiError(error));
     return throwError(() => error);
   }
 }

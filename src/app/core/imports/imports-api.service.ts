@@ -1,7 +1,12 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
-import { CategoryImportResponseDto, ExpenseImportBatchResponseDto, IncomeImportResponseDto } from '../../shared/models';
+import {
+  CategoryImportResponseDto,
+  ExpenseImportBatchResponseDto,
+  IncomeImportResponseDto,
+  PaymentMethodImportResponseDto
+} from '../../shared/models';
 import { ApiClient } from '../http/api-client';
 
 @Injectable({ providedIn: 'root' })
@@ -53,5 +58,19 @@ export class ImportsApiService {
     formData.append('file', file);
 
     return this.api.post<CategoryImportResponseDto, FormData>(`/accounts/${accountId}/imports/categories`, formData);
+  }
+
+  downloadPaymentMethodImportTemplate(accountId: number): Observable<Blob> {
+    return this.api.getBlob(`/accounts/${accountId}/imports/payment-methods/template`);
+  }
+
+  importPaymentMethods(accountId: number, file: File): Observable<PaymentMethodImportResponseDto> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    return this.api.post<PaymentMethodImportResponseDto, FormData>(
+      `/accounts/${accountId}/imports/payment-methods`,
+      formData
+    );
   }
 }

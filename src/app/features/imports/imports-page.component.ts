@@ -9,12 +9,13 @@ import { ApiErrorResponse, ExpenseImportRowResponseDto } from '../../shared/mode
 import { enumLabel } from '../../shared/ui/enum-labels';
 
 type RowFilter = 'all' | 'valid' | 'invalid';
-type ImportMode = 'expenses' | 'incomes' | 'categories';
+type ImportMode = 'expenses' | 'incomes' | 'categories' | 'paymentMethods';
 
 export const MAX_IMPORT_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 export const EXPENSE_IMPORT_TEMPLATE_FILENAME = 'easy-finance-expense-import-template.xlsx';
 export const INCOME_IMPORT_TEMPLATE_FILENAME = 'easy-finance-income-import-template.xlsx';
 export const CATEGORY_IMPORT_TEMPLATE_FILENAME = 'easy-finance-category-import-template.xlsx';
+export const PAYMENT_METHOD_IMPORT_TEMPLATE_FILENAME = 'easy-finance-payment-method-import-template.xlsx';
 
 @Component({
   selector: 'ef-imports-page',
@@ -34,6 +35,9 @@ export const CATEGORY_IMPORT_TEMPLATE_FILENAME = 'easy-finance-category-import-t
         <button type="button" [class.active]="activeMode() === 'expenses'" (click)="activeMode.set('expenses')">Gastos</button>
         <button type="button" [class.active]="activeMode() === 'incomes'" (click)="activeMode.set('incomes')">Ingresos</button>
         <button type="button" [class.active]="activeMode() === 'categories'" (click)="activeMode.set('categories')">Categorias</button>
+        <button type="button" [class.active]="activeMode() === 'paymentMethods'" (click)="activeMode.set('paymentMethods')">
+          Medios de pago
+        </button>
       </div>
 
       @if (accountStore.selectedAccountArchived()) {
@@ -427,7 +431,7 @@ export const CATEGORY_IMPORT_TEMPLATE_FILENAME = 'easy-finance-category-import-t
           <p>Sube un Excel y el sistema intentara crear todos los ingresos en un solo paso.</p>
         </div>
       }
-      } @else {
+      } @else if (activeMode() === 'categories') {
       <section class="panel instructions">
         <div>
           <h2>Importar categorias desde Excel</h2>
@@ -587,6 +591,165 @@ export const CATEGORY_IMPORT_TEMPLATE_FILENAME = 'easy-finance-category-import-t
           <p>Sube un Excel y el sistema intentara crear todas las categorias en un solo paso.</p>
         </div>
       }
+      } @else {
+      <section class="panel instructions">
+        <div>
+          <h2>Importar medios de pago desde Excel</h2>
+          <p>Usa un archivo .xlsx con estas cabeceras exactas:</p>
+          <div class="headers-list">
+            @for (header of paymentMethodRequiredHeaders; track header) {
+              <span>{{ header }}</span>
+            }
+          </div>
+        </div>
+        <div class="template-download">
+          <p>La plantilla se genera para importar medios de pago de la cuenta.</p>
+          <button type="button" (click)="downloadPaymentMethodTemplate()" [disabled]="importsStore.isDownloadingTemplate()">
+            {{ importsStore.isDownloadingTemplate() ? 'Descargando...' : 'Descargar plantilla de medios de pago' }}
+          </button>
+        </div>
+        @if (importsStore.paymentMethodTemplateDownloadError(); as templateError) {
+          <p class="form-error" role="alert">{{ templateError }}</p>
+        }
+        <ul>
+          <li>Solo .xlsx, maximo 5MB y maximo 1000 filas.</li>
+          <li>Columnas requeridas: Nombre y Tipo.</li>
+          <li>Si alguna fila tiene error, no se crea ningun medio de pago.</li>
+        </ul>
+      </section>
+
+      <section class="panel upload-panel">
+        <label class="file-field">
+          <span>Archivo Excel</span>
+          <input
+            #paymentMethodFileInput
+            type="file"
+            accept=".xlsx"
+            (change)="onPaymentMethodFileSelected($event)"
+            [disabled]="!canWrite()"
+          >
+        </label>
+
+        @if (importsStore.selectedPaymentMethodFile(); as file) {
+          <div class="selected-file">
+            <strong>{{ file.name }}</strong>
+            <span>{{ fileSizeLabel(file.size) }}</span>
+            <button type="button" (click)="clearPaymentMethodFile(paymentMethodFileInput)">Quitar</button>
+          </div>
+        } @else {
+          <p class="muted">Selecciona un archivo .xlsx para importar medios de pago.</p>
+        }
+
+        @if (paymentMethodFileError(); as error) {
+          <p class="form-error" role="alert">{{ error }}</p>
+        }
+
+        <div class="actions">
+          <button class="button" type="button" (click)="importPaymentMethods()" [disabled]="!canImportPaymentMethods()">
+            {{ importsStore.isImportingPaymentMethod() ? 'Importando...' : 'Importar medios de pago' }}
+          </button>
+          @if (hasPaymentMethodImportState()) {
+            <button type="button" (click)="clearPaymentMethodImport(paymentMethodFileInput)">Cargar otro archivo</button>
+          }
+        </div>
+      </section>
+
+      @if (importsStore.paymentMethodError(); as error) {
+        <div class="panel error-panel" role="alert">
+          <strong>{{ error.code }}</strong>
+          <span>{{ friendlyPaymentMethodError(error) }}</span>
+        </div>
+      }
+
+      @if (paymentMethodSuccessMessage(); as message) {
+        <div class="panel success-panel">{{ message }}</div>
+      }
+
+      @if (importsStore.currentPaymentMethodImportResult(); as result) {
+        <section class="panel batch-summary">
+          <div class="summary-heading">
+            <div>
+              <h2>{{ result.originalFilename }}</h2>
+              <p>Importacion directa de medios de pago</p>
+            </div>
+          </div>
+          <dl class="summary-grid">
+            <div>
+              <dt>Total filas</dt>
+              <dd>{{ result.totalRows }}</dd>
+            </div>
+            <div>
+              <dt>Creados</dt>
+              <dd>{{ result.createdCount }}</dd>
+            </div>
+            <div>
+              <dt>Invalidos</dt>
+              <dd>{{ result.invalidRows }}</dd>
+            </div>
+          </dl>
+
+          @if (result.invalidRows > 0) {
+            <div class="panel warning-panel">
+              No se creo ningun medio de pago. Corrige el archivo y vuelve a cargarlo.
+            </div>
+          }
+        </section>
+
+        <section class="panel rows-panel">
+          <h2>Filas procesadas</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fila</th>
+                  <th>Nombre</th>
+                  <th>Tipo</th>
+                  <th>Resultado</th>
+                  <th>Valid</th>
+                  <th>Errores</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of result.rows; track row.rowNumber) {
+                  <tr [class.invalid]="!row.valid">
+                    <td>{{ row.rowNumber }}</td>
+                    <td>{{ row.name || '-' }}</td>
+                    <td>{{ row.type ? enumLabel(row.type) : '-' }}</td>
+                    <td>
+                      @if (row.createdPaymentMethodId) {
+                        <span class="badge success">Medio #{{ row.createdPaymentMethodId }}</span>
+                      } @else {
+                        -
+                      }
+                    </td>
+                    <td>
+                      <span class="badge" [class.success]="row.valid" [class.danger]="!row.valid">
+                        {{ row.valid ? 'VALID' : 'INVALID' }}
+                      </span>
+                    </td>
+                    <td>
+                      @if (row.errors.length) {
+                        <ul class="row-errors">
+                          @for (error of row.errors; track error.column + error.code + error.message) {
+                            <li><strong>{{ error.column }}</strong>: {{ error.message }}</li>
+                          }
+                        </ul>
+                      } @else {
+                        -
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      } @else if (!importsStore.isImportingPaymentMethod()) {
+        <div class="panel empty-state">
+          <h2>Sin importacion de medios de pago</h2>
+          <p>Sube un Excel y el sistema intentara crear todos los medios de pago en un solo paso.</p>
+        </div>
+      }
       }
     </section>
   `
@@ -601,9 +764,11 @@ export class ImportsPageComponent {
   readonly fileError = signal<string | null>(null);
   readonly incomeFileError = signal<string | null>(null);
   readonly categoryFileError = signal<string | null>(null);
+  readonly paymentMethodFileError = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
   readonly incomeSuccessMessage = signal<string | null>(null);
   readonly categorySuccessMessage = signal<string | null>(null);
+  readonly paymentMethodSuccessMessage = signal<string | null>(null);
   readonly accountId = computed(() => this.accountStore.selectedAccountId() ?? 0);
   readonly canWrite = computed(() => this.accountStore.selectedAccount()?.status === 'ACTIVE');
   readonly hasImportState = computed(
@@ -633,6 +798,15 @@ export class ImportsPageComponent {
       Boolean(this.categoryFileError()) ||
       Boolean(this.categorySuccessMessage())
   );
+  readonly hasPaymentMethodImportState = computed(
+    () =>
+      Boolean(this.importsStore.selectedPaymentMethodFile()) ||
+      Boolean(this.importsStore.currentPaymentMethodImportResult()) ||
+      Boolean(this.importsStore.paymentMethodError()) ||
+      Boolean(this.importsStore.paymentMethodTemplateDownloadError()) ||
+      Boolean(this.paymentMethodFileError()) ||
+      Boolean(this.paymentMethodSuccessMessage())
+  );
   readonly filteredRows = computed(() => {
     const rows = this.importsStore.currentBatch()?.rows ?? [];
 
@@ -649,6 +823,7 @@ export class ImportsPageComponent {
   readonly requiredHeaders = ['Fecha', 'Descripcion', 'Monto', 'Categoria', 'MedioPago', 'EstadoPago'];
   readonly incomeRequiredHeaders = ['Fecha', 'Descripcion', 'Categoria', 'Monto'];
   readonly categoryRequiredHeaders = ['Nombre', 'Tipo'];
+  readonly paymentMethodRequiredHeaders = ['Nombre', 'Tipo'];
 
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -725,6 +900,31 @@ export class ImportsPageComponent {
     this.importsStore.selectCategoryFile(file);
   }
 
+  onPaymentMethodFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+
+    this.paymentMethodFileError.set(null);
+    this.paymentMethodSuccessMessage.set(null);
+
+    if (!file) {
+      this.importsStore.clearPaymentMethodFile();
+      this.paymentMethodFileError.set('Selecciona un archivo .xlsx.');
+      return;
+    }
+
+    const validationError = validateImportFile(file);
+
+    if (validationError) {
+      this.importsStore.clearPaymentMethodFile();
+      this.paymentMethodFileError.set(validationError);
+      input.value = '';
+      return;
+    }
+
+    this.importsStore.selectPaymentMethodFile(file);
+  }
+
   clearFile(fileInput?: HTMLInputElement): void {
     this.importsStore.clearFile();
     this.fileError.set(null);
@@ -783,6 +983,25 @@ export class ImportsPageComponent {
     }
   }
 
+  clearPaymentMethodFile(fileInput?: HTMLInputElement): void {
+    this.importsStore.clearPaymentMethodFile();
+    this.paymentMethodFileError.set(null);
+
+    if (fileInput) {
+      fileInput.value = '';
+    }
+  }
+
+  clearPaymentMethodImport(fileInput?: HTMLInputElement): void {
+    this.importsStore.clearPaymentMethodImportState();
+    this.paymentMethodFileError.set(null);
+    this.paymentMethodSuccessMessage.set(null);
+
+    if (fileInput) {
+      fileInput.value = '';
+    }
+  }
+
   preview(): void {
     this.successMessage.set(null);
     this.fileError.set(null);
@@ -832,6 +1051,13 @@ export class ImportsPageComponent {
   downloadCategoryTemplate(): void {
     this.importsStore.downloadCategoryTemplate(this.accountId()).pipe(take(1)).subscribe({
       next: (blob) => this.saveTemplateBlob(blob, CATEGORY_IMPORT_TEMPLATE_FILENAME),
+      error: () => undefined
+    });
+  }
+
+  downloadPaymentMethodTemplate(): void {
+    this.importsStore.downloadPaymentMethodTemplate(this.accountId()).pipe(take(1)).subscribe({
+      next: (blob) => this.saveTemplateBlob(blob, PAYMENT_METHOD_IMPORT_TEMPLATE_FILENAME),
       error: () => undefined
     });
   }
@@ -896,6 +1122,36 @@ export class ImportsPageComponent {
     });
   }
 
+  importPaymentMethods(): void {
+    this.paymentMethodSuccessMessage.set(null);
+    this.paymentMethodFileError.set(null);
+
+    if (!this.canWrite()) {
+      this.paymentMethodFileError.set('La cuenta archivada no permite importar medios de pago.');
+      return;
+    }
+
+    const file = this.importsStore.selectedPaymentMethodFile();
+    const validationError = file ? validateImportFile(file) : 'Selecciona un archivo .xlsx.';
+
+    if (validationError) {
+      this.paymentMethodFileError.set(validationError);
+      return;
+    }
+
+    this.importsStore.importPaymentMethodFile(this.accountId()).pipe(take(1)).subscribe({
+      next: (result) => {
+        if (result.invalidRows > 0) {
+          this.paymentMethodSuccessMessage.set('No se creo ningun medio de pago. Corrige el archivo y vuelve a cargarlo.');
+          return;
+        }
+
+        this.paymentMethodSuccessMessage.set(`Se importaron ${result.createdCount} medios de pago.`);
+      },
+      error: () => undefined
+    });
+  }
+
   canPreview(): boolean {
     return this.canWrite() && Boolean(this.importsStore.selectedFile()) && !this.importsStore.isPreviewing();
   }
@@ -918,6 +1174,14 @@ export class ImportsPageComponent {
 
   canImportCategories(): boolean {
     return this.canWrite() && Boolean(this.importsStore.selectedCategoryFile()) && !this.importsStore.isImportingCategory();
+  }
+
+  canImportPaymentMethods(): boolean {
+    return (
+      this.canWrite() &&
+      Boolean(this.importsStore.selectedPaymentMethodFile()) &&
+      !this.importsStore.isImportingPaymentMethod()
+    );
   }
 
   hasCatalogErrors(): boolean {
@@ -989,6 +1253,20 @@ export class ImportsPageComponent {
       IMPORT_ROW_LIMIT_EXCEEDED: 'El archivo supera el limite de filas.',
       CATEGORY_ALREADY_EXISTS: 'Ya existe una categoria con ese nombre.',
       CATEGORY_TYPE_INVALID: 'El tipo de categoria no es valido.'
+    };
+
+    return messages[error.code] ?? error.message;
+  }
+
+  friendlyPaymentMethodError(error: ApiErrorResponse): string {
+    const messages: Record<string, string> = {
+      IMPORT_FILE_REQUIRED: 'Selecciona un archivo para importar.',
+      IMPORT_FILE_INVALID_TYPE: 'El archivo debe ser .xlsx.',
+      IMPORT_FILE_TOO_LARGE: 'El archivo supera el tamano maximo permitido.',
+      IMPORT_TEMPLATE_INVALID: 'La plantilla no tiene las cabeceras esperadas.',
+      IMPORT_ROW_LIMIT_EXCEEDED: 'El archivo supera el limite de filas.',
+      PAYMENT_METHOD_ALREADY_EXISTS: 'Ya existe un medio de pago con ese nombre.',
+      PAYMENT_METHOD_TYPE_INVALID: 'El tipo de medio de pago no es valido.'
     };
 
     return messages[error.code] ?? error.message;

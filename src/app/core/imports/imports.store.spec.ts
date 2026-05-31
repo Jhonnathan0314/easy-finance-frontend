@@ -1,7 +1,12 @@
 import { TestBed } from '@angular/core/testing';
 import { Subject, of, throwError } from 'rxjs';
 
-import { CategoryImportResponseDto, ExpenseImportBatchResponseDto, IncomeImportResponseDto } from '../../shared/models';
+import {
+  CategoryImportResponseDto,
+  ExpenseImportBatchResponseDto,
+  IncomeImportResponseDto,
+  PaymentMethodImportResponseDto
+} from '../../shared/models';
 import { ImportsApiService } from './imports-api.service';
 import { ImportsStore } from './imports.store';
 
@@ -37,6 +42,15 @@ describe('ImportsStore', () => {
     invalidRows: 0,
     rows: []
   };
+  const paymentMethodResult: PaymentMethodImportResponseDto = {
+    accountId: 10,
+    participantId: 7,
+    originalFilename: 'payment-methods.xlsx',
+    totalRows: 2,
+    createdCount: 2,
+    invalidRows: 0,
+    rows: []
+  };
 
   let service: jasmine.SpyObj<ImportsApiService>;
   let store: ImportsStore;
@@ -50,7 +64,9 @@ describe('ImportsStore', () => {
       'downloadIncomeImportTemplate',
       'importIncomes',
       'downloadCategoryImportTemplate',
-      'importCategories'
+      'importCategories',
+      'downloadPaymentMethodImportTemplate',
+      'importPaymentMethods'
     ]);
     service.previewExpenseImport.and.returnValue(of(batch));
     service.confirmExpenseImport.and.returnValue(of({ ...batch, status: 'CONFIRMED', confirmedAt: '2026-05-14T00:00:00Z' }));
@@ -60,6 +76,8 @@ describe('ImportsStore', () => {
     service.importIncomes.and.returnValue(of(incomeResult));
     service.downloadCategoryImportTemplate.and.returnValue(of(new Blob(['template'])));
     service.importCategories.and.returnValue(of(categoryResult));
+    service.downloadPaymentMethodImportTemplate.and.returnValue(of(new Blob(['template'])));
+    service.importPaymentMethods.and.returnValue(of(paymentMethodResult));
 
     TestBed.configureTestingModule({
       providers: [ImportsStore, { provide: ImportsApiService, useValue: service }]
@@ -220,6 +238,29 @@ describe('ImportsStore', () => {
       expect(store.currentCategoryImportResult()).toEqual(categoryResult);
       setTimeout(() => {
         expect(store.isImportingCategory()).toBeFalse();
+        done();
+      });
+    });
+  });
+
+  it('downloads payment method template', (done) => {
+    store.downloadPaymentMethodTemplate(10).subscribe((blob) => {
+      expect(blob).toEqual(jasmine.any(Blob));
+      expect(service.downloadPaymentMethodImportTemplate).toHaveBeenCalledWith(10);
+      expect(store.paymentMethodTemplateDownloadError()).toBeNull();
+      done();
+    });
+  });
+
+  it('imports payment methods and stores the result', (done) => {
+    const paymentMethodFile = new File(['excel'], 'payment-methods.xlsx');
+    store.selectPaymentMethodFile(paymentMethodFile);
+
+    store.importPaymentMethodFile(10).subscribe(() => {
+      expect(service.importPaymentMethods).toHaveBeenCalledWith(10, paymentMethodFile);
+      expect(store.currentPaymentMethodImportResult()).toEqual(paymentMethodResult);
+      setTimeout(() => {
+        expect(store.isImportingPaymentMethod()).toBeFalse();
         done();
       });
     });

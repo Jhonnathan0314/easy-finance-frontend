@@ -97,3 +97,26 @@ export interface CategoryImportResponse {
 }
 
 export type CategoryImportResponseDto = CategoryImportResponse;
+
+export interface PaymentMethodImportRowResponse {
+  rowNumber: number;
+  name?: string | null;
+  type?: string | null;
+  valid: boolean;
+  errors: ImportRowError[];
+  createdPaymentMethodId?: number | null;
+}
+
+export type PaymentMethodImportRowResponseDto = PaymentMethodImportRowResponse;
+
+export interface PaymentMethodImportResponse {
+  accountId: number;
+  participantId: number;
+  originalFilename: string;
+  totalRows: number;
+  createdCount: number;
+  invalidRows: number;
+  rows: PaymentMethodImportRowResponse[];
+}
+
+export type PaymentMethodImportResponseDto = PaymentMethodImportResponse;
