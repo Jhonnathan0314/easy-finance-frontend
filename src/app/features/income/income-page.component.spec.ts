@@ -150,8 +150,28 @@ describe('IncomePageComponent', () => {
     expect(text).toContain('2026-05-12');
     expect(text).toContain('Salary');
     expect(text).toContain('Participante 7');
-    expect(text).toContain('Activo');
     expect(text).not.toContain('Detalle');
+  });
+
+  it('does not render status badge/text in income cards', () => {
+    const fixture = configure();
+    const root = fixture.nativeElement as HTMLElement;
+
+    expect(root.querySelector('.income-card .badges')).toBeNull();
+    expect(root.textContent).not.toContain('Activo');
+    expect(root.textContent).not.toContain('Cancelado');
+  });
+
+  it('does not render status badge/text in income detail panel', () => {
+    const fixture = configure();
+    fixture.componentInstance.selectedDetail.set(income);
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    const detail = root.querySelector('.detail-panel') as HTMLElement;
+
+    expect(detail.querySelector('.badges')).toBeNull();
+    expect(detail.textContent).not.toContain('Activo');
+    expect(detail.textContent).not.toContain('Cancelado');
   });
 
   it('blocks write actions for archived accounts', () => {
