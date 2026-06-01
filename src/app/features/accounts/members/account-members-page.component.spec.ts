@@ -36,7 +36,7 @@ describe('AccountMembersPageComponent', () => {
   } = {}): {
     fixture: ComponentFixture<AccountMembersPageComponent>;
     api: jasmine.SpyObj<AccountsApiService>;
-    accountStore: { selectAccount: jasmine.Spy };
+    accountStore: { selectAccount: jasmine.Spy; updateAccount: jasmine.Spy };
     router: Router;
   } {
     const selectedAccount = {
@@ -63,7 +63,14 @@ describe('AccountMembersPageComponent', () => {
       selectedAccountId: signal(1),
       selectedAccount: signal(selectedAccount),
       selectedAccountArchived: signal(Boolean(options.archived)),
-      selectAccount: jasmine.createSpy('selectAccount')
+      selectAccount: jasmine.createSpy('selectAccount'),
+      updateAccount: jasmine.createSpy('updateAccount').and.callFake((_accountId: number, request: { name: string; description?: string | null }) =>
+        of({
+          ...selectedAccount,
+          name: request.name,
+          description: request.description ?? null
+        })
+      )
     };
 
     TestBed.configureTestingModule({
@@ -111,6 +118,67 @@ describe('AccountMembersPageComponent', () => {
 
     expect(text).toContain('Volver a cuentas');
     expect(text).toContain('Ir al dashboard');
+  });
+
+  it('shows edit account action for admins', () => {
+    const { fixture } = configure({ role: 'ACCOUNT_ADMIN' });
+    expect(fixture.nativeElement.textContent).toContain('Editar cuenta');
+  });
+
+  it('hides edit account action for non-admin members', () => {
+    const { fixture } = configure({ role: 'ACCOUNT_MEMBER' });
+    expect(fixture.nativeElement.textContent).not.toContain('Editar cuenta');
+  });
+
+  it('opens account edit form when clicking edit account', () => {
+    const { fixture } = configure();
+    fixture.componentInstance.startEditAccount();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Guardar');
+    expect(fixture.nativeElement.textContent).toContain('Cancelar');
+  });
+
+  it('validates required account name and max length 120', () => {
+    const { fixture } = configure();
+    fixture.componentInstance.startEditAccount();
+    const form = fixture.componentInstance.editAccountForm;
+
+    form.controls.name.setValue('');
+    expect(form.controls.name.hasError('required')).toBeTrue();
+
+    form.controls.name.setValue('a'.repeat(121));
+    expect(form.controls.name.hasError('maxlength')).toBeTrue();
+  });
+
+  it('disables account save when there are no changes', () => {
+    const { fixture } = configure();
+    fixture.componentInstance.startEditAccount();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.canSaveAccountChanges()).toBeFalse();
+  });
+
+  it('updates account through store and shows success message', () => {
+    const { fixture, accountStore } = configure();
+    fixture.componentInstance.startEditAccount();
+    fixture.componentInstance.editAccountForm.patchValue({ name: 'Casa editada', description: 'Nueva desc' });
+
+    fixture.componentInstance.saveAccountChanges();
+
+    expect(accountStore.updateAccount).toHaveBeenCalledWith(1, { name: 'Casa editada', description: 'Nueva desc' });
+    expect(fixture.componentInstance.successMessage()).toBe('Cuenta actualizada correctamente.');
+  });
+
+  it('cancels account edit and discards local changes', () => {
+    const { fixture } = configure();
+    fixture.componentInstance.startEditAccount();
+    fixture.componentInstance.editAccountForm.patchValue({ name: 'Temporal' });
+
+    fixture.componentInstance.cancelEditAccount();
+
+    expect(fixture.componentInstance.isEditingAccount()).toBeFalse();
+    expect(fixture.componentInstance.editAccountForm.value.name).toBe('');
   });
 
   it('selects the account before navigating to dashboard from detail', () => {

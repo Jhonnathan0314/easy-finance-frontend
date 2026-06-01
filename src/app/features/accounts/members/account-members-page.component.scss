@@ -14,6 +14,7 @@
 
 .secondary-action,
 .section-header button,
+.account-edit-actions button,
 .member-actions button {
   border: 1px solid #c9d2df;
   border-radius: 6px;
@@ -68,12 +69,29 @@ select:disabled {
 }
 
 .field select,
+.field input,
+.field textarea,
 .compact-field select {
   width: 100%;
   border: 1px solid #c9d2df;
   border-radius: 6px;
   background: #ffffff;
   padding: 0.75rem 0.85rem;
+}
+
+.account-edit-panel h2 {
+  margin: 0;
+}
+
+.account-edit-form {
+  margin-top: 0.75rem;
+}
+
+.account-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
 }
 
 .section-header {

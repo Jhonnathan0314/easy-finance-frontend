@@ -52,6 +52,15 @@ describe('AccountsApiService', () => {
     membersRequest.flush([]);
   });
 
+  it('updates an account by id', () => {
+    service.updateAccount(7, { name: 'Nuevo nombre', description: 'Nueva descripcion' }).subscribe();
+
+    const request = httpTesting.expectOne('http://localhost:8080/api/v1/accounts/7');
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body).toEqual({ name: 'Nuevo nombre', description: 'Nueva descripcion' });
+    request.flush({});
+  });
+
   it('manages account members through relative account endpoints', () => {
     service.addMember(7, { email: 'user@example.com', role: 'ACCOUNT_MEMBER' }).subscribe();
     service.changeMemberRole(7, 11, { role: 'ACCOUNT_ADMIN' }).subscribe();

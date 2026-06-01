@@ -41,6 +41,44 @@ import { enumLabel } from '../../../shared/ui/enum-labels';
             <strong class="badge role">{{ enumLabel(account.currentUserRole) }}</strong>
           </div>
         </section>
+
+        @if (canWrite()) {
+          <section class="panel account-edit-panel">
+            <div class="section-header">
+              <h2>Detalle de cuenta</h2>
+              @if (!isEditingAccount()) {
+                <button type="button" (click)="startEditAccount()">Editar cuenta</button>
+              }
+            </div>
+
+            @if (isEditingAccount()) {
+              <form class="form-grid account-edit-form" [formGroup]="editAccountForm" (ngSubmit)="saveAccountChanges()">
+                <label class="field">
+                  <span>Nombre</span>
+                  <input type="text" formControlName="name" autocomplete="off">
+                  @if (editAccountForm.controls.name.touched && editAccountForm.controls.name.hasError('required')) {
+                    <small>El nombre es requerido.</small>
+                  }
+                  @if (editAccountForm.controls.name.touched && editAccountForm.controls.name.hasError('maxlength')) {
+                    <small>Maximo 120 caracteres.</small>
+                  }
+                </label>
+
+                <label class="field">
+                  <span>Descripcion</span>
+                  <textarea rows="3" formControlName="description"></textarea>
+                </label>
+
+                <div class="account-edit-actions">
+                  <button type="button" (click)="cancelEditAccount()" [disabled]="isSavingAccount()">Cancelar</button>
+                  <button type="submit" [disabled]="!canSaveAccountChanges()">
+                    {{ isSavingAccount() ? 'Guardando...' : 'Guardar' }}
+                  </button>
+                </div>
+              </form>
+            }
+          </section>
+        }
       }
 
       @if (accountStore.selectedAccountArchived()) {
@@ -169,6 +207,8 @@ export class AccountMembersPageComponent implements OnInit {
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
   readonly pendingRoleChanges = signal<Record<number, AccountRole>>({});
+  readonly isEditingAccount = signal(false);
+  readonly isSavingAccount = signal(false);
   readonly accountId = computed(() => Number(this.route.snapshot.paramMap.get('accountId')));
   readonly canWrite = computed(
     () => this.accountStore.selectedAccount()?.currentUserRole === 'ACCOUNT_ADMIN' && !this.accountStore.selectedAccountArchived()
@@ -177,6 +217,10 @@ export class AccountMembersPageComponent implements OnInit {
   readonly addMemberForm = this.fb.group({
     email: ['', [Validators.required, Validators.email]],
     role: ['ACCOUNT_MEMBER' as AccountRole, [Validators.required]]
+  });
+  readonly editAccountForm = this.fb.group({
+    name: ['', [Validators.required, Validators.maxLength(120)]],
+    description: ['']
   });
 
   ngOnInit(): void {
@@ -212,6 +256,75 @@ export class AccountMembersPageComponent implements OnInit {
           this.members.set([]);
           this.errorMessage.set(this.friendlyError(this.errorCode(error)));
         }
+      });
+  }
+
+  startEditAccount(): void {
+    if (!this.canWrite()) {
+      return;
+    }
+
+    const account = this.accountStore.selectedAccount();
+
+    if (!account) {
+      return;
+    }
+
+    this.editAccountForm.reset({
+      name: account.name,
+      description: account.description ?? ''
+    });
+    this.editAccountForm.markAsPristine();
+    this.isEditingAccount.set(true);
+  }
+
+  cancelEditAccount(): void {
+    this.isEditingAccount.set(false);
+    this.editAccountForm.reset({ name: '', description: '' });
+  }
+
+  canSaveAccountChanges(): boolean {
+    return this.canWrite() && this.isEditingAccount() && !this.isSavingAccount() && this.editAccountForm.valid && this.hasAccountChanges();
+  }
+
+  saveAccountChanges(): void {
+    if (!this.canWrite() || !this.isEditingAccount()) {
+      return;
+    }
+
+    if (this.editAccountForm.invalid || !this.hasAccountChanges()) {
+      this.editAccountForm.markAllAsTouched();
+      return;
+    }
+
+    const account = this.accountStore.selectedAccount();
+
+    if (!account) {
+      return;
+    }
+
+    const raw = this.editAccountForm.getRawValue();
+    const name = raw.name.trim();
+    const description = raw.description.trim();
+
+    this.isSavingAccount.set(true);
+    this.errorMessage.set(null);
+    this.accountStore
+      .updateAccount(account.id, {
+        name,
+        description: description ? description : null
+      })
+      .pipe(
+        take(1),
+        finalize(() => this.isSavingAccount.set(false))
+      )
+      .subscribe({
+        next: () => {
+          this.isEditingAccount.set(false);
+          this.showSuccess('Cuenta actualizada correctamente.');
+          this.editAccountForm.markAsPristine();
+        },
+        error: (error: unknown) => this.errorMessage.set(this.friendlyError(this.errorCode(error)))
       });
   }
 
@@ -358,7 +471,8 @@ export class AccountMembersPageComponent implements OnInit {
       ACCOUNT_NOT_ACTIVE: 'La cuenta no permite modificaciones.',
       ACCOUNT_WRITE_NOT_ALLOWED: 'La cuenta no permite modificaciones.',
       ACCOUNT_NOT_FOUND: 'Cuenta no encontrada o sin acceso.',
-      VALIDATION_ERROR: 'Revisa los datos del formulario.'
+      VALIDATION_ERROR: 'Revisa los datos del formulario.',
+      ACCOUNT_UPDATE_NOT_ALLOWED: 'No tienes permisos para editar esta cuenta.'
     };
 
     return messages[code] ?? 'No se pudo completar la operacion.';
@@ -379,5 +493,20 @@ export class AccountMembersPageComponent implements OnInit {
     }
 
     return 'UNKNOWN_ERROR';
+  }
+
+  private hasAccountChanges(): boolean {
+    const account = this.accountStore.selectedAccount();
+
+    if (!account) {
+      return false;
+    }
+
+    const raw = this.editAccountForm.getRawValue();
+    const name = raw.name.trim();
+    const description = raw.description.trim();
+    const currentDescription = account.description?.trim() ?? '';
+
+    return name !== account.name.trim() || description !== currentDescription;
   }
 }

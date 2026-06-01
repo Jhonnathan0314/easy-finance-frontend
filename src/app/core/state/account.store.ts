@@ -2,7 +2,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { Observable, catchError, finalize, map, of, tap, throwError } from 'rxjs';
 
 import { AccountsApiService } from '../accounts/accounts-api.service';
-import { AccountResponseDto, ApiErrorResponse, CreateAccountRequest } from '../../shared/models';
+import { AccountResponseDto, ApiErrorResponse, CreateAccountRequest, UpdateAccountRequest } from '../../shared/models';
 
 const SELECTED_ACCOUNT_ID_KEY = 'easy-finance.selected-account-id';
 
@@ -110,6 +110,26 @@ export class AccountStore {
         this.accountList.update((accounts) => [account, ...accounts.filter((item) => item.id !== account.id)]);
         this.loaded.set(true);
         this.selectAccount(account);
+      }),
+      catchError((error: unknown) => {
+        this.error.set(toApiError(error));
+        return throwError(() => error);
+      }),
+      finalize(() => this.isLoading.set(false))
+    );
+  }
+
+  updateAccount(accountId: number, request: UpdateAccountRequest): Observable<AccountResponseDto> {
+    this.isLoading.set(true);
+    this.error.set(null);
+
+    return this.accountsApi.updateAccount(accountId, request).pipe(
+      tap((account) => {
+        this.accountList.update((accounts) => accounts.map((item) => (item.id === account.id ? account : item)));
+
+        if (this.selectedAccountId() === account.id) {
+          this.selectAccount(account);
+        }
       }),
       catchError((error: unknown) => {
         this.error.set(toApiError(error));

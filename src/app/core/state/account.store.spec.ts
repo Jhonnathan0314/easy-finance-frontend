@@ -31,7 +31,8 @@ describe('AccountStore', () => {
               .createSpy('listAccounts')
               .and.returnValue(of({ content: accounts, page: 0, size: 20, totalElements: accounts.length, totalPages: 1 })),
             createAccount: jasmine.createSpy('createAccount').and.returnValue(of(account)),
-            getAccount: jasmine.createSpy('getAccount').and.returnValue(of(account))
+            getAccount: jasmine.createSpy('getAccount').and.returnValue(of(account)),
+            updateAccount: jasmine.createSpy('updateAccount').and.returnValue(of(account))
           }
         }
       ]
@@ -57,6 +58,23 @@ describe('AccountStore', () => {
       expect(store.selectedAccount()).toBeNull();
       expect(localStorage.getItem('easy-finance.selected-account-id')).toBeNull();
       done();
+    });
+  });
+
+  it('updates account list and selected account after account update', (done) => {
+    const store = configure([account]);
+
+    store.loadAccounts().subscribe(() => {
+      store.selectAccount(account);
+      const updated: AccountResponseDto = { ...account, name: 'Casa Editada', description: 'Nueva descripcion' };
+      const api = TestBed.inject(AccountsApiService) as jasmine.SpyObj<AccountsApiService>;
+      api.updateAccount.and.returnValue(of(updated));
+
+      store.updateAccount(1, { name: 'Casa Editada', description: 'Nueva descripcion' }).subscribe(() => {
+        expect(store.accounts()[0].name).toBe('Casa Editada');
+        expect(store.selectedAccount()?.name).toBe('Casa Editada');
+        done();
+      });
     });
   });
 });
