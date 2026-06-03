@@ -11,6 +11,7 @@ import { AccountStore } from '../../core/state/account.store';
 import { CategoryResponseDto, IncomeResponseDto } from '../../shared/models';
 
 type IncomeDateSort = 'incomeDate,asc' | 'incomeDate,desc';
+type IncomeMonthOption = { value: number; label: string };
 
 @Component({
   selector: 'ef-income-page',
@@ -53,49 +54,76 @@ type IncomeDateSort = 'incomeDate,asc' | 'incomeDate,desc';
         </div>
       }
 
-      <form class="filters" [formGroup]="filterForm" (ngSubmit)="applyFilters()">
-        <label class="search-field">
-          <span>Buscar descripcion</span>
-          <input type="search" formControlName="search" placeholder="Buscar ingreso por descripcion">
-        </label>
-        <label>
-          <span>Desde</span>
-          <input type="date" formControlName="from">
-        </label>
-        <label>
-          <span>Hasta</span>
-          <input type="date" formControlName="to">
-        </label>
-        <label>
-          <span>Categoria</span>
-          <select formControlName="categoryId">
-            <option value="">Todas</option>
-            @for (category of incomeCategories(); track category.id) {
-              <option [value]="category.id">{{ category.name }}</option>
-            }
-          </select>
-        </label>
-        <div class="filter-actions">
-          <button type="submit">Filtrar</button>
-          <button type="button" (click)="clearFilters()">Limpiar filtros</button>
-        </div>
-      </form>
+      <section class="panel filters-panel" aria-label="Filtros de ingresos">
+        <form class="filters income-filters-form" [formGroup]="filterForm" (ngSubmit)="applyFilters()">
+          <div class="filter-fields">
+            <label class="search-field">
+              <span>Buscar descripcion</span>
+              <input type="search" formControlName="search" placeholder="Buscar ingreso por descripcion">
+            </label>
+            <label>
+              <span>Año</span>
+              <select formControlName="year">
+                <option value="">Todos</option>
+                @for (year of yearOptions; track year) {
+                  <option [value]="year">{{ year }}</option>
+                }
+              </select>
+            </label>
+            <label>
+              <span>Mes</span>
+              <select formControlName="month">
+                <option value="">Todos</option>
+                @for (month of monthOptions; track month.value) {
+                  <option [value]="month.value">{{ month.label }}</option>
+                }
+              </select>
+            </label>
+            <label>
+              <span>Desde</span>
+              <input type="date" formControlName="from">
+            </label>
+            <label>
+              <span>Hasta</span>
+              <input type="date" formControlName="to">
+            </label>
+            <label>
+              <span>Categoria</span>
+              <select formControlName="categoryId">
+                <option value="">Todas</option>
+                @for (category of incomeCategories(); track category.id) {
+                  <option [value]="category.id">{{ category.name }}</option>
+                }
+              </select>
+            </label>
+          </div>
 
-      <div class="sort-toolbar" aria-label="Orden de ingresos por fecha">
-        <span>Ordenar por fecha</span>
-        <div class="sort-actions">
-          @for (option of dateSortOptions; track option.value) {
-            <button
-              type="button"
-              [class.active]="currentDateSort() === option.value"
-              [attr.aria-pressed]="currentDateSort() === option.value"
-              (click)="changeDateSort(option.value)"
-            >
-              {{ option.label }}
-            </button>
-          }
-        </div>
-      </div>
+          <div class="filter-toolbar">
+            <div class="sort-field" aria-label="Orden de ingresos por fecha">
+              <span>Orden por fecha</span>
+              <div class="sort-actions">
+                @for (option of dateSortOptions; track option.value) {
+                  <button
+                    type="button"
+                    [class.active]="currentDateSort() === option.value"
+                    [attr.aria-pressed]="currentDateSort() === option.value"
+                    (click)="changeDateSort(option.value)"
+                  >
+                    {{ option.label }}
+                  </button>
+                }
+              </div>
+            </div>
+            <div class="filter-actions">
+              <button type="submit">Filtrar</button>
+              <button type="button" (click)="clearFilters()">Limpiar filtros</button>
+            </div>
+          </div>
+        </form>
+        @if (filterValidationMessage(); as validationMessage) {
+          <p class="filter-validation-message" role="alert">{{ validationMessage }}</p>
+        }
+      </section>
 
       @if (showForm()) {
         <form class="panel form-grid income-form" [formGroup]="incomeForm" (ngSubmit)="saveIncome()">
@@ -248,6 +276,7 @@ export class IncomePageComponent implements OnInit {
   readonly duplicatingIncome = signal<IncomeResponseDto | null>(null);
   readonly successMessage = signal<string | null>(null);
   readonly duplicateIncomeError = signal<string | null>(null);
+  readonly filterValidationMessage = signal<string | null>(null);
   readonly accountId = computed(() => this.accountStore.selectedAccountId() ?? 0);
   readonly canCreate = computed(() => this.accountStore.selectedAccount()?.status === 'ACTIVE');
   readonly hasRequiredCatalogs = computed(() => this.incomeCategories().length > 0);
@@ -263,6 +292,21 @@ export class IncomePageComponent implements OnInit {
     { label: 'Fecha descendente', value: 'incomeDate,desc' },
     { label: 'Fecha ascendente', value: 'incomeDate,asc' }
   ];
+  readonly monthOptions: IncomeMonthOption[] = [
+    { value: 1, label: 'Enero' },
+    { value: 2, label: 'Febrero' },
+    { value: 3, label: 'Marzo' },
+    { value: 4, label: 'Abril' },
+    { value: 5, label: 'Mayo' },
+    { value: 6, label: 'Junio' },
+    { value: 7, label: 'Julio' },
+    { value: 8, label: 'Agosto' },
+    { value: 9, label: 'Septiembre' },
+    { value: 10, label: 'Octubre' },
+    { value: 11, label: 'Noviembre' },
+    { value: 12, label: 'Diciembre' }
+  ];
+  readonly yearOptions = buildYearOptions(new Date().getFullYear());
   readonly pageSizeOptions = [10, 20, 50, 100];
   readonly currentDateSort = computed<IncomeDateSort>(() =>
     this.incomeStore.filters().sort === 'incomeDate,asc' ? 'incomeDate,asc' : 'incomeDate,desc'
@@ -270,6 +314,8 @@ export class IncomePageComponent implements OnInit {
 
   readonly filterForm = this.fb.group({
     search: [''],
+    year: [''],
+    month: [''],
     from: [''],
     to: [''],
     categoryId: ['']
@@ -295,9 +341,20 @@ export class IncomePageComponent implements OnInit {
 
   applyFilters(): void {
     const raw = this.filterForm.getRawValue();
+    const year = toNumberOrNull(raw.year);
+    const month = toNumberOrNull(raw.month);
+
+    if (month && !year) {
+      this.filterValidationMessage.set('Selecciona un año para poder filtrar por mes.');
+      return;
+    }
+
+    this.filterValidationMessage.set(null);
     this.incomeStore
       .loadIncomes(this.accountId(), {
         search: raw.search.trim() || null,
+        year,
+        month,
         from: raw.from || null,
         to: raw.to || null,
         categoryId: toNumberOrNull(raw.categoryId),
@@ -309,6 +366,7 @@ export class IncomePageComponent implements OnInit {
   }
 
   clearFilters(): void {
+    this.filterValidationMessage.set(null);
     const filters = this.incomeStore.clearPersistedFilters(this.accountId());
 
     this.patchFilterForm(filters);
@@ -346,6 +404,7 @@ export class IncomePageComponent implements OnInit {
       return;
     }
 
+    this.filterValidationMessage.set(null);
     this.incomeStore.loadIncomes(this.accountId(), { sort, page: 0 }, { persist: true }).pipe(take(1)).subscribe({ error: () => undefined });
   }
 
@@ -531,6 +590,8 @@ export class IncomePageComponent implements OnInit {
   private patchFilterForm(filters: IncomeFilters): void {
     this.filterForm.patchValue({
       search: filters.search ?? '',
+      year: filters.year?.toString() ?? '',
+      month: filters.month?.toString() ?? '',
       from: filters.from ?? '',
       to: filters.to ?? '',
       categoryId: filters.categoryId?.toString() ?? ''
@@ -575,6 +636,8 @@ function optionalNumber(value: unknown): number | null {
 
 function visibleFilterRequest(filters: IncomeFilters): Partial<IncomeFilters> {
   return {
+    year: filters.year,
+    month: filters.month,
     search: filters.search,
     from: filters.from,
     to: filters.to,
@@ -582,4 +645,14 @@ function visibleFilterRequest(filters: IncomeFilters): Partial<IncomeFilters> {
     page: 0,
     sort: filters.sort
   };
+}
+
+function buildYearOptions(currentYear: number): number[] {
+  const years: number[] = [];
+
+  for (let year = currentYear + 5; year >= currentYear - 5; year -= 1) {
+    years.push(year);
+  }
+
+  return years;
 }

@@ -42,6 +42,8 @@ export class IncomeApiService {
 
 function normalizeFilters(filters: IncomeListFilters): Record<string, string | number | null | undefined> {
   return {
+    year: filters.year,
+    month: filters.month,
     from: filters.from,
     to: filters.to,
     search: optionalText(filters.search),

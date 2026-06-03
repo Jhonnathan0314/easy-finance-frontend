@@ -2,6 +2,8 @@ import { CurrencyCode } from './common.models';
 import { IncomeStatus } from './enums';
 
 export interface IncomeListFilters {
+  year?: number | null;
+  month?: number | null;
   from?: string | null;
   to?: string | null;
   search?: string | null;

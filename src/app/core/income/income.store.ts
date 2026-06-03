@@ -14,6 +14,8 @@ import { FeatureFilterStorageService } from '../filters/feature-filter-storage.s
 import { IncomeApiService } from './income-api.service';
 
 export interface IncomeFilters {
+  year: number | null;
+  month: number | null;
   from: string | null;
   to: string | null;
   search: string | null;
@@ -33,6 +35,8 @@ interface IncomePagination {
 }
 
 const DEFAULT_FILTERS: IncomeFilters = {
+  year: null,
+  month: null,
   from: null,
   to: null,
   search: null,
@@ -198,6 +202,8 @@ export class IncomeStore {
 
 function normalizeIncomeFilters(filters: Partial<IncomeFilters>): IncomeFilters {
   return {
+    year: numberOrNull(filters.year),
+    month: monthOrNull(filters.month),
     from: stringOrNull(filters.from),
     to: stringOrNull(filters.to),
     search: stringOrNull(filters.search),
@@ -212,6 +218,8 @@ function normalizeIncomeFilters(filters: Partial<IncomeFilters>): IncomeFilters 
 
 function filtersForStorage(filters: IncomeFilters): Omit<IncomeFilters, 'page' | 'size' | 'participantId' | 'status'> {
   return {
+    year: filters.year,
+    month: filters.month,
     from: filters.from,
     to: filters.to,
     search: filters.search,
@@ -233,6 +241,15 @@ function numberOrNull(value: unknown): number | null {
 
   const numeric = Number(value);
   return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
+}
+
+function monthOrNull(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+
+  const numeric = Number(value);
+  return Number.isInteger(numeric) && numeric >= 1 && numeric <= 12 ? numeric : null;
 }
 
 function numberOrDefault(value: unknown, fallback: number): number {

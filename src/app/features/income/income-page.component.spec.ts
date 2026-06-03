@@ -35,6 +35,8 @@ describe('IncomePageComponent', () => {
     updatedAt: ''
   };
   const defaultFilters: IncomeFilters = {
+    year: null,
+    month: null,
     from: null,
     to: null,
     search: null,
@@ -225,6 +227,8 @@ describe('IncomePageComponent', () => {
         from: '2026-05-01',
         to: '2026-05-31',
         search: 'salary',
+        year: 2026,
+        month: 5,
         categoryId: 1,
         participantId: 7,
         status: 'CANCELLED'
@@ -236,6 +240,8 @@ describe('IncomePageComponent', () => {
     expect(store.loadPersistedFilters).toHaveBeenCalledWith(1);
     expect(component.filterForm.getRawValue()).toEqual({
       search: 'salary',
+      year: '2026',
+      month: '5',
       from: '2026-05-01',
       to: '2026-05-31',
       categoryId: '1'
@@ -248,12 +254,19 @@ describe('IncomePageComponent', () => {
     const store = TestBed.inject(IncomeStore) as jasmine.SpyObj<IncomeStore>;
 
     store.loadIncomes.calls.reset();
-    component.filterForm.patchValue({ search: '  salary  ', from: '2026-05-01', to: '2026-05-31', categoryId: '1' });
+    component.filterForm.patchValue({
+      search: '  salary  ',
+      year: '2026',
+      month: '5',
+      from: '2026-05-01',
+      to: '2026-05-31',
+      categoryId: '1'
+    });
     component.applyFilters();
 
     expect(store.loadIncomes).toHaveBeenCalledWith(
       1,
-      jasmine.objectContaining({ search: 'salary', from: '2026-05-01', categoryId: 1, page: 0 }),
+      jasmine.objectContaining({ search: 'salary', year: 2026, month: 5, from: '2026-05-01', categoryId: 1, page: 0 }),
       { persist: true }
     );
     const appliedFilters = store.loadIncomes.calls.mostRecent().args[1] as Record<string, unknown>;
@@ -266,11 +279,15 @@ describe('IncomePageComponent', () => {
     expect(store.clearPersistedFilters).toHaveBeenCalledWith(1);
     expect(component.filterForm.getRawValue()).toEqual({
       search: '',
+      year: '',
+      month: '',
       from: '',
       to: '',
       categoryId: ''
     });
     expect(store.loadIncomes).toHaveBeenCalledWith(1, {
+      year: null,
+      month: null,
       search: null,
       from: null,
       to: null,
@@ -293,9 +310,15 @@ describe('IncomePageComponent', () => {
   it('renders description search input in filters', () => {
     const fixture = configure();
     const searchInput = fixture.nativeElement.querySelector('input[formcontrolname="search"]') as HTMLInputElement | null;
+    const yearSelect = fixture.nativeElement.querySelector('select[formcontrolname="year"]') as HTMLSelectElement | null;
+    const monthSelect = fixture.nativeElement.querySelector('select[formcontrolname="month"]') as HTMLSelectElement | null;
 
     expect(fixture.nativeElement.textContent).toContain('Buscar descripcion');
     expect(searchInput?.placeholder).toBe('Buscar ingreso por descripcion');
+    expect(yearSelect).not.toBeNull();
+    expect(monthSelect).not.toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Año');
+    expect(fixture.nativeElement.textContent).toContain('Mes');
   });
 
   it('clears blank search when applying filters', () => {
@@ -312,6 +335,55 @@ describe('IncomePageComponent', () => {
       jasmine.objectContaining({ search: null, page: 0 }),
       { persist: true }
     );
+  });
+
+  it('filters incomes by year only', () => {
+    const fixture = configure();
+    const component = fixture.componentInstance;
+    const store = TestBed.inject(IncomeStore) as jasmine.SpyObj<IncomeStore>;
+
+    store.loadIncomes.calls.reset();
+    component.filterForm.patchValue({ year: '2026', month: '', search: '', from: '', to: '', categoryId: '' });
+    component.applyFilters();
+
+    expect(component.filterValidationMessage()).toBeNull();
+    expect(store.loadIncomes).toHaveBeenCalledWith(
+      1,
+      jasmine.objectContaining({ year: 2026, month: null, page: 0 }),
+      { persist: true }
+    );
+  });
+
+  it('filters incomes by year and month', () => {
+    const fixture = configure();
+    const component = fixture.componentInstance;
+    const store = TestBed.inject(IncomeStore) as jasmine.SpyObj<IncomeStore>;
+
+    store.loadIncomes.calls.reset();
+    component.filterForm.patchValue({ year: '2026', month: '5' });
+    component.applyFilters();
+
+    expect(component.filterValidationMessage()).toBeNull();
+    expect(store.loadIncomes).toHaveBeenCalledWith(
+      1,
+      jasmine.objectContaining({ year: 2026, month: 5, page: 0 }),
+      { persist: true }
+    );
+  });
+
+  it('requires year when filtering by month', () => {
+    const fixture = configure();
+    const component = fixture.componentInstance;
+    const store = TestBed.inject(IncomeStore) as jasmine.SpyObj<IncomeStore>;
+
+    store.loadIncomes.calls.reset();
+    component.filterForm.patchValue({ year: '', month: '5' });
+    component.applyFilters();
+    fixture.detectChanges();
+
+    expect(store.loadIncomes).not.toHaveBeenCalled();
+    expect(component.filterValidationMessage()).toBe('Selecciona un año para poder filtrar por mes.');
+    expect(fixture.nativeElement.textContent).toContain('Selecciona un año para poder filtrar por mes.');
   });
 
   it('renders pagination metadata and disables previous on first page', () => {
@@ -437,7 +509,7 @@ describe('IncomePageComponent', () => {
     const fixture = configure();
     const activeSortButton = fixture.nativeElement.querySelector('.sort-actions button.active') as HTMLButtonElement | null;
 
-    expect(fixture.nativeElement.textContent).toContain('Ordenar por fecha');
+    expect(fixture.nativeElement.textContent).toContain('Orden por fecha');
     expect(fixture.nativeElement.textContent).toContain('Fecha ascendente');
     expect(fixture.nativeElement.textContent).toContain('Fecha descendente');
     expect(activeSortButton?.textContent).toContain('Fecha descendente');
