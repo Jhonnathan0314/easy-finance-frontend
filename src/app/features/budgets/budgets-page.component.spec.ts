@@ -357,6 +357,20 @@ describe('BudgetsPageComponent', () => {
     expect(fixture.componentInstance.periodForm.getRawValue()).toEqual({ year: currentYear, month: currentMonth });
   });
 
+  it('defaults list status filter to ACTIVE when persisted filters do not define one', () => {
+    const fixture = configure({
+      persistedFilters: {
+        selectedYear: 2026,
+        selectedMonth: 5,
+        year: 2026,
+        status: null,
+        sort: 'month,desc'
+      }
+    });
+
+    expect(fixture.componentInstance.listFilterForm.getRawValue()).toEqual({ year: 2026, status: 'ACTIVE' });
+  });
+
   it('opens selected monthly detail from annual list', () => {
     const currentPersisted: BudgetPersistedFilters = {
       selectedYear: currentYear,
@@ -440,8 +454,52 @@ describe('BudgetsPageComponent', () => {
 
     expect(store.clearPersistedFilters).toHaveBeenCalledWith(1);
     expect(component.periodForm.getRawValue()).toEqual({ year: 2026, month: 5 });
-    expect(component.listFilterForm.getRawValue()).toEqual({ year: 2026, status: '' });
-    expect(store.loadBudgets).toHaveBeenCalledWith(1);
+    expect(component.listFilterForm.getRawValue()).toEqual({ year: 2026, status: 'ACTIVE' });
+    expect(store.loadBudgets).toHaveBeenCalledWith(1, { year: 2026, status: 'ACTIVE', page: 0 }, { persist: true });
+  });
+
+  it('stays in annual list after saving a budget update', () => {
+    const fixture = configure();
+    const component = fixture.componentInstance;
+    const store = TestBed.inject(BudgetsStore) as jasmine.SpyObj<BudgetsStore>;
+
+    component.openBudgetDetail(budget);
+    store.getBudgetDetail.calls.reset();
+    component.startUpsertBudget(budget);
+    component.budgetForm.patchValue({ name: 'Mayo actualizado', status: 'CLOSED' });
+
+    component.saveBudget();
+    fixture.detectChanges();
+
+    expect(store.upsertBudget).toHaveBeenCalledWith(
+      1,
+      2026,
+      5,
+      jasmine.objectContaining({
+        name: 'Mayo actualizado',
+        status: 'CLOSED'
+      })
+    );
+    expect(component.viewMode()).toBe('annualList');
+    expect(component.successMessage()).toBe('Presupuesto mensual guardado.');
+    expect(store.selectedBudgetDetail()).toBeNull();
+  });
+
+  it('highlights annual budget row when editing it from the list', () => {
+    const fixture = configure({ selectedDetail: null });
+    const component = fixture.componentInstance;
+
+    component.startUpsertBudget(budget);
+    fixture.detectChanges();
+
+    const selectedCard = fixture.nativeElement.querySelector('.annual-budget-list .budget-card.selected');
+    expect(selectedCard).not.toBeNull();
+    expect((selectedCard as HTMLElement).textContent).toContain('Mayo');
+
+    component.cancelBudgetForm();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.annual-budget-list .budget-card.selected')).toBeNull();
   });
 
   it('renders a single compact top filters block and keeps actions available', () => {

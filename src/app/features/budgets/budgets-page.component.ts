@@ -158,7 +158,7 @@ interface BudgetSubBudgetFilters {
           </label>
           <div class="form-actions">
             <button class="button" type="submit" [disabled]="budgetForm.invalid || budgetsStore.isSaving()">Guardar</button>
-            <button type="button" (click)="showBudgetForm.set(false)">Cancelar</button>
+            <button type="button" (click)="cancelBudgetForm()">Cancelar</button>
           </div>
         </form>
       }
@@ -247,7 +247,7 @@ interface BudgetSubBudgetFilters {
               @for (budget of budgetsStore.budgets(); track budget.id) {
                 <article
                   class="budget-card annual-budget-row"
-                  [class.selected]="budgetsStore.selectedBudgetDetail()?.budget?.id === budget.id"
+                  [class.selected]="budgetsStore.selectedBudgetDetail()?.budget?.id === budget.id || editingBudgetId() === budget.id"
                 >
                   <div>
                     <h3>{{ budget.name || monthLabel(budget.month) }}</h3>
@@ -596,6 +596,7 @@ export class BudgetsPageComponent implements OnInit {
   readonly showDuplicateBudgetForm = signal(false);
   readonly showSubBudgetForm = signal(false);
   readonly editingSubBudget = signal<SubBudgetResponseDto | null>(null);
+  readonly editingBudgetId = signal<number | null>(null);
   readonly viewMode = signal<'annualList' | 'monthlyDetail'>('annualList');
   readonly selectedDetailTab = signal<'categorySummary' | 'subBudgets'>('categorySummary');
   readonly expandedCategoryId = signal<number | null>(null);
@@ -712,7 +713,7 @@ export class BudgetsPageComponent implements OnInit {
 
   readonly listFilterForm = this.fb.group({
     year: [this.currentDate.getFullYear(), [Validators.required, Validators.min(2000), Validators.max(2100)]],
-    status: ['']
+    status: ['ACTIVE' as BudgetStatus | '']
   });
   readonly periodForm = this.fb.group({
     year: [this.currentDate.getFullYear(), [Validators.required, Validators.min(2000), Validators.max(2100)]],
@@ -829,7 +830,19 @@ export class BudgetsPageComponent implements OnInit {
     this.patchFilters(this.budgetsStore.clearPersistedFilters(this.accountId()));
     this.viewMode.set('annualList');
     this.budgetsStore.selectedBudgetDetail.set(null);
-    this.budgetsStore.loadBudgets(this.accountId()).pipe(take(1)).subscribe({ error: () => undefined });
+    const raw = this.listFilterForm.getRawValue();
+    this.budgetsStore
+      .loadBudgets(
+        this.accountId(),
+        {
+          year: raw.year,
+          status: raw.status ? (raw.status as BudgetStatus) : null,
+          page: 0
+        },
+        { persist: true }
+      )
+      .pipe(take(1))
+      .subscribe({ error: () => undefined });
   }
 
   startUpsertBudget(budget?: BudgetResponseDto): void {
@@ -847,8 +860,14 @@ export class BudgetsPageComponent implements OnInit {
       name: source?.name ?? '',
       status: source?.status ?? 'ACTIVE'
     });
+    this.editingBudgetId.set(source?.id ?? null);
     this.showBudgetForm.set(true);
     this.showAnnualBudgetForm.set(false);
+  }
+
+  cancelBudgetForm(): void {
+    this.showBudgetForm.set(false);
+    this.editingBudgetId.set(null);
   }
 
   startAnnualBudget(): void {
@@ -859,6 +878,7 @@ export class BudgetsPageComponent implements OnInit {
     this.successMessage.set(null);
     this.annualBudgetError.set(null);
     this.showBudgetForm.set(false);
+    this.editingBudgetId.set(null);
     this.showAnnualBudgetForm.set(true);
     this.resetAnnualBudgetForm();
   }
@@ -1000,7 +1020,9 @@ export class BudgetsPageComponent implements OnInit {
         next: () => {
           this.periodForm.patchValue({ year: raw.year, month: raw.month });
           this.listFilterForm.patchValue({ year: raw.year });
-          this.viewMode.set('monthlyDetail');
+          this.viewMode.set('annualList');
+          this.budgetsStore.selectedBudgetDetail.set(null);
+          this.editingBudgetId.set(null);
           this.successMessage.set('Presupuesto mensual guardado.');
           this.showBudgetForm.set(false);
         },
@@ -1178,7 +1200,7 @@ export class BudgetsPageComponent implements OnInit {
   private patchFilters(filters: BudgetPersistedFilters): void {
     this.listFilterForm.patchValue({
       year: filters.year ?? filters.selectedYear,
-      status: filters.status ?? ''
+      status: filters.status ?? 'ACTIVE'
     });
     this.periodForm.patchValue({
       year: filters.selectedYear,
