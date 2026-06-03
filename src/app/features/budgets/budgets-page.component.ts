@@ -26,6 +26,11 @@ interface BudgetCategorySummary {
   subBudgetCount: number;
 }
 
+interface BudgetSubBudgetFilters {
+  search: string;
+  categoryId: number | null;
+}
+
 @Component({
   selector: 'ef-budgets-page',
   standalone: true,
@@ -73,16 +78,9 @@ interface BudgetCategorySummary {
       }
 
       <section class="panel filters-panel" aria-label="Filtros de presupuestos">
-        <div class="filter-panel-heading">
-          <div>
-            <h2>Lista anual</h2>
-            <p>Filtra los presupuestos del anio seleccionado y ordena sus meses.</p>
-          </div>
-        </div>
-
         <form class="filters budget-list-filters" [formGroup]="listFilterForm" (ngSubmit)="loadBudgets()">
           <label>
-            <span>Anio</span>
+            <span>Año</span>
             <input type="number" min="2000" max="2100" formControlName="year">
           </label>
           <label>
@@ -113,41 +111,29 @@ interface BudgetCategorySummary {
             <button type="button" (click)="clearFilters()">Limpiar filtros</button>
           </div>
         </form>
-      </section>
 
-      <section class="panel filters-panel" aria-label="Selector de presupuesto mensual">
-        <div class="filter-panel-heading">
-          <div>
-            <h2>Detalle mensual</h2>
-            <p>Selecciona el mes que quieres revisar en detalle.</p>
-          </div>
-        </div>
-
-        <form class="filters period-filters" [formGroup]="periodForm" (ngSubmit)="loadSelectedBudgetDetail()">
-          <label>
-            <span>Anio</span>
-            <input type="number" min="2000" max="2100" formControlName="year">
-          </label>
-          <label>
-            <span>Mes</span>
-            <select formControlName="month">
-              @for (month of months; track month.value) {
-                <option [ngValue]="month.value">{{ month.label }}</option>
-              }
-            </select>
-          </label>
-          <div class="filter-actions">
-            <button type="submit">Ver presupuesto</button>
-            <button type="button" (click)="clearFilters()">Limpiar filtros</button>
-          </div>
-        </form>
+        @if (viewMode() === 'monthlyDetail') {
+          <form class="filters compact-period-filters" [formGroup]="periodForm" (ngSubmit)="loadSelectedBudgetDetail()">
+            <label>
+              <span>Mes detalle</span>
+              <select formControlName="month">
+                @for (month of months; track month.value) {
+                  <option [ngValue]="month.value">{{ month.label }}</option>
+                }
+              </select>
+            </label>
+            <div class="filter-actions">
+              <button type="submit">Ver detalle</button>
+            </div>
+          </form>
+        }
       </section>
 
       @if (showBudgetForm()) {
         <form class="panel form-grid budget-form" [formGroup]="budgetForm" (ngSubmit)="saveBudget()">
           <h2>Presupuesto mensual</h2>
           <label class="field">
-            <span>Anio</span>
+            <span>Año</span>
             <input type="number" min="2000" max="2100" formControlName="year">
           </label>
           <label class="field">
@@ -184,7 +170,7 @@ interface BudgetCategorySummary {
             <p class="form-error">{{ error }}</p>
           }
           <label class="field">
-            <span>Anio</span>
+            <span>Año</span>
             <input type="number" min="2000" max="2100" formControlName="year">
           </label>
           <label class="field">
@@ -240,10 +226,10 @@ interface BudgetCategorySummary {
         </form>
       }
 
-      <div class="content-grid">
-        <section class="budget-list-panel">
+      @if (viewMode() === 'annualList') {
+        <section class="budget-list-panel panel">
           <div class="section-heading">
-            <h2>Presupuestos del anio</h2>
+            <h2>Presupuestos del año</h2>
             <span>{{ budgetsStore.pagination().totalElements }} registros</span>
           </div>
 
@@ -251,25 +237,24 @@ interface BudgetCategorySummary {
             <div class="panel">Cargando presupuestos...</div>
           } @else if (!budgetsStore.budgets().length) {
             <div class="panel empty-state">
-              <h2>No hay presupuestos para este anio</h2>
+              <h2>No hay presupuestos para este año</h2>
               @if (canWrite()) {
                 <button class="button" type="button" (click)="startUpsertBudget()">Crear presupuesto mensual</button>
               }
             </div>
           } @else {
-            <div class="budget-list">
+            <div class="budget-list annual-budget-list">
               @for (budget of budgetsStore.budgets(); track budget.id) {
                 <article
-                  class="budget-card"
+                  class="budget-card annual-budget-row"
                   [class.selected]="budgetsStore.selectedBudgetDetail()?.budget?.id === budget.id"
                 >
                   <div>
                     <h3>{{ budget.name || monthLabel(budget.month) }}</h3>
                     <p>{{ monthLabel(budget.month) }} {{ budget.year }}</p>
                   </div>
-                  <span class="status-badge">{{ enumLabel(budget.status) }}</span>
                   <div class="actions">
-                    <button type="button" (click)="selectBudget(budget)">Ver detalle</button>
+                    <button type="button" (click)="openBudgetDetail(budget)">Ver detalle</button>
                     @if (canWrite()) {
                       <button type="button" (click)="startUpsertBudget(budget)">Editar</button>
                     }
@@ -279,7 +264,7 @@ interface BudgetCategorySummary {
             </div>
           }
         </section>
-
+      } @else {
         <section class="detail-column">
           @if (budgetsStore.selectedBudgetDetail(); as detail) {
             <div class="panel detail-panel">
@@ -289,7 +274,7 @@ interface BudgetCategorySummary {
                   <p>{{ monthLabel(detail.budget.month) }} {{ detail.budget.year }}</p>
                 </div>
                 <div class="detail-actions">
-                  <span class="status-badge">{{ enumLabel(detail.budget.status) }}</span>
+                  <button class="secondary-button" type="button" (click)="backToAnnualList()">Volver al listado</button>
                   @if (canWrite()) {
                     <button class="button" type="button" (click)="startDuplicateBudget()">Duplicar presupuesto</button>
                   }
@@ -325,35 +310,123 @@ interface BudgetCategorySummary {
                 <div class="progress-track"><span [style.width.%]="impactProgress()"></span></div>
               </div>
             </div>
-
-            <section class="panel category-budget-section">
-              <div class="section-heading">
-                <h2>Presupuesto por categoria</h2>
-                <span>{{ budgetByCategory().length }} categorias</span>
+            <section class="panel detail-tabs-panel">
+              <div class="detail-tabs" role="tablist" aria-label="Detalle de presupuesto mensual">
+                <button
+                  type="button"
+                  role="tab"
+                  [class.active]="selectedDetailTab() === 'categorySummary'"
+                  [attr.aria-selected]="selectedDetailTab() === 'categorySummary'"
+                  (click)="changeDetailTab('categorySummary')">
+                  Presupuesto por categoria
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  [class.active]="selectedDetailTab() === 'subBudgets'"
+                  [attr.aria-selected]="selectedDetailTab() === 'subBudgets'"
+                  (click)="changeDetailTab('subBudgets')">
+                  Subpresupuestos
+                </button>
               </div>
+            </section>
 
-              @if (!budgetByCategory().length) {
-                <p class="muted">No hay categorias con presupuesto para este mes.</p>
-              } @else {
-                <div class="category-budget-list">
-                  @for (item of budgetByCategory(); track item.categoryId) {
-                    <article class="budget-card">
-                      <div>
-                        <strong>{{ item.categoryName }}</strong>
-                        <span>
-                          {{ item.subBudgetCount }}
-                          {{ item.subBudgetCount === 1 ? 'subpresupuesto incluido' : 'subpresupuestos incluidos' }}
-                        </span>
-                      </div>
-                      <div class="amount-block">
-                        <span>Total presupuestado</span>
-                        <strong>{{ item.totalPlannedAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
-                      </div>
-                    </article>
+            @if (selectedDetailTab() === 'categorySummary') {
+              <section class="panel category-budget-section">
+                <div class="section-heading">
+                  <h2>Presupuesto por categoria</h2>
+                  <span>{{ budgetByCategory().length }} categorias</span>
+                </div>
+
+                @if (!budgetByCategory().length) {
+                  <p class="muted">No hay categorias con presupuesto para este mes.</p>
+                } @else {
+                  <div class="category-budget-list compact-grid">
+                    @for (item of budgetByCategory(); track item.categoryId) {
+                      <article
+                        class="budget-card compact-row"
+                        [class.selected]="expandedCategoryId() === item.categoryId">
+                        <div class="category-summary-info">
+                          <strong>{{ item.categoryName }}</strong>
+                          <span>{{ item.subBudgetCount }} {{ item.subBudgetCount === 1 ? 'subpresupuesto' : 'subpresupuestos' }}</span>
+                          <div class="amount-block">
+                            <span>Total presupuestado</span>
+                            <strong>{{ item.totalPlannedAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
+                          </div>
+                        </div>
+                        <div class="actions category-actions">
+                          <button type="button" (click)="toggleCategorySubBudgets(item.categoryId)">
+                            {{ expandedCategoryId() === item.categoryId ? 'Ocultar subpresupuestos' : 'Ver subpresupuestos' }}
+                          </button>
+                        </div>
+                        @if (expandedCategoryId() === item.categoryId) {
+                          <div class="category-subbudgets">
+                            @for (subBudget of subBudgetsByCategory(item.categoryId); track subBudget.id) {
+                              <article class="subbudget-card compact-row">
+                                <div>
+                                  <h3>{{ subBudget.name }}</h3>
+                                  <p>{{ categoryName(subBudget.categoryId) }}</p>
+                                </div>
+                                <div class="amount-block">
+                                  <span>Presupuestado</span>
+                                  <strong>{{ subBudget.plannedAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
+                                </div>
+                                @if (canMutateSubBudget(subBudget)) {
+                                  <div class="actions">
+                                    <button type="button" (click)="startEditSubBudget(subBudget)">Editar</button>
+                                    <button
+                                      type="button"
+                                      [disabled]="subBudget.status === 'INACTIVE'"
+                                      (click)="deactivateSubBudget(subBudget)"
+                                    >
+                                      Desactivar
+                                    </button>
+                                  </div>
+                                }
+                              </article>
+                            }
+                          </div>
+                        }
+                      </article>
+                    }
+                  </div>
+                }
+              </section>
+            } @else {
+              <section class="panel subbudget-section">
+                <div class="section-heading">
+                  <h2>Subpresupuestos</h2>
+                  @if (canWrite()) {
+                    <button class="button" type="button" (click)="startCreateSubBudget()" [disabled]="!expenseCategories().length">
+                      Nuevo subpresupuesto
+                    </button>
                   }
                 </div>
-              }
-            </section>
+
+                <div class="subbudget-filters">
+                  <label>
+                    <span>Buscar</span>
+                    <input
+                      type="text"
+                      [value]="subBudgetFilters().search"
+                      placeholder="Nombre del subpresupuesto"
+                      (input)="setSubBudgetSearch($any($event.target).value)"
+                    >
+                  </label>
+                  <label>
+                    <span>Categoria</span>
+                    <select
+                      [value]="subBudgetFilters().categoryId ?? ''"
+                      (change)="setSubBudgetCategory($any($event.target).value)"
+                    >
+                      <option value="">Todas</option>
+                      @for (category of subBudgetCategories(); track category.id) {
+                        <option [value]="category.id">{{ category.name }}</option>
+                      }
+                    </select>
+                  </label>
+                  <button type="button" (click)="clearSubBudgetFilters()">Limpiar</button>
+                </div>
 
             @if (showDuplicateBudgetForm()) {
               <form class="panel form-grid duplicate-form" [formGroup]="duplicateBudgetForm" (ngSubmit)="saveDuplicateBudget()">
@@ -365,7 +438,7 @@ interface BudgetCategorySummary {
                   <p class="form-error">{{ error }}</p>
                 }
                 <label class="field">
-                  <span>Anio destino</span>
+                  <span>Año destino</span>
                   <input type="number" min="2000" max="2100" formControlName="targetYear">
                 </label>
                 <label class="field">
@@ -389,116 +462,106 @@ interface BudgetCategorySummary {
               </form>
             }
 
-            <section class="panel subbudget-section">
-              <div class="section-heading">
-                <h2>Subpresupuestos</h2>
-                @if (canWrite()) {
-                  <button class="button" type="button" (click)="startCreateSubBudget()" [disabled]="!expenseCategories().length">
-                    Nuevo subpresupuesto
-                  </button>
+                @if (showSubBudgetForm()) {
+                  <form class="form-grid subbudget-form" [formGroup]="subBudgetForm" (ngSubmit)="saveSubBudget()">
+                    <h3>{{ editingSubBudget() ? 'Editar subpresupuesto' : 'Crear subpresupuesto' }}</h3>
+                    <label class="field">
+                      <span>Categoria</span>
+                      <select formControlName="categoryId">
+                        <option value="">Sin categoria</option>
+                        @for (category of expenseCategories(); track category.id) {
+                          <option [ngValue]="category.id">{{ category.name }}</option>
+                        }
+                      </select>
+                    </label>
+                    <label class="field">
+                      <span>Nombre</span>
+                      <input type="text" formControlName="name">
+                    </label>
+                    <label class="field">
+                      <span>Planeado</span>
+                      <input type="number" min="0" step="0.01" formControlName="plannedAmount">
+                    </label>
+                    <div class="form-actions">
+                      <button class="button" type="submit" [disabled]="subBudgetForm.invalid || budgetsStore.isSaving()">Guardar</button>
+                      <button type="button" (click)="cancelSubBudgetForm()">Cancelar</button>
+                    </div>
+                  </form>
                 }
-              </div>
 
-              @if (showSubBudgetForm()) {
-                <form class="form-grid subbudget-form" [formGroup]="subBudgetForm" (ngSubmit)="saveSubBudget()">
-                  <h3>{{ editingSubBudget() ? 'Editar subpresupuesto' : 'Crear subpresupuesto' }}</h3>
-                  <label class="field">
-                    <span>Categoria</span>
-                    <select formControlName="categoryId">
-                      <option value="">Sin categoria</option>
-                      @for (category of expenseCategories(); track category.id) {
-                        <option [ngValue]="category.id">{{ category.name }}</option>
-                      }
-                    </select>
-                  </label>
-                  <label class="field">
-                    <span>Nombre</span>
-                    <input type="text" formControlName="name">
-                  </label>
-                  <label class="field">
-                    <span>Planeado</span>
-                    <input type="number" min="0" step="0.01" formControlName="plannedAmount">
-                  </label>
-                  <div class="form-actions">
-                    <button class="button" type="submit" [disabled]="subBudgetForm.invalid || budgetsStore.isSaving()">Guardar</button>
-                    <button type="button" (click)="cancelSubBudgetForm()">Cancelar</button>
-                  </div>
-                </form>
-              }
-
-              @if (!detail.subBudgets.length) {
-                <p class="muted">No hay subpresupuestos para este mes.</p>
-              } @else {
-                <div class="subbudget-list">
-                  @for (subBudget of detail.subBudgets; track subBudget.id) {
-                    <article class="subbudget-card">
-                      <div>
-                        <h3>{{ subBudget.name }}</h3>
-                        <p>{{ categoryName(subBudget.categoryId) }} - {{ enumLabel(subBudget.sourceType) }}</p>
-                      </div>
-                      <div class="amount-block">
-                        <span>Presupuestado</span>
-                        <strong>{{ subBudget.plannedAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
-                      </div>
-                      <div class="badges">
-                        <span>{{ enumLabel(subBudget.status) }}</span>
-                        <span>{{ enumLabel(subBudget.sourceType) }}</span>
-                      </div>
-                      @if (canMutateSubBudget(subBudget)) {
-                        <div class="actions">
-                          <button type="button" (click)="startEditSubBudget(subBudget)">Editar</button>
-                          <button
-                            type="button"
-                            [disabled]="subBudget.status === 'INACTIVE'"
-                            (click)="deactivateSubBudget(subBudget)"
-                          >
-                            Desactivar
-                          </button>
+                @if (!filteredSubBudgets().length) {
+                  <p class="muted">No hay subpresupuestos para este mes.</p>
+                } @else {
+                  <div class="subbudget-list compact-grid">
+                    @for (subBudget of filteredSubBudgets(); track subBudget.id) {
+                      <article
+                        class="subbudget-card compact-row"
+                        [class.selected]="editingSubBudget()?.id === subBudget.id">
+                        <div>
+                          <h3>{{ subBudget.name }}</h3>
+                          <p>{{ categoryName(subBudget.categoryId) }}</p>
                         </div>
-                      }
-                    </article>
-                  }
-                </div>
-              }
-            </section>
+                        <div class="amount-block">
+                          <span>Presupuestado</span>
+                          <strong>{{ subBudget.plannedAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
+                        </div>
+                        @if (canMutateSubBudget(subBudget)) {
+                          <div class="actions">
+                            <button type="button" (click)="startEditSubBudget(subBudget)">Editar</button>
+                            <button
+                              type="button"
+                              [disabled]="subBudget.status === 'INACTIVE'"
+                              (click)="deactivateSubBudget(subBudget)"
+                            >
+                              Desactivar
+                            </button>
+                          </div>
+                        }
+                      </article>
+                    }
+                  </div>
+                }
+              </section>
 
-            <section class="panel impacts-section">
-              <div class="section-heading">
-                <h2>Impacts presupuestarios</h2>
-                <span>{{ detail.impacts.length }} registros</span>
-              </div>
-
-              @if (!detail.impacts.length) {
-                <p class="muted">No hay impacts generados desde gastos en cuotas/deudas para este mes.</p>
-              } @else {
-                <div class="impact-list">
-                  @for (impact of detail.impacts; track impact.id) {
-                    <article class="impact-row">
-                      <div>
-                        <strong>{{ impact.periodYear }}-{{ twoDigits(impact.periodMonth) }}</strong>
-                        <span>Debt {{ impact.debtId }} @if (impact.expenseId) { - Expense {{ impact.expenseId }} }</span>
-                      </div>
-                      <div>
-                        <span>Expected</span>
-                        <strong>{{ impact.expectedAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
-                      </div>
-                      <div>
-                        <span>Paid</span>
-                        <strong>{{ impact.paidAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
-                      </div>
-                      <div>
-                        <span>Pending</span>
-                        <strong>{{ impactPending(impact) | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
-                      </div>
-                      <div class="badges">
-                        <span>{{ enumLabel(impact.status) }}</span>
-                        <span>{{ enumLabel(impact.sourceType) }}</span>
-                      </div>
-                    </article>
-                  }
+              <section class="panel impacts-section">
+                <div class="section-heading">
+                  <h2>Impacts presupuestarios</h2>
+                  <span>{{ detail.impacts.length }} registros</span>
                 </div>
-              }
-            </section>
+                <p class="muted">Estos impacts corresponden a cuotas/deudas asociadas al presupuesto mensual.</p>
+
+                @if (!detail.impacts.length) {
+                  <p class="muted">No hay impacts generados desde gastos en cuotas/deudas para este mes.</p>
+                } @else {
+                  <div class="impact-list">
+                    @for (impact of detail.impacts; track impact.id) {
+                      <article class="impact-row">
+                        <div>
+                          <strong>{{ impact.periodYear }}-{{ twoDigits(impact.periodMonth) }}</strong>
+                          <span>Debt {{ impact.debtId }} @if (impact.expenseId) { - Expense {{ impact.expenseId }} }</span>
+                        </div>
+                        <div>
+                          <span>Expected</span>
+                          <strong>{{ impact.expectedAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
+                        </div>
+                        <div>
+                          <span>Paid</span>
+                          <strong>{{ impact.paidAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
+                        </div>
+                        <div>
+                          <span>Pending</span>
+                          <strong>{{ impactPending(impact) | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
+                        </div>
+                        <div class="badges">
+                          <span>{{ enumLabel(impact.status) }}</span>
+                          <span>{{ enumLabel(impact.sourceType) }}</span>
+                        </div>
+                      </article>
+                    }
+                  </div>
+                }
+              </section>
+            }
           } @else {
             <div class="detail-empty-state">
               <div class="section-heading detail-empty-heading">
@@ -507,6 +570,7 @@ interface BudgetCategorySummary {
               <div class="panel empty-state">
                 <h2>No hay presupuesto para este mes</h2>
                 <p>Selecciona otro periodo o crea el presupuesto mensual para comenzar.</p>
+                <button class="secondary-button" type="button" (click)="backToAnnualList()">Volver al listado</button>
                 @if (canWrite()) {
                   <button class="button" type="button" (click)="startUpsertBudget()">Crear presupuesto mensual</button>
                 }
@@ -514,7 +578,7 @@ interface BudgetCategorySummary {
             </div>
           }
         </section>
-      </div>
+      }
     </section>
   `
 })
@@ -532,6 +596,10 @@ export class BudgetsPageComponent implements OnInit {
   readonly showDuplicateBudgetForm = signal(false);
   readonly showSubBudgetForm = signal(false);
   readonly editingSubBudget = signal<SubBudgetResponseDto | null>(null);
+  readonly viewMode = signal<'annualList' | 'monthlyDetail'>('annualList');
+  readonly selectedDetailTab = signal<'categorySummary' | 'subBudgets'>('categorySummary');
+  readonly expandedCategoryId = signal<number | null>(null);
+  readonly subBudgetFilters = signal<BudgetSubBudgetFilters>({ search: '', categoryId: null });
   readonly successMessage = signal<string | null>(null);
   readonly duplicateBudgetError = signal<string | null>(null);
   readonly annualBudgetError = signal<string | null>(null);
@@ -590,6 +658,33 @@ export class BudgetsPageComponent implements OnInit {
         subBudgetCount: value.subBudgetCount
       }))
       .sort((a, b) => a.categoryName.localeCompare(b.categoryName));
+  });
+  readonly subBudgetCategories = computed(() => {
+    const categories = new Map<number, CategoryResponseDto>();
+
+    for (const subBudget of this.budgetsStore.selectedBudgetDetail()?.subBudgets ?? []) {
+      if (subBudget.categoryId == null) {
+        continue;
+      }
+
+      const category = this.expenseCategories().find((item) => item.id === subBudget.categoryId);
+      if (category) {
+        categories.set(category.id, category);
+      }
+    }
+
+    return Array.from(categories.values()).sort((a, b) => a.name.localeCompare(b.name));
+  });
+  readonly filteredSubBudgets = computed(() => {
+    const { search, categoryId } = this.subBudgetFilters();
+    const normalizedSearch = search.trim().toLowerCase();
+
+    return (this.budgetsStore.selectedBudgetDetail()?.subBudgets ?? []).filter((subBudget) => {
+      const matchesSearch = !normalizedSearch || subBudget.name.toLowerCase().includes(normalizedSearch);
+      const matchesCategory = categoryId == null || subBudget.categoryId === categoryId;
+
+      return matchesSearch && matchesCategory;
+    });
   });
   readonly currentPeriodSort = computed<BudgetPeriodSort>(() =>
     this.budgetsStore.filters().sort === 'month,asc' ? 'month,asc' : 'month,desc'
@@ -654,7 +749,6 @@ export class BudgetsPageComponent implements OnInit {
     this.loadCategories();
     this.patchFilters(this.budgetsStore.loadPersistedFilters(this.accountId()));
     this.loadBudgets();
-    this.loadSelectedBudgetDetail();
   }
 
   loadBudgets(): void {
@@ -696,19 +790,44 @@ export class BudgetsPageComponent implements OnInit {
     this.budgetsStore
       .getBudgetDetail(this.accountId(), raw.year, raw.month, { persist: true })
       .pipe(take(1))
-      .subscribe({ error: () => undefined });
+      .subscribe({
+        next: () => {
+          this.selectedDetailTab.set('categorySummary');
+          this.viewMode.set('monthlyDetail');
+        },
+        error: () => undefined
+      });
   }
 
-  selectBudget(budget: BudgetResponseDto): void {
+  openBudgetDetail(budget: BudgetResponseDto): void {
     this.periodForm.patchValue({ year: budget.year, month: budget.month });
     this.budgetsStore
       .getBudgetDetail(this.accountId(), budget.year, budget.month, { persist: true })
       .pipe(take(1))
-      .subscribe({ error: () => undefined });
+      .subscribe({
+        next: () => {
+          this.selectedDetailTab.set('categorySummary');
+          this.viewMode.set('monthlyDetail');
+        },
+        error: () => undefined
+      });
+  }
+
+  backToAnnualList(): void {
+    this.viewMode.set('annualList');
+    this.expandedCategoryId.set(null);
+  }
+
+  changeDetailTab(tab: 'categorySummary' | 'subBudgets'): void {
+    this.selectedDetailTab.set(tab);
+    if (tab === 'subBudgets') {
+      this.expandedCategoryId.set(null);
+    }
   }
 
   clearFilters(): void {
     this.patchFilters(this.budgetsStore.clearPersistedFilters(this.accountId()));
+    this.viewMode.set('annualList');
     this.budgetsStore.selectedBudgetDetail.set(null);
     this.budgetsStore.loadBudgets(this.accountId()).pipe(take(1)).subscribe({ error: () => undefined });
   }
@@ -837,6 +956,7 @@ export class BudgetsPageComponent implements OnInit {
           const monthToShow = raw.year === this.currentDate.getFullYear() ? this.currentDate.getMonth() + 1 : 1;
           this.periodForm.patchValue({ year: raw.year, month: monthToShow });
           this.listFilterForm.patchValue({ year: raw.year });
+          this.viewMode.set('annualList');
           this.successMessage.set('Presupuesto anual creado correctamente.');
           this.cancelAnnualBudgetForm();
         },
@@ -880,6 +1000,7 @@ export class BudgetsPageComponent implements OnInit {
         next: () => {
           this.periodForm.patchValue({ year: raw.year, month: raw.month });
           this.listFilterForm.patchValue({ year: raw.year });
+          this.viewMode.set('monthlyDetail');
           this.successMessage.set('Presupuesto mensual guardado.');
           this.showBudgetForm.set(false);
         },
@@ -899,6 +1020,29 @@ export class BudgetsPageComponent implements OnInit {
       plannedAmount: 0
     });
     this.showSubBudgetForm.set(true);
+  }
+
+  toggleCategorySubBudgets(categoryId: number): void {
+    this.expandedCategoryId.set(this.expandedCategoryId() === categoryId ? null : categoryId);
+  }
+
+  subBudgetsByCategory(categoryId: number): SubBudgetResponseDto[] {
+    return (this.budgetsStore.selectedBudgetDetail()?.subBudgets ?? []).filter(
+      (subBudget) => subBudget.status === 'ACTIVE' && subBudget.categoryId === categoryId
+    );
+  }
+
+  setSubBudgetSearch(search: string): void {
+    this.subBudgetFilters.update((current) => ({ ...current, search }));
+  }
+
+  setSubBudgetCategory(rawCategoryId: string): void {
+    const categoryId = rawCategoryId ? Number(rawCategoryId) : null;
+    this.subBudgetFilters.update((current) => ({ ...current, categoryId }));
+  }
+
+  clearSubBudgetFilters(): void {
+    this.subBudgetFilters.set({ search: '', categoryId: null });
   }
 
   startEditSubBudget(subBudget: SubBudgetResponseDto): void {
@@ -1011,7 +1155,7 @@ export class BudgetsPageComponent implements OnInit {
       BUDGET_NOT_FOUND: 'No se encontro el presupuesto origen.',
       ACCOUNT_NOT_ACTIVE: 'La cuenta no permite modificar presupuestos.',
       BUDGET_ALREADY_ARCHIVED: 'El presupuesto esta archivado.',
-      ANNUAL_BUDGET_MONTH_ALREADY_EXISTS: 'Ya existe al menos un presupuesto para este anio.',
+      ANNUAL_BUDGET_MONTH_ALREADY_EXISTS: 'Ya existe al menos un presupuesto para este año.',
       SUB_BUDGET_NOT_FOUND: 'El subpresupuesto no existe.',
       SUB_BUDGET_DERIVED_NOT_EDITABLE: 'Los subpresupuestos derivados no se editan manualmente.',
       ACCOUNT_ADMIN_REQUIRED: 'Necesitas rol administrador para esta accion.',

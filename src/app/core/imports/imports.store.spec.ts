@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { Subject, of, throwError } from 'rxjs';
 
 import {
+  AnnualBudgetImportResponseDto,
   CategoryImportResponseDto,
   ExpenseImportBatchResponseDto,
   IncomeImportResponseDto,
@@ -51,6 +52,16 @@ describe('ImportsStore', () => {
     invalidRows: 0,
     rows: []
   };
+  const annualBudgetResult: AnnualBudgetImportResponseDto = {
+    accountId: 10,
+    participantId: 7,
+    originalFilename: 'annual-budgets.xlsx',
+    totalRows: 2,
+    createdBudgetsCount: 12,
+    createdSubBudgetsCount: 24,
+    invalidRows: 0,
+    rows: []
+  };
 
   let service: jasmine.SpyObj<ImportsApiService>;
   let store: ImportsStore;
@@ -66,7 +77,9 @@ describe('ImportsStore', () => {
       'downloadCategoryImportTemplate',
       'importCategories',
       'downloadPaymentMethodImportTemplate',
-      'importPaymentMethods'
+      'importPaymentMethods',
+      'downloadAnnualBudgetImportTemplate',
+      'importAnnualBudget'
     ]);
     service.previewExpenseImport.and.returnValue(of(batch));
     service.confirmExpenseImport.and.returnValue(of({ ...batch, status: 'CONFIRMED', confirmedAt: '2026-05-14T00:00:00Z' }));
@@ -78,6 +91,8 @@ describe('ImportsStore', () => {
     service.importCategories.and.returnValue(of(categoryResult));
     service.downloadPaymentMethodImportTemplate.and.returnValue(of(new Blob(['template'])));
     service.importPaymentMethods.and.returnValue(of(paymentMethodResult));
+    service.downloadAnnualBudgetImportTemplate.and.returnValue(of(new Blob(['template'])));
+    service.importAnnualBudget.and.returnValue(of(annualBudgetResult));
 
     TestBed.configureTestingModule({
       providers: [ImportsStore, { provide: ImportsApiService, useValue: service }]
@@ -261,6 +276,29 @@ describe('ImportsStore', () => {
       expect(store.currentPaymentMethodImportResult()).toEqual(paymentMethodResult);
       setTimeout(() => {
         expect(store.isImportingPaymentMethod()).toBeFalse();
+        done();
+      });
+    });
+  });
+
+  it('downloads annual budget template', (done) => {
+    store.downloadAnnualBudgetTemplate(10).subscribe((blob) => {
+      expect(blob).toEqual(jasmine.any(Blob));
+      expect(service.downloadAnnualBudgetImportTemplate).toHaveBeenCalledWith(10);
+      expect(store.annualBudgetTemplateDownloadError()).toBeNull();
+      done();
+    });
+  });
+
+  it('imports annual budget and stores the result', (done) => {
+    const annualBudgetFile = new File(['excel'], 'annual-budgets.xlsx');
+    store.selectAnnualBudgetFile(annualBudgetFile);
+
+    store.importAnnualBudgetFile(10).subscribe(() => {
+      expect(service.importAnnualBudget).toHaveBeenCalledWith(10, annualBudgetFile);
+      expect(store.currentAnnualBudgetImportResult()).toEqual(annualBudgetResult);
+      setTimeout(() => {
+        expect(store.isImportingAnnualBudget()).toBeFalse();
         done();
       });
     });

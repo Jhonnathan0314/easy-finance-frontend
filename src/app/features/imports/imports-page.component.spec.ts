@@ -7,6 +7,7 @@ import { ImportsStore } from '../../core/imports/imports.store';
 import { AccountStore } from '../../core/state/account.store';
 import { AccountResponseDto, ApiErrorResponse, ExpenseImportBatchResponseDto } from '../../shared/models';
 import {
+  ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME,
   CATEGORY_IMPORT_TEMPLATE_FILENAME,
   EXPENSE_IMPORT_TEMPLATE_FILENAME,
   INCOME_IMPORT_TEMPLATE_FILENAME,
@@ -111,10 +112,12 @@ describe('ImportsPageComponent', () => {
       incomeTemplateDownloadError?: string | null;
       categoryTemplateDownloadError?: string | null;
       paymentMethodTemplateDownloadError?: string | null;
+      annualBudgetTemplateDownloadError?: string | null;
       selectedFile?: File | null;
       selectedIncomeFile?: File | null;
       selectedCategoryFile?: File | null;
       selectedPaymentMethodFile?: File | null;
+      selectedAnnualBudgetFile?: File | null;
       incomeResult?: {
         accountId: number;
         participantId: number;
@@ -137,6 +140,7 @@ describe('ImportsPageComponent', () => {
       importingIncome?: boolean;
       importingCategory?: boolean;
       importingPaymentMethod?: boolean;
+      importingAnnualBudget?: boolean;
     } = {}
   ): ComponentFixture<ImportsPageComponent> {
     const currentBatch = signal<ExpenseImportBatchResponseDto | null>(
@@ -160,10 +164,16 @@ describe('ImportsPageComponent', () => {
         ? options.selectedPaymentMethodFile ?? null
         : new File(['excel'], 'payment-methods.xlsx')
     );
+    const selectedAnnualBudgetFile = signal<File | null>(
+      Object.prototype.hasOwnProperty.call(options, 'selectedAnnualBudgetFile')
+        ? options.selectedAnnualBudgetFile ?? null
+        : new File(['excel'], 'annual-budgets.xlsx')
+    );
     const incomeImportResult = signal(
       Object.prototype.hasOwnProperty.call(options, 'incomeResult') ? options.incomeResult ?? null : null
     );
     const paymentMethodImportResult = signal(null);
+    const annualBudgetImportResult = signal(null);
     const accountState = { ...account, status: options.archived ? 'ARCHIVED' : 'ACTIVE' };
     const storeError = signal<ApiErrorResponse | null>(null);
     const incomeStoreError = signal<ApiErrorResponse | null>(null);
@@ -171,6 +181,7 @@ describe('ImportsPageComponent', () => {
     const incomeTemplateDownloadError = signal(options.incomeTemplateDownloadError ?? null);
     const categoryTemplateDownloadError = signal(options.categoryTemplateDownloadError ?? null);
     const paymentMethodTemplateDownloadError = signal(options.paymentMethodTemplateDownloadError ?? null);
+    const annualBudgetTemplateDownloadError = signal(options.annualBudgetTemplateDownloadError ?? null);
 
     if (options.validRows !== undefined && currentBatch()) {
       currentBatch.set({ ...currentBatch()!, validRows: options.validRows });
@@ -199,21 +210,26 @@ describe('ImportsPageComponent', () => {
             isImportingIncome: signal(options.importingIncome ?? false),
             isImportingCategory: signal(options.importingCategory ?? false),
             isImportingPaymentMethod: signal(options.importingPaymentMethod ?? false),
+            isImportingAnnualBudget: signal(options.importingAnnualBudget ?? false),
             error: storeError,
             incomeError: incomeStoreError,
             categoryError: signal<ApiErrorResponse | null>(null),
             paymentMethodError: signal<ApiErrorResponse | null>(null),
+            annualBudgetError: signal<ApiErrorResponse | null>(null),
             templateDownloadError,
             incomeTemplateDownloadError,
             categoryTemplateDownloadError,
             paymentMethodTemplateDownloadError,
+            annualBudgetTemplateDownloadError,
             selectedFile,
             selectedIncomeFile,
             selectedCategoryFile,
             selectedPaymentMethodFile,
+            selectedAnnualBudgetFile,
             currentIncomeImportResult: incomeImportResult,
             currentCategoryImportResult: signal(null),
             currentPaymentMethodImportResult: paymentMethodImportResult,
+            currentAnnualBudgetImportResult: annualBudgetImportResult,
             selectFile: jasmine.createSpy('selectFile').and.callFake((file: File) => selectedFile.set(file)),
             clearFile: jasmine.createSpy('clearFile').and.callFake(() => selectedFile.set(null)),
             selectIncomeFile: jasmine.createSpy('selectIncomeFile').and.callFake((file: File) => selectedIncomeFile.set(file)),
@@ -224,6 +240,10 @@ describe('ImportsPageComponent', () => {
               .createSpy('selectPaymentMethodFile')
               .and.callFake((file: File) => selectedPaymentMethodFile.set(file)),
             clearPaymentMethodFile: jasmine.createSpy('clearPaymentMethodFile').and.callFake(() => selectedPaymentMethodFile.set(null)),
+            selectAnnualBudgetFile: jasmine
+              .createSpy('selectAnnualBudgetFile')
+              .and.callFake((file: File) => selectedAnnualBudgetFile.set(file)),
+            clearAnnualBudgetFile: jasmine.createSpy('clearAnnualBudgetFile').and.callFake(() => selectedAnnualBudgetFile.set(null)),
             preview: jasmine.createSpy('preview').and.returnValue(of(currentBatch())),
             confirm: jasmine.createSpy('confirm').and.returnValue(of({ ...previewBatch, status: 'CONFIRMED' })),
             downloadTemplate: jasmine.createSpy('downloadTemplate').and.returnValue(of(new Blob(['template']))),
@@ -269,6 +289,21 @@ describe('ImportsPageComponent', () => {
                 rows: [{ rowNumber: 2, name: 'Cuenta principal', type: 'BANK_ACCOUNT', valid: true, errors: [], createdPaymentMethodId: 22 }]
               })
             ),
+            downloadAnnualBudgetTemplate: jasmine
+              .createSpy('downloadAnnualBudgetTemplate')
+              .and.returnValue(of(new Blob(['template']))),
+            importAnnualBudgetFile: jasmine.createSpy('importAnnualBudgetFile').and.returnValue(
+              of({
+                accountId: 1,
+                participantId: 7,
+                originalFilename: 'annual-budgets.xlsx',
+                totalRows: 2,
+                createdBudgetsCount: 12,
+                createdSubBudgetsCount: 24,
+                invalidRows: 0,
+                rows: [{ rowNumber: 2, year: 2026, month: 'Todos', plannedAmount: 100000, valid: true, errors: [] }]
+              })
+            ),
             getBatch: jasmine.createSpy('getBatch').and.returnValue(of(currentBatch())),
             clear: jasmine.createSpy('clear').and.callFake(() => {
               currentBatch.set(null);
@@ -290,6 +325,11 @@ describe('ImportsPageComponent', () => {
               selectedPaymentMethodFile.set(null);
               paymentMethodImportResult.set(null);
               paymentMethodTemplateDownloadError.set(null);
+            }),
+            clearAnnualBudgetImportState: jasmine.createSpy('clearAnnualBudgetImportState').and.callFake(() => {
+              selectedAnnualBudgetFile.set(null);
+              annualBudgetImportResult.set(null);
+              annualBudgetTemplateDownloadError.set(null);
             })
           }
         }
@@ -546,6 +586,7 @@ describe('ImportsPageComponent', () => {
     expect(text).toContain('Ingresos');
     expect(text).toContain('Categorias');
     expect(text).toContain('Medios de pago');
+    expect(text).toContain('Presupuestos');
   });
 
   it('switches to incomes mode and shows direct import action', () => {
@@ -669,5 +710,47 @@ describe('ImportsPageComponent', () => {
 
     expect(store.importPaymentMethodFile).toHaveBeenCalledWith(1);
     expect(fixture.componentInstance.paymentMethodSuccessMessage()).toContain('Se importaron');
+  });
+
+  it('switches to budgets mode and shows annual budget import action and help', () => {
+    const fixture = configure();
+    fixture.componentInstance.activeMode.set('budgets');
+    fixture.detectChanges();
+
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Importar presupuesto anual desde Excel');
+    expect(text).toContain('Importar presupuesto anual');
+    expect(text).toContain('Usa Mes = Todos para aplicar a todo el año');
+  });
+
+  it('downloads annual budget template using a temporary object url', () => {
+    const fixture = configure();
+    const store = TestBed.inject(ImportsStore) as jasmine.SpyObj<ImportsStore>;
+    fixture.componentInstance.activeMode.set('budgets');
+    fixture.detectChanges();
+    spyOn(URL, 'createObjectURL').and.returnValue('blob:annual-budget-template');
+    spyOn(URL, 'revokeObjectURL');
+    const clickSpy = spyOn(HTMLAnchorElement.prototype, 'click').and.callFake(function (this: HTMLAnchorElement) {
+      expect(this.download).toBe(ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME);
+    });
+
+    fixture.componentInstance.downloadAnnualBudgetTemplate();
+
+    expect(store.downloadAnnualBudgetTemplate).toHaveBeenCalledWith(1);
+    expect(URL.createObjectURL).toHaveBeenCalled();
+    expect(clickSpy).toHaveBeenCalled();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:annual-budget-template');
+  });
+
+  it('imports annual budget and shows success summary', () => {
+    const fixture = configure();
+    const store = TestBed.inject(ImportsStore) as jasmine.SpyObj<ImportsStore>;
+    fixture.componentInstance.activeMode.set('budgets');
+    fixture.detectChanges();
+
+    fixture.componentInstance.importAnnualBudget();
+
+    expect(store.importAnnualBudgetFile).toHaveBeenCalledWith(1);
+    expect(fixture.componentInstance.annualBudgetSuccessMessage()).toBe('Se crearon 12 presupuestos.');
   });
 });

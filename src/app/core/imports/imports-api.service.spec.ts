@@ -129,4 +129,28 @@ describe('ImportsApiService', () => {
     expect(request.request.headers.has('Content-Type')).toBeFalse();
     request.flush({ createdCount: 0, rows: [] });
   });
+
+  it('downloads the annual budget import template as a blob', () => {
+    service.downloadAnnualBudgetImportTemplate(12).subscribe();
+
+    const request = httpTesting.expectOne('http://localhost:8080/api/v1/accounts/12/imports/budgets/annual/template');
+    expect(request.request.method).toBe('GET');
+    expect(request.request.responseType).toBe('blob');
+    request.flush(new Blob(['template']));
+  });
+
+  it('builds annual budget import multipart request', () => {
+    const file = new File(['excel'], 'annual-budget.xlsx', {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+
+    service.importAnnualBudget(13, file).subscribe();
+
+    const request = httpTesting.expectOne('http://localhost:8080/api/v1/accounts/13/imports/budgets/annual');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body instanceof FormData).toBeTrue();
+    expect(request.request.body.get('file')).toBe(file);
+    expect(request.request.headers.has('Content-Type')).toBeFalse();
+    request.flush({ createdBudgetsCount: 0, createdSubBudgetsCount: 0, rows: [] });
+  });
 });

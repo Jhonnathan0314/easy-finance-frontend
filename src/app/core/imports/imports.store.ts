@@ -2,6 +2,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { Observable, catchError, finalize, tap, throwError } from 'rxjs';
 
 import {
+  AnnualBudgetImportResponseDto,
   ApiErrorResponse,
   CategoryImportResponseDto,
   ExpenseImportBatchResponseDto,
@@ -19,6 +20,7 @@ export class ImportsStore {
   readonly currentIncomeImportResult = signal<IncomeImportResponseDto | null>(null);
   readonly currentCategoryImportResult = signal<CategoryImportResponseDto | null>(null);
   readonly currentPaymentMethodImportResult = signal<PaymentMethodImportResponseDto | null>(null);
+  readonly currentAnnualBudgetImportResult = signal<AnnualBudgetImportResponseDto | null>(null);
   readonly isPreviewing = signal(false);
   readonly isConfirming = signal(false);
   readonly isLoading = signal(false);
@@ -26,18 +28,22 @@ export class ImportsStore {
   readonly isImportingIncome = signal(false);
   readonly isImportingCategory = signal(false);
   readonly isImportingPaymentMethod = signal(false);
+  readonly isImportingAnnualBudget = signal(false);
   readonly error = signal<ApiErrorResponse | null>(null);
   readonly templateDownloadError = signal<string | null>(null);
   readonly selectedFile = signal<File | null>(null);
   readonly selectedIncomeFile = signal<File | null>(null);
   readonly selectedCategoryFile = signal<File | null>(null);
   readonly selectedPaymentMethodFile = signal<File | null>(null);
+  readonly selectedAnnualBudgetFile = signal<File | null>(null);
   readonly incomeError = signal<ApiErrorResponse | null>(null);
   readonly categoryError = signal<ApiErrorResponse | null>(null);
   readonly paymentMethodError = signal<ApiErrorResponse | null>(null);
+  readonly annualBudgetError = signal<ApiErrorResponse | null>(null);
   readonly incomeTemplateDownloadError = signal<string | null>(null);
   readonly categoryTemplateDownloadError = signal<string | null>(null);
   readonly paymentMethodTemplateDownloadError = signal<string | null>(null);
+  readonly annualBudgetTemplateDownloadError = signal<string | null>(null);
 
   selectFile(file: File): void {
     this.selectedFile.set(file);
@@ -73,6 +79,15 @@ export class ImportsStore {
 
   clearPaymentMethodFile(): void {
     this.selectedPaymentMethodFile.set(null);
+  }
+
+  selectAnnualBudgetFile(file: File): void {
+    this.selectedAnnualBudgetFile.set(file);
+    this.annualBudgetError.set(null);
+  }
+
+  clearAnnualBudgetFile(): void {
+    this.selectedAnnualBudgetFile.set(null);
   }
 
   preview(accountId: number): Observable<ExpenseImportBatchResponseDto> {
@@ -249,30 +264,71 @@ export class ImportsStore {
     );
   }
 
+  downloadAnnualBudgetTemplate(accountId: number): Observable<Blob> {
+    this.ensureAccount(accountId);
+    this.isDownloadingTemplate.set(true);
+    this.annualBudgetTemplateDownloadError.set(null);
+
+    return this.importsApi.downloadAnnualBudgetImportTemplate(accountId).pipe(
+      catchError((error: unknown) => {
+        this.annualBudgetTemplateDownloadError.set(
+          'No se pudo descargar la plantilla de presupuestos. Intenta nuevamente.'
+        );
+        return throwError(() => error);
+      }),
+      finalize(() => this.isDownloadingTemplate.set(false))
+    );
+  }
+
+  importAnnualBudgetFile(accountId: number): Observable<AnnualBudgetImportResponseDto> {
+    this.ensureAccount(accountId);
+    const file = this.selectedAnnualBudgetFile();
+
+    if (!file) {
+      const error = createLocalError('IMPORT_FILE_REQUIRED', 'Selecciona un archivo .xlsx para continuar.');
+      this.annualBudgetError.set(error);
+      return throwError(() => error);
+    }
+
+    this.isImportingAnnualBudget.set(true);
+    this.annualBudgetError.set(null);
+
+    return this.importsApi.importAnnualBudget(accountId, file).pipe(
+      tap((result) => this.currentAnnualBudgetImportResult.set(result)),
+      catchError((error: unknown) => this.handleAnnualBudgetError(error)),
+      finalize(() => this.isImportingAnnualBudget.set(false))
+    );
+  }
+
   clear(): void {
     this.currentAccountId.set(null);
     this.currentBatch.set(null);
     this.currentIncomeImportResult.set(null);
     this.currentCategoryImportResult.set(null);
     this.currentPaymentMethodImportResult.set(null);
+    this.currentAnnualBudgetImportResult.set(null);
     this.selectedFile.set(null);
     this.selectedIncomeFile.set(null);
     this.selectedCategoryFile.set(null);
     this.selectedPaymentMethodFile.set(null);
+    this.selectedAnnualBudgetFile.set(null);
     this.isPreviewing.set(false);
     this.isConfirming.set(false);
     this.isLoading.set(false);
     this.isImportingIncome.set(false);
     this.isImportingCategory.set(false);
     this.isImportingPaymentMethod.set(false);
+    this.isImportingAnnualBudget.set(false);
     this.error.set(null);
     this.incomeError.set(null);
     this.categoryError.set(null);
     this.paymentMethodError.set(null);
+    this.annualBudgetError.set(null);
     this.templateDownloadError.set(null);
     this.incomeTemplateDownloadError.set(null);
     this.categoryTemplateDownloadError.set(null);
     this.paymentMethodTemplateDownloadError.set(null);
+    this.annualBudgetTemplateDownloadError.set(null);
   }
 
   clearIncomeImportState(): void {
@@ -300,6 +356,14 @@ export class ImportsStore {
     this.paymentMethodTemplateDownloadError.set(null);
   }
 
+  clearAnnualBudgetImportState(): void {
+    this.currentAnnualBudgetImportResult.set(null);
+    this.selectedAnnualBudgetFile.set(null);
+    this.isImportingAnnualBudget.set(false);
+    this.annualBudgetError.set(null);
+    this.annualBudgetTemplateDownloadError.set(null);
+  }
+
   private ensureAccount(accountId: number): void {
     if (this.currentAccountId() === accountId) {
       return;
@@ -315,18 +379,22 @@ export class ImportsStore {
     this.currentIncomeImportResult.set(null);
     this.currentCategoryImportResult.set(null);
     this.currentPaymentMethodImportResult.set(null);
+    this.currentAnnualBudgetImportResult.set(null);
     this.selectedFile.set(null);
     this.selectedIncomeFile.set(null);
     this.selectedCategoryFile.set(null);
     this.selectedPaymentMethodFile.set(null);
+    this.selectedAnnualBudgetFile.set(null);
     this.error.set(null);
     this.incomeError.set(null);
     this.categoryError.set(null);
     this.paymentMethodError.set(null);
+    this.annualBudgetError.set(null);
     this.templateDownloadError.set(null);
     this.incomeTemplateDownloadError.set(null);
     this.categoryTemplateDownloadError.set(null);
     this.paymentMethodTemplateDownloadError.set(null);
+    this.annualBudgetTemplateDownloadError.set(null);
   }
 
   private handleError(error: unknown): Observable<never> {
@@ -346,6 +414,11 @@ export class ImportsStore {
 
   private handlePaymentMethodError(error: unknown): Observable<never> {
     this.paymentMethodError.set(toApiError(error));
+    return throwError(() => error);
+  }
+
+  private handleAnnualBudgetError(error: unknown): Observable<never> {
+    this.annualBudgetError.set(toApiError(error));
     return throwError(() => error);
   }
 }

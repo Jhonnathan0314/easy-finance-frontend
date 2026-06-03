@@ -62,24 +62,16 @@
   gap: 0.85rem;
 }
 
-.filter-panel-heading h2,
-.filter-panel-heading p {
-  margin: 0;
-}
-
-.filter-panel-heading p {
-  color: #65738a;
-}
-
 .budget-list-filters {
   display: grid;
   grid-template-columns: 10rem 12rem minmax(16rem, 1fr) auto;
   align-items: end;
 }
 
-.period-filters {
+.compact-period-filters {
+  margin-top: 0.25rem;
   display: grid;
-  grid-template-columns: 10rem 12rem auto;
+  grid-template-columns: 14rem auto;
   align-items: end;
 }
 
@@ -114,7 +106,17 @@
 .form-actions button,
 .filter-actions button,
 .sort-actions button,
-.annual-subbudget-actions button {
+.annual-subbudget-actions button,
+.subbudget-filters button {
+  border: 1px solid #c9d2df;
+  border-radius: 6px;
+  background: #fff;
+  color: #1d2433;
+  padding: 0.55rem 0.75rem;
+  cursor: pointer;
+}
+
+.secondary-button {
   border: 1px solid #c9d2df;
   border-radius: 6px;
   background: #fff;
@@ -189,6 +191,28 @@
   align-items: start;
 }
 
+.detail-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.detail-tabs button {
+  border: 1px solid #c9d2df;
+  border-radius: 6px;
+  background: #fff;
+  color: #1d2433;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+}
+
+.detail-tabs button.active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
 .budget-list-panel,
 .detail-column,
 .detail-empty-state,
@@ -204,6 +228,26 @@
   gap: 0.75rem;
 }
 
+.subbudget-filters {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1fr) minmax(12rem, 1fr) auto;
+  gap: 0.5rem;
+  align-items: end;
+}
+
+.subbudget-filters label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.subbudget-filters input,
+.subbudget-filters select {
+  border: 1px solid #c9d2df;
+  border-radius: 6px;
+  background: #fff;
+  padding: 0.55rem 0.65rem;
+}
+
 .budget-card,
 .subbudget-card,
 .impact-row {
@@ -215,9 +259,55 @@
   padding: 1rem;
 }
 
+.annual-budget-list,
+.compact-grid {
+  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(22rem, 1fr));
+}
+
+.annual-budget-row,
+.compact-row {
+  padding: 0.75rem;
+  min-height: 100%;
+}
+
+.annual-budget-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.compact-row {
+  grid-template-columns: minmax(0, 1fr) minmax(12rem, auto);
+  align-items: center;
+}
+
+.subbudget-card.compact-row {
+  grid-template-columns: minmax(0, 1fr) minmax(9.5rem, auto);
+  grid-template-areas:
+    "info actions"
+    "amount actions";
+  gap: 0.5rem 0.75rem;
+  align-items: start;
+}
+
+.subbudget-card.compact-row > :first-child {
+  grid-area: info;
+}
+
+.subbudget-card.compact-row .amount-block {
+  grid-area: amount;
+  justify-items: start;
+}
+
 .budget-card.selected {
   border-color: #2563eb;
   box-shadow: 0 0 0 1px #2563eb;
+}
+
+.subbudget-card.selected {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 1px #2563eb;
+  background: #f8fbff;
 }
 
 .budget-card h3,
@@ -292,10 +382,6 @@
   background: #16a34a;
 }
 
-.subbudget-card {
-  grid-template-columns: minmax(0, 1fr) auto;
-}
-
 .progress,
 .badges,
 .actions {
@@ -305,6 +391,38 @@
 .badges,
 .actions {
   flex-wrap: wrap;
+}
+
+.annual-budget-row .actions,
+.compact-row .actions {
+  grid-column: auto;
+  justify-content: flex-end;
+}
+
+.subbudget-card .actions {
+  grid-area: actions;
+  align-self: center;
+}
+
+.category-actions {
+  grid-column: auto;
+  justify-content: center;
+  align-self: center;
+}
+
+.category-subbudgets {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.category-summary-info {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.category-summary-info .amount-block {
+  justify-items: start;
 }
 
 .amount-block {
@@ -346,7 +464,6 @@ button:disabled {
   .sort-actions,
   .filter-actions,
   .header-actions,
-  .filter-panel-heading,
   .detail-heading,
   .detail-actions,
   .section-heading,
@@ -358,5 +475,34 @@ button:disabled {
 
   .amount-block {
     justify-items: start;
+  }
+
+  .annual-budget-list,
+  .compact-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .subbudget-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .annual-budget-row,
+  .compact-row {
+    grid-template-columns: 1fr;
+  }
+
+  .annual-budget-row .actions,
+  .compact-row .actions {
+    justify-content: center;
+  }
+
+  .category-actions {
+    grid-column: 1 / -1;
+  }
+
+  .subbudget-card.compact-row .actions {
+    grid-area: auto;
+    flex-direction: column;
+    align-items: center;
   }
 }

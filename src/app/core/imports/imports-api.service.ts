@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import {
+  AnnualBudgetImportResponseDto,
   CategoryImportResponseDto,
   ExpenseImportBatchResponseDto,
   IncomeImportResponseDto,
@@ -72,5 +73,16 @@ export class ImportsApiService {
       `/accounts/${accountId}/imports/payment-methods`,
       formData
     );
+  }
+
+  downloadAnnualBudgetImportTemplate(accountId: number): Observable<Blob> {
+    return this.api.getBlob(`/accounts/${accountId}/imports/budgets/annual/template`);
+  }
+
+  importAnnualBudget(accountId: number, file: File): Observable<AnnualBudgetImportResponseDto> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    return this.api.post<AnnualBudgetImportResponseDto, FormData>(`/accounts/${accountId}/imports/budgets/annual`, formData);
   }
 }

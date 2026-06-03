@@ -120,3 +120,31 @@ export interface PaymentMethodImportResponse {
 }
 
 export type PaymentMethodImportResponseDto = PaymentMethodImportResponse;
+
+export interface AnnualBudgetImportRowResponse {
+  rowNumber: number;
+  year?: number | null;
+  month?: string | null;
+  budgetName?: string | null;
+  categoryName?: string | null;
+  categoryId?: number | null;
+  subBudgetName?: string | null;
+  plannedAmount?: number | null;
+  valid: boolean;
+  errors: ImportRowError[];
+}
+
+export type AnnualBudgetImportRowResponseDto = AnnualBudgetImportRowResponse;
+
+export interface AnnualBudgetImportResponse {
+  accountId: number;
+  participantId: number;
+  originalFilename: string;
+  totalRows: number;
+  createdBudgetsCount: number;
+  createdSubBudgetsCount: number;
+  invalidRows: number;
+  rows: AnnualBudgetImportRowResponse[];
+}
+
+export type AnnualBudgetImportResponseDto = AnnualBudgetImportResponse;

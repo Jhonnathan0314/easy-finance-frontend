@@ -9,13 +9,14 @@ import { ApiErrorResponse, ExpenseImportRowResponseDto } from '../../shared/mode
 import { enumLabel } from '../../shared/ui/enum-labels';
 
 type RowFilter = 'all' | 'valid' | 'invalid';
-type ImportMode = 'expenses' | 'incomes' | 'categories' | 'paymentMethods';
+type ImportMode = 'expenses' | 'incomes' | 'categories' | 'paymentMethods' | 'budgets';
 
 export const MAX_IMPORT_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 export const EXPENSE_IMPORT_TEMPLATE_FILENAME = 'easy-finance-expense-import-template.xlsx';
 export const INCOME_IMPORT_TEMPLATE_FILENAME = 'easy-finance-income-import-template.xlsx';
 export const CATEGORY_IMPORT_TEMPLATE_FILENAME = 'easy-finance-category-import-template.xlsx';
 export const PAYMENT_METHOD_IMPORT_TEMPLATE_FILENAME = 'easy-finance-payment-method-import-template.xlsx';
+export const ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME = 'easy-finance-annual-budget-import-template.xlsx';
 
 @Component({
   selector: 'ef-imports-page',
@@ -38,6 +39,7 @@ export const PAYMENT_METHOD_IMPORT_TEMPLATE_FILENAME = 'easy-finance-payment-met
         <button type="button" [class.active]="activeMode() === 'paymentMethods'" (click)="activeMode.set('paymentMethods')">
           Medios de pago
         </button>
+        <button type="button" [class.active]="activeMode() === 'budgets'" (click)="activeMode.set('budgets')">Presupuestos</button>
       </div>
 
       @if (accountStore.selectedAccountArchived()) {
@@ -591,7 +593,7 @@ export const PAYMENT_METHOD_IMPORT_TEMPLATE_FILENAME = 'easy-finance-payment-met
           <p>Sube un Excel y el sistema intentara crear todas las categorias en un solo paso.</p>
         </div>
       }
-      } @else {
+      } @else if (activeMode() === 'paymentMethods') {
       <section class="panel instructions">
         <div>
           <h2>Importar medios de pago desde Excel</h2>
@@ -750,6 +752,174 @@ export const PAYMENT_METHOD_IMPORT_TEMPLATE_FILENAME = 'easy-finance-payment-met
           <p>Sube un Excel y el sistema intentara crear todos los medios de pago en un solo paso.</p>
         </div>
       }
+      } @else if (activeMode() === 'budgets') {
+      <section class="panel instructions">
+        <div>
+          <h2>Importar presupuesto anual desde Excel</h2>
+          <p>Usa un archivo .xlsx con estas cabeceras exactas:</p>
+          <div class="headers-list">
+            @for (header of annualBudgetRequiredHeaders; track header) {
+              <span>{{ header }}</span>
+            }
+          </div>
+        </div>
+        <div class="template-download">
+          <p>Usa Mes = Todos para aplicar a todo el año. Usa un mes especifico para reemplazar ese valor solo en ese mes.</p>
+          <button type="button" (click)="downloadAnnualBudgetTemplate()" [disabled]="importsStore.isDownloadingTemplate()">
+            {{ importsStore.isDownloadingTemplate() ? 'Descargando...' : 'Descargar plantilla de presupuestos' }}
+          </button>
+        </div>
+        @if (importsStore.annualBudgetTemplateDownloadError(); as templateError) {
+          <p class="form-error" role="alert">{{ templateError }}</p>
+        }
+        <ul>
+          <li>Columnas: Año, Mes, NombrePresupuesto, Categoria, NombreSubpresupuesto, Valor.</li>
+          <li>Si alguna fila tiene error, no se crea ningun presupuesto.</li>
+        </ul>
+      </section>
+
+      <section class="panel upload-panel">
+        <label class="file-field">
+          <span>Archivo Excel</span>
+          <input
+            #annualBudgetFileInput
+            type="file"
+            accept=".xlsx"
+            (change)="onAnnualBudgetFileSelected($event)"
+            [disabled]="!canWrite()"
+          >
+        </label>
+
+        @if (importsStore.selectedAnnualBudgetFile(); as file) {
+          <div class="selected-file">
+            <strong>{{ file.name }}</strong>
+            <span>{{ fileSizeLabel(file.size) }}</span>
+            <button type="button" (click)="clearAnnualBudgetFile(annualBudgetFileInput)">Quitar</button>
+          </div>
+        } @else {
+          <p class="muted">Selecciona un archivo .xlsx para importar presupuestos.</p>
+        }
+
+        @if (annualBudgetFileError(); as error) {
+          <p class="form-error" role="alert">{{ error }}</p>
+        }
+
+        <div class="actions">
+          <button class="button" type="button" (click)="importAnnualBudget()" [disabled]="!canImportAnnualBudget()">
+            {{ importsStore.isImportingAnnualBudget() ? 'Importando...' : 'Importar presupuesto anual' }}
+          </button>
+          @if (hasAnnualBudgetImportState()) {
+            <button type="button" (click)="clearAnnualBudgetImport(annualBudgetFileInput)">Cargar otro archivo</button>
+          }
+        </div>
+      </section>
+
+      @if (importsStore.annualBudgetError(); as error) {
+        <div class="panel error-panel" role="alert">
+          <strong>{{ error.code }}</strong>
+          <span>{{ friendlyAnnualBudgetError(error) }}</span>
+        </div>
+      }
+
+      @if (annualBudgetSuccessMessage(); as message) {
+        <div class="panel success-panel">{{ message }}</div>
+      }
+
+      @if (importsStore.currentAnnualBudgetImportResult(); as result) {
+        <section class="panel batch-summary">
+          <div class="summary-heading">
+            <div>
+              <h2>{{ result.originalFilename }}</h2>
+              <p>Importacion directa de presupuesto anual</p>
+            </div>
+          </div>
+          <dl class="summary-grid">
+            <div>
+              <dt>Total filas</dt>
+              <dd>{{ result.totalRows }}</dd>
+            </div>
+            <div>
+              <dt>Presupuestos creados</dt>
+              <dd>{{ result.createdBudgetsCount }}</dd>
+            </div>
+            <div>
+              <dt>Subpresupuestos creados</dt>
+              <dd>{{ result.createdSubBudgetsCount }}</dd>
+            </div>
+            <div>
+              <dt>Invalidos</dt>
+              <dd>{{ result.invalidRows }}</dd>
+            </div>
+          </dl>
+
+          @if (result.invalidRows > 0) {
+            <div class="panel warning-panel">
+              No se creo ningun presupuesto. Corrige el archivo y vuelve a cargarlo.
+            </div>
+          }
+        </section>
+
+        <section class="panel rows-panel">
+          <h2>Filas procesadas</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fila</th>
+                  <th>Año</th>
+                  <th>Mes</th>
+                  <th>Presupuesto</th>
+                  <th>Categoria</th>
+                  <th>Subpresupuesto</th>
+                  <th>Valor</th>
+                  <th>Valid</th>
+                  <th>Errores</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of result.rows; track row.rowNumber) {
+                  <tr [class.invalid]="!row.valid">
+                    <td>{{ row.rowNumber }}</td>
+                    <td>{{ row.year ?? '-' }}</td>
+                    <td>{{ row.month || '-' }}</td>
+                    <td>{{ row.budgetName || '-' }}</td>
+                    <td>{{ row.categoryName || categoryLabel(row.categoryId) }}</td>
+                    <td>{{ row.subBudgetName || '-' }}</td>
+                    <td>
+                      @if (row.plannedAmount !== null && row.plannedAmount !== undefined) {
+                        {{ row.plannedAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}
+                      } @else {
+                        -
+                      }
+                    </td>
+                    <td>
+                      <span class="badge" [class.success]="row.valid" [class.danger]="!row.valid">
+                        {{ row.valid ? 'VALID' : 'INVALID' }}
+                      </span>
+                    </td>
+                    <td>
+                      @if (row.errors.length) {
+                        <ul class="row-errors">
+                          @for (error of row.errors; track error.column + error.code + error.message) {
+                            <li><strong>{{ error.column }}</strong>: {{ error.message }}</li>
+                          }
+                        </ul>
+                      } @else {
+                        -
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      } @else if (!importsStore.isImportingAnnualBudget()) {
+        <div class="panel empty-state">
+          <h2>Sin importacion de presupuestos</h2>
+          <p>Sube un Excel y el sistema intentara crear el presupuesto anual en un solo paso.</p>
+        </div>
+      }
       }
     </section>
   `
@@ -765,10 +935,12 @@ export class ImportsPageComponent {
   readonly incomeFileError = signal<string | null>(null);
   readonly categoryFileError = signal<string | null>(null);
   readonly paymentMethodFileError = signal<string | null>(null);
+  readonly annualBudgetFileError = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
   readonly incomeSuccessMessage = signal<string | null>(null);
   readonly categorySuccessMessage = signal<string | null>(null);
   readonly paymentMethodSuccessMessage = signal<string | null>(null);
+  readonly annualBudgetSuccessMessage = signal<string | null>(null);
   readonly accountId = computed(() => this.accountStore.selectedAccountId() ?? 0);
   readonly canWrite = computed(() => this.accountStore.selectedAccount()?.status === 'ACTIVE');
   readonly hasImportState = computed(
@@ -807,6 +979,15 @@ export class ImportsPageComponent {
       Boolean(this.paymentMethodFileError()) ||
       Boolean(this.paymentMethodSuccessMessage())
   );
+  readonly hasAnnualBudgetImportState = computed(
+    () =>
+      Boolean(this.importsStore.selectedAnnualBudgetFile()) ||
+      Boolean(this.importsStore.currentAnnualBudgetImportResult()) ||
+      Boolean(this.importsStore.annualBudgetError()) ||
+      Boolean(this.importsStore.annualBudgetTemplateDownloadError()) ||
+      Boolean(this.annualBudgetFileError()) ||
+      Boolean(this.annualBudgetSuccessMessage())
+  );
   readonly filteredRows = computed(() => {
     const rows = this.importsStore.currentBatch()?.rows ?? [];
 
@@ -824,6 +1005,7 @@ export class ImportsPageComponent {
   readonly incomeRequiredHeaders = ['Fecha', 'Descripcion', 'Categoria', 'Monto'];
   readonly categoryRequiredHeaders = ['Nombre', 'Tipo'];
   readonly paymentMethodRequiredHeaders = ['Nombre', 'Tipo'];
+  readonly annualBudgetRequiredHeaders = ['Año', 'Mes', 'NombrePresupuesto', 'Categoria', 'NombreSubpresupuesto', 'Valor'];
 
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -925,6 +1107,31 @@ export class ImportsPageComponent {
     this.importsStore.selectPaymentMethodFile(file);
   }
 
+  onAnnualBudgetFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+
+    this.annualBudgetFileError.set(null);
+    this.annualBudgetSuccessMessage.set(null);
+
+    if (!file) {
+      this.importsStore.clearAnnualBudgetFile();
+      this.annualBudgetFileError.set('Selecciona un archivo .xlsx.');
+      return;
+    }
+
+    const validationError = validateImportFile(file);
+
+    if (validationError) {
+      this.importsStore.clearAnnualBudgetFile();
+      this.annualBudgetFileError.set(validationError);
+      input.value = '';
+      return;
+    }
+
+    this.importsStore.selectAnnualBudgetFile(file);
+  }
+
   clearFile(fileInput?: HTMLInputElement): void {
     this.importsStore.clearFile();
     this.fileError.set(null);
@@ -1002,6 +1209,25 @@ export class ImportsPageComponent {
     }
   }
 
+  clearAnnualBudgetFile(fileInput?: HTMLInputElement): void {
+    this.importsStore.clearAnnualBudgetFile();
+    this.annualBudgetFileError.set(null);
+
+    if (fileInput) {
+      fileInput.value = '';
+    }
+  }
+
+  clearAnnualBudgetImport(fileInput?: HTMLInputElement): void {
+    this.importsStore.clearAnnualBudgetImportState();
+    this.annualBudgetFileError.set(null);
+    this.annualBudgetSuccessMessage.set(null);
+
+    if (fileInput) {
+      fileInput.value = '';
+    }
+  }
+
   preview(): void {
     this.successMessage.set(null);
     this.fileError.set(null);
@@ -1058,6 +1284,13 @@ export class ImportsPageComponent {
   downloadPaymentMethodTemplate(): void {
     this.importsStore.downloadPaymentMethodTemplate(this.accountId()).pipe(take(1)).subscribe({
       next: (blob) => this.saveTemplateBlob(blob, PAYMENT_METHOD_IMPORT_TEMPLATE_FILENAME),
+      error: () => undefined
+    });
+  }
+
+  downloadAnnualBudgetTemplate(): void {
+    this.importsStore.downloadAnnualBudgetTemplate(this.accountId()).pipe(take(1)).subscribe({
+      next: (blob) => this.saveTemplateBlob(blob, ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME),
       error: () => undefined
     });
   }
@@ -1152,6 +1385,40 @@ export class ImportsPageComponent {
     });
   }
 
+  importAnnualBudget(): void {
+    this.annualBudgetSuccessMessage.set(null);
+    this.annualBudgetFileError.set(null);
+
+    if (!this.canWrite()) {
+      this.annualBudgetFileError.set('La cuenta archivada no permite importar presupuestos.');
+      return;
+    }
+
+    const file = this.importsStore.selectedAnnualBudgetFile();
+    const validationError = file ? validateImportFile(file) : 'Selecciona un archivo .xlsx.';
+
+    if (validationError) {
+      this.annualBudgetFileError.set(validationError);
+      return;
+    }
+
+    this.importsStore.importAnnualBudgetFile(this.accountId()).pipe(take(1)).subscribe({
+      next: (result) => {
+        if (result.invalidRows > 0) {
+          this.annualBudgetSuccessMessage.set('No se creo ningun presupuesto. Corrige el archivo y vuelve a cargarlo.');
+          return;
+        }
+
+        this.annualBudgetSuccessMessage.set(
+          result.createdBudgetsCount === 12
+            ? 'Se crearon 12 presupuestos.'
+            : `Se crearon ${result.createdBudgetsCount} presupuestos.`
+        );
+      },
+      error: () => undefined
+    });
+  }
+
   canPreview(): boolean {
     return this.canWrite() && Boolean(this.importsStore.selectedFile()) && !this.importsStore.isPreviewing();
   }
@@ -1182,6 +1449,10 @@ export class ImportsPageComponent {
       Boolean(this.importsStore.selectedPaymentMethodFile()) &&
       !this.importsStore.isImportingPaymentMethod()
     );
+  }
+
+  canImportAnnualBudget(): boolean {
+    return this.canWrite() && Boolean(this.importsStore.selectedAnnualBudgetFile()) && !this.importsStore.isImportingAnnualBudget();
   }
 
   hasCatalogErrors(): boolean {
@@ -1267,6 +1538,19 @@ export class ImportsPageComponent {
       IMPORT_ROW_LIMIT_EXCEEDED: 'El archivo supera el limite de filas.',
       PAYMENT_METHOD_ALREADY_EXISTS: 'Ya existe un medio de pago con ese nombre.',
       PAYMENT_METHOD_TYPE_INVALID: 'El tipo de medio de pago no es valido.'
+    };
+
+    return messages[error.code] ?? error.message;
+  }
+
+  friendlyAnnualBudgetError(error: ApiErrorResponse): string {
+    const messages: Record<string, string> = {
+      IMPORT_FILE_REQUIRED: 'Selecciona un archivo para importar.',
+      IMPORT_FILE_INVALID_TYPE: 'El archivo debe ser .xlsx.',
+      IMPORT_FILE_TOO_LARGE: 'El archivo supera el tamano maximo permitido.',
+      IMPORT_TEMPLATE_INVALID: 'La plantilla no tiene las cabeceras esperadas.',
+      IMPORT_ROW_LIMIT_EXCEEDED: 'El archivo supera el limite de filas.',
+      ANNUAL_BUDGET_MONTH_ALREADY_EXISTS: 'Ya existe al menos un presupuesto para ese año.'
     };
 
     return messages[error.code] ?? error.message;
