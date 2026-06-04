@@ -65,16 +65,24 @@ describe('ExpensesStore', () => {
   it('loads persisted filters per account without mixing accounts', () => {
     localStorage.setItem(
       'easyFinance.filters.expenses.10',
-      JSON.stringify({ from: '2026-05-01', search: 'lunch', status: 'CANCELLED', categoryId: 2, paymentState: 'PAID' })
+      JSON.stringify({
+        from: '2026-05-01',
+        search: 'lunch',
+        status: 'CANCELLED',
+        categoryId: 2,
+        paymentState: 'PAID',
+        expenseType: 'INSTALLMENT'
+      })
     );
     localStorage.setItem('easyFinance.filters.expenses.11', JSON.stringify({ from: '2026-06-01', status: 'ACTIVE' }));
 
     expect(store.loadPersistedFilters(10)).toEqual(jasmine.objectContaining({
       from: '2026-05-01',
       search: 'lunch',
-      status: 'CANCELLED',
+      status: 'ACTIVE',
       categoryId: 2,
-      paymentState: 'PAID'
+      paymentState: 'PAID',
+      expenseType: 'INSTALLMENT'
     }));
     expect(store.loadPersistedFilters(11)).toEqual(jasmine.objectContaining({
       from: '2026-06-01',
@@ -84,15 +92,22 @@ describe('ExpensesStore', () => {
 
   it('persists filters only when requested and clears persisted filters', (done) => {
     store
-      .loadExpenses(10, { from: '2026-05-01', search: '  lunch  ', status: 'CANCELLED', paymentMethodId: 3 }, { persist: true })
+      .loadExpenses(10, {
+        from: '2026-05-01',
+        search: '  lunch  ',
+        status: 'ACTIVE',
+        paymentMethodId: 3,
+        expenseType: 'SIMPLE'
+      }, { persist: true })
       .subscribe(() => {
         expect(service.listExpenses).toHaveBeenCalledWith(10, jasmine.objectContaining({ search: 'lunch' }));
         expect(JSON.parse(localStorage.getItem('easyFinance.filters.expenses.10') ?? '{}')).toEqual(jasmine.objectContaining({
           from: '2026-05-01',
           search: 'lunch',
-          status: 'CANCELLED',
-          paymentMethodId: 3
+          paymentMethodId: 3,
+          expenseType: 'SIMPLE'
         }));
+        expect(JSON.parse(localStorage.getItem('easyFinance.filters.expenses.10') ?? '{}').status).toBeUndefined();
 
         store.clearPersistedFilters(10);
 

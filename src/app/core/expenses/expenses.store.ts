@@ -10,6 +10,7 @@ import {
   ExpensePaymentState,
   ExpenseResponseDto,
   ExpenseStatus,
+  ExpenseType,
   UpdateExpenseRequest
 } from '../../shared/models';
 import { FeatureFilterStorageService } from '../filters/feature-filter-storage.service';
@@ -23,6 +24,7 @@ export interface ExpenseFilters {
   paymentMethodId: number | null;
   participantId: number | null;
   paymentState: ExpensePaymentState | null;
+  expenseType: ExpenseType | null;
   status: ExpenseStatus;
   page: number;
   size: number;
@@ -44,6 +46,7 @@ const DEFAULT_FILTERS: ExpenseFilters = {
   paymentMethodId: null,
   participantId: null,
   paymentState: null,
+  expenseType: null,
   status: 'ACTIVE',
   page: 0,
   size: 20,
@@ -52,6 +55,7 @@ const DEFAULT_FILTERS: ExpenseFilters = {
 const EXPENSE_FILTERS_FEATURE = 'expenses';
 const PAYMENT_STATES: Array<ExpensePaymentState | null> = [null, 'PENDING', 'PARTIAL', 'PAID'];
 const EXPENSE_STATUSES: ExpenseStatus[] = ['ACTIVE', 'CANCELLED'];
+const EXPENSE_TYPES: Array<ExpenseType | null> = [null, 'SIMPLE', 'INSTALLMENT'];
 
 @Injectable({ providedIn: 'root' })
 export class ExpensesStore {
@@ -154,7 +158,8 @@ export class ExpensesStore {
   loadPersistedFilters(accountId: number): ExpenseFilters {
     this.ensureAccount(accountId);
     const saved = this.filterStorage.getFilters<Partial<ExpenseFilters>>(EXPENSE_FILTERS_FEATURE, accountId);
-    const filters = saved ? normalizeExpenseFilters({ ...DEFAULT_FILTERS, ...saved }) : { ...DEFAULT_FILTERS };
+    const { status: _ignoredStatus, ...savedWithoutStatus } = saved ?? {};
+    const filters = saved ? normalizeExpenseFilters({ ...DEFAULT_FILTERS, ...savedWithoutStatus }) : { ...DEFAULT_FILTERS };
 
     this.filters.set(filters);
     return filters;
@@ -216,6 +221,7 @@ function normalizeExpenseFilters(filters: Partial<ExpenseFilters>): ExpenseFilte
     paymentMethodId: numberOrNull(filters.paymentMethodId),
     participantId: numberOrNull(filters.participantId),
     paymentState: PAYMENT_STATES.includes(filters.paymentState ?? null) ? filters.paymentState ?? null : null,
+    expenseType: EXPENSE_TYPES.includes(filters.expenseType ?? null) ? filters.expenseType ?? null : null,
     status: EXPENSE_STATUSES.includes(filters.status as ExpenseStatus) ? (filters.status as ExpenseStatus) : 'ACTIVE',
     page: numberOrDefault(filters.page, 0),
     size: numberOrDefault(filters.size, 20),
@@ -223,7 +229,7 @@ function normalizeExpenseFilters(filters: Partial<ExpenseFilters>): ExpenseFilte
   };
 }
 
-function filtersForStorage(filters: ExpenseFilters): Omit<ExpenseFilters, 'page' | 'size'> {
+function filtersForStorage(filters: ExpenseFilters): Omit<ExpenseFilters, 'page' | 'size' | 'status'> {
   return {
     from: filters.from,
     to: filters.to,
@@ -232,7 +238,7 @@ function filtersForStorage(filters: ExpenseFilters): Omit<ExpenseFilters, 'page'
     paymentMethodId: filters.paymentMethodId,
     participantId: filters.participantId,
     paymentState: filters.paymentState,
-    status: filters.status,
+    expenseType: filters.expenseType,
     sort: filters.sort
   };
 }

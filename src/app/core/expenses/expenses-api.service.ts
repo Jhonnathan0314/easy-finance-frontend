@@ -57,6 +57,7 @@ function normalizeFilters(filters: ExpenseListFilters): Record<string, string | 
     paymentMethodId: filters.paymentMethodId,
     participantId: filters.participantId,
     paymentState: filters.paymentState,
+    expenseType: filters.expenseType,
     status: filters.status ?? 'ACTIVE',
     page: filters.page ?? 0,
     size: filters.size ?? 20,

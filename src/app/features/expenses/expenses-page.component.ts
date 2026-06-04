@@ -14,6 +14,7 @@ import {
   ExpensePaymentState,
   ExpenseResponseDto,
   ExpenseStatus,
+  ExpenseType,
   PaymentMethodResponseDto
 } from '../../shared/models';
 import { enumLabel } from '../../shared/ui/enum-labels';
@@ -111,10 +112,11 @@ type ExpenseDateSort = 'expenseDate,asc' | 'expenseDate,desc';
           </select>
         </label>
         <label>
-          <span>Status</span>
-          <select formControlName="status">
-            @for (status of expenseStatuses; track status) {
-              <option [value]="status">{{ enumLabel(status) }}</option>
+          <span>Tipo de gasto</span>
+          <select formControlName="expenseType">
+            <option value="">Todos</option>
+            @for (type of expenseTypes; track type) {
+              <option [value]="type">{{ enumLabel(type) }}</option>
             }
           </select>
         </label>
@@ -365,7 +367,6 @@ type ExpenseDateSort = 'expenseDate,asc' | 'expenseDate,desc';
               <strong>{{ expense.amount | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
               <div class="badges">
                 <span>{{ enumLabel(expense.paymentState) }}</span>
-                <span [class.cancelled]="expense.status === 'CANCELLED'">{{ enumLabel(expense.status) }}</span>
                 <span>{{ enumLabel(expense.expenseType) }}</span>
               </div>
               <div class="actions">
@@ -436,7 +437,7 @@ export class ExpensesPageComponent implements OnInit {
   });
 
   readonly paymentStates: ExpensePaymentState[] = ['PENDING', 'PARTIAL', 'PAID'];
-  readonly expenseStatuses: ExpenseStatus[] = ['ACTIVE', 'CANCELLED'];
+  readonly expenseTypes: ExpenseType[] = ['SIMPLE', 'INSTALLMENT'];
   readonly pageSizeOptions = [10, 20, 50, 100];
   readonly dateSortOptions: Array<{ label: string; value: ExpenseDateSort }> = [
     { label: 'Fecha descendente', value: 'expenseDate,desc' },
@@ -453,7 +454,7 @@ export class ExpensesPageComponent implements OnInit {
     categoryId: [''],
     paymentMethodId: [''],
     paymentState: [''],
-    status: ['ACTIVE']
+    expenseType: ['']
   });
 
   readonly quickExpenseForm = this.fb.group({
@@ -518,7 +519,8 @@ export class ExpensesPageComponent implements OnInit {
         categoryId: toNumberOrNull(raw.categoryId),
         paymentMethodId: toNumberOrNull(raw.paymentMethodId),
         paymentState: raw.paymentState ? (raw.paymentState as ExpensePaymentState) : null,
-        status: raw.status as ExpenseStatus,
+        expenseType: raw.expenseType ? (raw.expenseType as ExpenseType) : null,
+        status: 'ACTIVE',
         page: 0
       }, { persist: true })
       .pipe(take(1))
@@ -923,6 +925,7 @@ export class ExpensesPageComponent implements OnInit {
     categoryId: number | null;
     paymentMethodId: number | null;
     paymentState: ExpensePaymentState | null;
+    expenseType: ExpenseType | null;
     status: ExpenseStatus;
   }): void {
     this.filterForm.patchValue({
@@ -932,7 +935,7 @@ export class ExpensesPageComponent implements OnInit {
       categoryId: filters.categoryId ? String(filters.categoryId) : '',
       paymentMethodId: filters.paymentMethodId ? String(filters.paymentMethodId) : '',
       paymentState: filters.paymentState ?? '',
-      status: filters.status
+      expenseType: filters.expenseType ?? ''
     });
   }
 }

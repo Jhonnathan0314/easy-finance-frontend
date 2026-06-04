@@ -66,6 +66,7 @@ export interface ExpenseListFilters {
   paymentMethodId?: number | null;
   participantId?: number | null;
   paymentState?: ExpensePaymentState | null;
+  expenseType?: ExpenseType | null;
   status?: ExpenseStatus | null;
   page?: number | null;
   size?: number | null;

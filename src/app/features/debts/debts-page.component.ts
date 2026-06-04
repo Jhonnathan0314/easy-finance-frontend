@@ -75,10 +75,6 @@ import { enumLabel } from '../../shared/ui/enum-labels';
           </select>
         </label>
         <label>
-          <span>Participante</span>
-          <input type="number" min="1" formControlName="participantId">
-        </label>
-        <label>
           <span>Desde</span>
           <input type="date" formControlName="from">
         </label>
@@ -389,7 +385,6 @@ export class DebtsPageComponent implements OnInit {
   readonly debtFilterForm = this.fb.group({
     state: ['ACTIVE' as DebtState],
     sourceType: [''],
-    participantId: [''],
     from: [''],
     to: ['']
   });
@@ -442,7 +437,7 @@ export class DebtsPageComponent implements OnInit {
       .loadDebts(this.accountId(), {
         state: raw.state,
         sourceType: raw.sourceType ? (raw.sourceType as DebtSourceType) : null,
-        participantId: toNumberOrNull(raw.participantId),
+        participantId: null,
         from: raw.from || null,
         to: raw.to || null
       },
@@ -719,7 +714,6 @@ export class DebtsPageComponent implements OnInit {
     this.debtFilterForm.patchValue({
       state: filters.state,
       sourceType: filters.sourceType ?? '',
-      participantId: filters.participantId?.toString() ?? '',
       from: filters.from ?? '',
       to: filters.to ?? ''
     });
@@ -766,8 +760,4 @@ function today(): string {
 
 function toCents(value: number): number {
   return Math.round(value * 100);
-}
-
-function toNumberOrNull(value: string): number | null {
-  return value ? Number(value) : null;
 }

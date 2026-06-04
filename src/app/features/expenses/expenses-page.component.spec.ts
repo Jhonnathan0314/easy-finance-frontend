@@ -67,6 +67,7 @@ describe('ExpensesPageComponent', () => {
       paymentMethodId: null,
       participantId: null,
       paymentState: null,
+      expenseType: null,
       status: 'ACTIVE',
       page: 0,
       size: 20,
@@ -269,8 +270,8 @@ describe('ExpensesPageComponent', () => {
     expect(text).toContain('Food');
     expect(text).toContain('Cash');
     expect(text).toContain('Pagado');
-    expect(text).toContain('Activo');
     expect(text).toContain('Simple');
+    expect(text).not.toContain('Activo');
     expect(findButton(fixture, 'Detalle')).toBeUndefined();
   });
 
@@ -301,6 +302,7 @@ describe('ExpensesPageComponent', () => {
         participantId: null,
         paymentState: 'PAID',
         status: 'CANCELLED',
+        expenseType: 'INSTALLMENT',
         page: 0,
         size: 20,
         sort: 'expenseDate,desc'
@@ -314,7 +316,7 @@ describe('ExpensesPageComponent', () => {
     expect(raw.categoryId).toBe('1');
     expect(raw.paymentMethodId).toBe('2');
     expect(raw.paymentState).toBe('PAID');
-    expect(raw.status).toBe('CANCELLED');
+    expect(raw.expenseType).toBe('INSTALLMENT');
   });
 
   it('opens quick expense panel and focuses amount', fakeAsync(() => {
@@ -436,12 +438,12 @@ describe('ExpensesPageComponent', () => {
     const fixture = configure();
     const store = TestBed.inject(ExpensesStore) as jasmine.SpyObj<ExpensesStore>;
 
-    fixture.componentInstance.filterForm.patchValue({ search: 'lunch', from: '2026-05-01', status: 'CANCELLED' });
+    fixture.componentInstance.filterForm.patchValue({ search: 'lunch', from: '2026-05-01', expenseType: 'INSTALLMENT' });
     fixture.componentInstance.clearFilters();
 
     expect(store.clearPersistedFilters).toHaveBeenCalledWith(1);
     expect(store.loadExpenses).toHaveBeenCalledWith(1, jasmine.objectContaining({ status: 'ACTIVE' }));
-    expect(fixture.componentInstance.filterForm.getRawValue().status).toBe('ACTIVE');
+    expect(fixture.componentInstance.filterForm.getRawValue().expenseType).toBe('');
     expect(fixture.componentInstance.filterForm.getRawValue().search).toBe('');
     expect(fixture.componentInstance.filterForm.getRawValue().from).toBe('');
   });
@@ -451,12 +453,12 @@ describe('ExpensesPageComponent', () => {
     const store = TestBed.inject(ExpensesStore) as jasmine.SpyObj<ExpensesStore>;
 
     store.loadExpenses.calls.reset();
-    fixture.componentInstance.filterForm.patchValue({ search: '  lunch  ', from: '2026-05-01', status: 'CANCELLED' });
+    fixture.componentInstance.filterForm.patchValue({ search: '  lunch  ', from: '2026-05-01', expenseType: 'INSTALLMENT' });
     fixture.componentInstance.applyFilters();
 
     expect(store.loadExpenses).toHaveBeenCalledWith(
       1,
-      jasmine.objectContaining({ search: 'lunch', from: '2026-05-01', status: 'CANCELLED', page: 0 }),
+      jasmine.objectContaining({ search: 'lunch', from: '2026-05-01', expenseType: 'INSTALLMENT', status: 'ACTIVE', page: 0 }),
       { persist: true }
     );
   });
@@ -467,6 +469,30 @@ describe('ExpensesPageComponent', () => {
 
     expect(fixture.nativeElement.textContent).toContain('Buscar descripcion');
     expect(searchInput?.placeholder).toBe('Buscar gasto por descripcion');
+  });
+
+  it('shows expense type filter instead of status filter', () => {
+    const fixture = configure();
+    const root = fixture.nativeElement as HTMLElement;
+
+    expect(root.textContent).toContain('Tipo de gasto');
+    expect(root.querySelector('[formcontrolname="expenseType"]')).not.toBeNull();
+    expect(root.querySelector('[formcontrolname="status"]')).toBeNull();
+  });
+
+  it('applies expense type filter while keeping active status internally', () => {
+    const fixture = configure();
+    const store = TestBed.inject(ExpensesStore) as jasmine.SpyObj<ExpensesStore>;
+
+    store.loadExpenses.calls.reset();
+    fixture.componentInstance.filterForm.patchValue({ expenseType: 'SIMPLE' });
+    fixture.componentInstance.applyFilters();
+
+    expect(store.loadExpenses).toHaveBeenCalledWith(
+      1,
+      jasmine.objectContaining({ expenseType: 'SIMPLE', status: 'ACTIVE', page: 0 }),
+      { persist: true }
+    );
   });
 
   it('clears blank search when applying filters', () => {

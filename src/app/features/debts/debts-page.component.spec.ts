@@ -434,7 +434,6 @@ describe('DebtsPageComponent', () => {
     expect(component.debtFilterForm.getRawValue()).toEqual({
       state: 'PAID',
       sourceType: 'MANUAL',
-      participantId: '7',
       from: '2026-05-01',
       to: '2026-05-31'
     });
@@ -452,12 +451,12 @@ describe('DebtsPageComponent', () => {
     const store = TestBed.inject(DebtsStore) as jasmine.SpyObj<DebtsStore>;
 
     store.loadDebts.calls.reset();
-    component.debtFilterForm.patchValue({ state: 'PAID', sourceType: 'MANUAL', participantId: '7' });
+    component.debtFilterForm.patchValue({ state: 'PAID', sourceType: 'MANUAL' });
     component.applyDebtFilters();
 
     expect(store.loadDebts).toHaveBeenCalledWith(
       1,
-      jasmine.objectContaining({ state: 'PAID', sourceType: 'MANUAL', participantId: 7 }),
+      jasmine.objectContaining({ state: 'PAID', sourceType: 'MANUAL', participantId: null }),
       { persist: true }
     );
 
@@ -467,6 +466,13 @@ describe('DebtsPageComponent', () => {
     expect(store.clearPersistedFilters).toHaveBeenCalledWith(1);
     expect(store.loadDebts).toHaveBeenCalledWith(1);
     expect(store.loadPayments).toHaveBeenCalledWith(1, 1);
+  });
+
+  it('does not render participant id debt filter', () => {
+    const fixture = configure();
+
+    expect(fixture.nativeElement.textContent).not.toContain('Participante');
+    expect(fixture.nativeElement.querySelector('[formcontrolname="participantId"]')).toBeNull();
   });
 
   it('shows empty state when there are no debts', () => {
