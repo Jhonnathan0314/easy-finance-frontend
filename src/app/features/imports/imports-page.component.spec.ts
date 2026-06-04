@@ -575,6 +575,17 @@ describe('ImportsPageComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Cargar otro archivo');
   });
 
+  it('shows the updated expense row limit without changing income import guidance', () => {
+    const fixture = configure();
+
+    expect(fixture.nativeElement.textContent).toContain('maximo 1500 filas');
+
+    fixture.componentInstance.activeMode.set('incomes');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('maximo 1000 filas');
+  });
+
   it('clears selected file, preview, messages and row filter', () => {
     const fixture = configure({ batch: debtPaymentBatch });
     const component = fixture.componentInstance;

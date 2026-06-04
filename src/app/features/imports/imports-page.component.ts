@@ -81,7 +81,7 @@ export const ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME = 'easy-finance-annual-budge
           <p class="form-error" role="alert">{{ templateError }}</p>
         }
         <ul>
-          <li>Solo .xlsx, maximo 5MB y maximo 1000 filas.</li>
+          <li>Solo .xlsx, maximo 5MB y maximo 1500 filas.</li>
           <li>La categoría debe existir, estar activa y ser de gasto.</li>
           <li>MedioPago debe existir y estar activo.</li>
           <li>EstadoPago: PENDING, PARTIAL, PAID.</li>
@@ -2030,7 +2030,7 @@ export class ImportsPageComponent {
       IMPORT_FILE_INVALID_TYPE: 'El archivo debe ser .xlsx.',
       IMPORT_FILE_TOO_LARGE: 'El archivo supera el tamano maximo permitido.',
       IMPORT_TEMPLATE_INVALID: 'La plantilla no tiene las cabeceras esperadas.',
-      IMPORT_ROW_LIMIT_EXCEEDED: 'El archivo supera el limite de filas.',
+      IMPORT_ROW_LIMIT_EXCEEDED: 'El archivo supera el limite de 1500 filas.',
       IMPORT_BATCH_NOT_FOUND: 'No se encontro el batch de importacion.',
       IMPORT_ALREADY_CONFIRMED: 'Este batch ya fue confirmado.',
       IMPORT_NOT_CONFIRMABLE: 'Este batch no se puede confirmar.',
