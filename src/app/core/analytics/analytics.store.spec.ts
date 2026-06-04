@@ -8,7 +8,8 @@ import {
   CashflowSummaryResponseDto,
   CategoryBreakdownResponseDto,
   ExpenseSummaryResponseDto,
-  PaymentMethodBreakdownResponseDto
+  PaymentMethodBreakdownResponseDto,
+  PaymentMethodTypeBreakdownResponseDto
 } from '../../shared/models';
 import { AnalyticsApiService } from './analytics-api.service';
 import { AnalyticsStore, monthDateRange, monthPeriodFromRange } from './analytics.store';
@@ -76,6 +77,12 @@ describe('AnalyticsStore', () => {
     to: '2026-05-31',
     items: [{ paymentMethodId: 1, paymentMethodName: 'Cash', amount: 500000, count: 2 }]
   };
+  const expensesByPaymentMethodType: PaymentMethodTypeBreakdownResponseDto = {
+    accountId: 1,
+    from: '2026-05-01',
+    to: '2026-05-31',
+    items: [{ paymentMethodType: 'CREDIT_CARD', amount: 420000, count: 3 }]
+  };
   const incomesByCategory: CategoryBreakdownResponseDto = {
     accountId: 1,
     from: '2026-05-01',
@@ -112,6 +119,7 @@ describe('AnalyticsStore', () => {
       'getCashflow',
       'getExpensesByCategory',
       'getExpensesByPaymentMethod',
+      'getExpensesByPaymentMethodType',
       'getIncomesByCategory',
       'getBudgetVsExpensesByCategory'
     ]);
@@ -120,6 +128,7 @@ describe('AnalyticsStore', () => {
     service.getCashflow.and.returnValue(of(cashflowTimeline));
     service.getExpensesByCategory.and.returnValue(of(expensesByCategory));
     service.getExpensesByPaymentMethod.and.returnValue(of(expensesByPaymentMethod));
+    service.getExpensesByPaymentMethodType.and.returnValue(of(expensesByPaymentMethodType));
     service.getIncomesByCategory.and.returnValue(of(incomesByCategory));
     service.getBudgetVsExpensesByCategory.and.returnValue(of(budgetVsExpensesByCategoryResponse));
 
@@ -139,9 +148,16 @@ describe('AnalyticsStore', () => {
       expect(store.cashflowTimeline()).toEqual(cashflowTimeline);
       expect(store.expensesByCategory()).toEqual(expensesByCategory);
       expect(store.expensesByPaymentMethod()).toEqual(expensesByPaymentMethod);
+      expect(store.expensesByPaymentMethodType()).toEqual(expensesByPaymentMethodType);
       expect(store.incomesByCategory()).toEqual(incomesByCategory);
       expect(store.budgetVsExpensesByCategory()).toEqual(budgetVsExpensesByCategory);
       expect(service.getCashflow).toHaveBeenCalledWith(1, '2026-05-01', '2026-05-31', 'WEEK', store.filters());
+      expect(service.getExpensesByPaymentMethodType).toHaveBeenCalledWith(
+        1,
+        '2026-05-01',
+        '2026-05-31',
+        store.filters()
+      );
       expect(service.getBudgetVsExpensesByCategory).toHaveBeenCalledWith(1, 2026, 5);
       done();
     });

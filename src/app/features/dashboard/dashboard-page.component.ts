@@ -11,11 +11,11 @@ import {
   CashflowGroupBy,
   CashflowItemDto,
   CategoryAmountItemDto,
-  PaymentMethodAmountItemDto
+  PaymentMethodAmountItemDto,
+  PaymentMethodTypeAmountItemDto
 } from '../../shared/models';
 import { enumLabel } from '../../shared/ui/enum-labels';
 
-type QuickPreset = 'THIS_MONTH' | 'LAST_30_DAYS' | 'LAST_3_MONTHS' | 'THIS_YEAR';
 type DashboardTab = 'summary' | 'cashflow' | 'expenses' | 'budget';
 
 @Component({
@@ -36,45 +36,6 @@ type DashboardTab = 'summary' | 'cashflow' | 'expenses' | 'budget';
       </div>
 
       <form class="panel filters-panel" [formGroup]="filtersForm" (ngSubmit)="loadDashboard()">
-        <div class="quick-presets" aria-label="Presets de periodo">
-          <button
-            type="button"
-            class="quick-preset-button"
-            [class.active]="activePreset() === 'THIS_MONTH'"
-            [attr.aria-pressed]="activePreset() === 'THIS_MONTH'"
-            (click)="applyPreset('THIS_MONTH')"
-          >
-            Este mes
-          </button>
-          <button
-            type="button"
-            class="quick-preset-button"
-            [class.active]="activePreset() === 'LAST_30_DAYS'"
-            [attr.aria-pressed]="activePreset() === 'LAST_30_DAYS'"
-            (click)="applyPreset('LAST_30_DAYS')"
-          >
-            Ultimos 30 dias
-          </button>
-          <button
-            type="button"
-            class="quick-preset-button"
-            [class.active]="activePreset() === 'LAST_3_MONTHS'"
-            [attr.aria-pressed]="activePreset() === 'LAST_3_MONTHS'"
-            (click)="applyPreset('LAST_3_MONTHS')"
-          >
-            Ultimos 3 meses
-          </button>
-          <button
-            type="button"
-            class="quick-preset-button"
-            [class.active]="activePreset() === 'THIS_YEAR'"
-            [attr.aria-pressed]="activePreset() === 'THIS_YEAR'"
-            (click)="applyPreset('THIS_YEAR')"
-          >
-            Este anio
-          </button>
-        </div>
-
         <div class="filters specific-month-filter" aria-label="Mes especifico">
           <label>
             <span>Anio</span>
@@ -381,6 +342,33 @@ type DashboardTab = 'summary' | 'cashflow' | 'expenses' | 'budget';
 
             <section class="panel breakdown-panel">
               <div class="section-heading">
+                <h2>Gastos por tipo de medio de pago</h2>
+                @if (analyticsStore.expensesByPaymentMethodType(); as breakdown) {
+                  <span>{{ breakdown.from }} a {{ breakdown.to }}</span>
+                }
+              </div>
+              @if (analyticsStore.expensesByPaymentMethodType()?.items?.length) {
+                <div class="breakdown-list">
+                  @for (item of analyticsStore.expensesByPaymentMethodType()?.items ?? []; track item.paymentMethodType) {
+                    <article class="breakdown-row payment-type">
+                      <div class="row-heading">
+                        <strong>{{ enumLabel(item.paymentMethodType) }}</strong>
+                        <span>{{ item.count }} registros</span>
+                      </div>
+                      <div class="bar-track">
+                        <span [style.width.%]="paymentMethodTypePercent(item, analyticsStore.expensesByPaymentMethodType()?.items ?? [])"></span>
+                      </div>
+                      <strong>{{ item.amount | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
+                    </article>
+                  }
+                </div>
+              } @else {
+                <p class="muted">No hay gastos por tipo de medio de pago para este rango.</p>
+              }
+            </section>
+
+            <section class="panel breakdown-panel">
+              <div class="section-heading">
                 <h2>Ingresos por categoria</h2>
                 @if (analyticsStore.incomesByCategory(); as breakdown) {
                   <span>{{ breakdown.from }} a {{ breakdown.to }}</span>
@@ -532,16 +520,6 @@ export class DashboardPageComponent implements OnInit {
     this.loadDashboard();
   }
 
-  applyPreset(preset: QuickPreset, reload = true): void {
-    const range = presetRange(preset);
-    this.filtersForm.patchValue({ from: range.from, to: range.to });
-    this.syncSpecificMonthFromRange();
-
-    if (reload) {
-      this.loadDashboard();
-    }
-  }
-
   applySpecificMonth(): void {
     const raw = this.filtersForm.getRawValue();
     const year = nullableNumber(raw.specificYear);
@@ -556,16 +534,6 @@ export class DashboardPageComponent implements OnInit {
     this.filtersForm.patchValue({ from: range.from, to: range.to });
     this.localError.set(null);
     this.loadDashboard();
-  }
-
-  activePreset(): QuickPreset | null {
-    const raw = this.filtersForm.getRawValue();
-    const presets: QuickPreset[] = ['THIS_MONTH', 'LAST_30_DAYS', 'LAST_3_MONTHS', 'THIS_YEAR'];
-
-    return presets.find((preset) => {
-      const range = presetRange(preset);
-      return raw.from === range.from && raw.to === range.to;
-    }) ?? null;
   }
 
   loadDashboard(): void {
@@ -684,6 +652,10 @@ export class DashboardPageComponent implements OnInit {
     return amountPercent(item.amount, items.map((entry) => entry.amount));
   }
 
+  paymentMethodTypePercent(item: PaymentMethodTypeAmountItemDto, items: PaymentMethodTypeAmountItemDto[]): number {
+    return amountPercent(item.amount, items.map((entry) => entry.amount));
+  }
+
   cashflowPercent(amount: number): number {
     const items = this.analyticsStore.cashflowTimeline()?.items ?? [];
     return amountPercent(
@@ -718,42 +690,6 @@ export class DashboardPageComponent implements OnInit {
 
     return messages[code] ?? fallback;
   }
-}
-
-function presetRange(preset: QuickPreset): { from: string; to: string } {
-  const today = new Date();
-
-  if (preset === 'THIS_MONTH') {
-    return {
-      from: toDateInputValue(new Date(today.getFullYear(), today.getMonth(), 1)),
-      to: toDateInputValue(new Date(today.getFullYear(), today.getMonth() + 1, 0))
-    };
-  }
-
-  if (preset === 'LAST_30_DAYS') {
-    const from = new Date(today);
-    from.setDate(today.getDate() - 29);
-    return { from: toDateInputValue(from), to: toDateInputValue(today) };
-  }
-
-  if (preset === 'LAST_3_MONTHS') {
-    return {
-      from: toDateInputValue(new Date(today.getFullYear(), today.getMonth() - 2, 1)),
-      to: toDateInputValue(new Date(today.getFullYear(), today.getMonth() + 1, 0))
-    };
-  }
-
-  return {
-    from: toDateInputValue(new Date(today.getFullYear(), 0, 1)),
-    to: toDateInputValue(new Date(today.getFullYear(), 11, 31))
-  };
-}
-
-function toDateInputValue(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
 }
 
 function parseDate(value: string): Date | null {

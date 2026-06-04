@@ -11,7 +11,8 @@ import {
   CashflowSummaryResponseDto,
   CategoryBreakdownResponseDto,
   ExpenseSummaryResponseDto,
-  PaymentMethodBreakdownResponseDto
+  PaymentMethodBreakdownResponseDto,
+  PaymentMethodTypeBreakdownResponseDto
 } from '../../shared/models';
 import { DashboardPageComponent } from './dashboard-page.component';
 
@@ -68,6 +69,15 @@ describe('DashboardPageComponent', () => {
     to: '2026-05-31',
     items: [{ paymentMethodId: 1, paymentMethodName: 'Cash', amount: 500000, count: 2 }]
   };
+  const expensesByPaymentMethodType: PaymentMethodTypeBreakdownResponseDto = {
+    accountId: 1,
+    from: '2026-05-01',
+    to: '2026-05-31',
+    items: [
+      { paymentMethodType: 'CREDIT_CARD', amount: 420000, count: 3 },
+      { paymentMethodType: 'CASH', amount: 210000, count: 2 }
+    ]
+  };
   const incomesByCategory: CategoryBreakdownResponseDto = {
     accountId: 1,
     from: '2026-05-01',
@@ -100,6 +110,7 @@ describe('DashboardPageComponent', () => {
       cashflowTimeline?: CashflowResponseDto | null;
       expensesByCategory?: CategoryBreakdownResponseDto | null;
       expensesByPaymentMethod?: PaymentMethodBreakdownResponseDto | null;
+      expensesByPaymentMethodType?: PaymentMethodTypeBreakdownResponseDto | null;
       incomesByCategory?: CategoryBreakdownResponseDto | null;
       budgetVsExpensesByCategory?: BudgetVsExpensesByCategoryItemDto[] | null;
       error?: ApiErrorResponse | null;
@@ -141,6 +152,11 @@ describe('DashboardPageComponent', () => {
               Object.prototype.hasOwnProperty.call(options, 'expensesByPaymentMethod')
                 ? options.expensesByPaymentMethod ?? null
                 : expensesByPaymentMethod
+            ),
+            expensesByPaymentMethodType: signal(
+              Object.prototype.hasOwnProperty.call(options, 'expensesByPaymentMethodType')
+                ? options.expensesByPaymentMethodType ?? null
+                : expensesByPaymentMethodType
             ),
             incomesByCategory: signal(
               Object.prototype.hasOwnProperty.call(options, 'incomesByCategory')
@@ -189,6 +205,10 @@ describe('DashboardPageComponent', () => {
     expect(text).toContain('Gastos');
     expect(text).toContain('Presupuesto');
     expect(fixture.nativeElement.querySelector('.dashboard-tabs button.active')?.textContent).toContain('Resumen');
+    expect(text).not.toContain('Este mes');
+    expect(text).not.toContain('Ultimos 30 dias');
+    expect(text).not.toContain('Ultimos 3 meses');
+    expect(text).not.toContain('Este anio');
     expect(text).toContain('Aplicar mes');
     expect(text).toContain('Marzo');
     expect(text).toContain('Desde');
@@ -219,17 +239,6 @@ describe('DashboardPageComponent', () => {
     fixture.componentInstance.loadDashboard();
 
     expect(fixture.componentInstance.localError()).toContain('24 meses');
-  });
-
-  it('applies quick presets', () => {
-    const fixture = configure();
-
-    fixture.componentInstance.applyPreset('THIS_YEAR', false);
-
-    const raw = fixture.componentInstance.filtersForm.getRawValue();
-    const currentYear = new Date().getFullYear();
-    expect(raw.from).toBe(`${currentYear}-01-01`);
-    expect(raw.to).toBe(`${currentYear}-12-31`);
   });
 
   it('applies a specific month range', () => {
@@ -288,32 +297,6 @@ describe('DashboardPageComponent', () => {
     }));
   });
 
-  it('marks the matching quick preset as active', () => {
-    const fixture = configure();
-    const currentYear = new Date().getFullYear();
-
-    fixture.componentInstance.applyPreset('THIS_YEAR', false);
-    fixture.detectChanges();
-
-    const activeButton = fixture.nativeElement.querySelector('.quick-preset-button.active');
-    expect(activeButton?.textContent).toContain('Este anio');
-    expect(activeButton?.getAttribute('aria-pressed')).toBe('true');
-    expect(fixture.componentInstance.filtersForm.getRawValue()).toEqual(jasmine.objectContaining({
-      from: `${currentYear}-01-01`,
-      to: `${currentYear}-12-31`
-    }));
-  });
-
-  it('does not mark quick presets active when manual dates do not match', () => {
-    const fixture = configure();
-
-    fixture.componentInstance.filtersForm.patchValue({ from: '2026-02-03', to: '2026-04-05' });
-    fixture.detectChanges();
-
-    expect(fixture.componentInstance.activePreset()).toBeNull();
-    expect(fixture.nativeElement.querySelector('.quick-preset-button.active')).toBeNull();
-  });
-
   it('loads persisted filters on init', () => {
     const fixture = configure({
       persistedFilters: {
@@ -343,19 +326,6 @@ describe('DashboardPageComponent', () => {
     expect(raw.incomeStatus).toBe('CANCELLED');
     expect(raw.expenseType).toBe('SIMPLE');
     expect(raw.groupBy).toBe('DAY');
-  });
-
-  it('quick presets reload through the store so filters are persisted', () => {
-    const fixture = configure();
-    const store = TestBed.inject(AnalyticsStore) as jasmine.SpyObj<AnalyticsStore>;
-    store.applyFilters.calls.reset();
-
-    fixture.componentInstance.applyPreset('THIS_YEAR');
-
-    expect(store.applyFilters).toHaveBeenCalledWith(1, jasmine.objectContaining({
-      from: `${new Date().getFullYear()}-01-01`,
-      to: `${new Date().getFullYear()}-12-31`
-    }));
   });
 
   it('clears persisted filters and reloads defaults without persisting', () => {
@@ -394,8 +364,19 @@ describe('DashboardPageComponent', () => {
     expect(text).toContain('Food');
     expect(text).toContain('Gastos por medio de pago');
     expect(text).toContain('Cash');
+    expect(text).toContain('Gastos por tipo de medio de pago');
+    expect(text).toContain('Tarjeta de credito');
+    expect(text).toContain('3 registros');
     expect(text).toContain('Ingresos por categoria');
     expect(text).toContain('Salary');
+  });
+
+  it('shows payment method type empty state in the expenses tab', () => {
+    const fixture = configure({ expensesByPaymentMethodType: { ...expensesByPaymentMethodType, items: [] } });
+
+    clickTab(fixture, 'Gastos');
+
+    expect(fixture.nativeElement.textContent).toContain('No hay gastos por tipo de medio de pago para este rango');
   });
 
   it('shows monthly budget versus expenses comparison', () => {
@@ -451,6 +432,7 @@ describe('DashboardPageComponent', () => {
       cashflowTimeline: { ...cashflowTimeline, items: [] },
       expensesByCategory: { ...expensesByCategory, items: [] },
       expensesByPaymentMethod: { ...expensesByPaymentMethod, items: [] },
+      expensesByPaymentMethodType: { ...expensesByPaymentMethodType, items: [] },
       incomesByCategory: { ...incomesByCategory, items: [] },
       budgetVsExpensesByCategory: [],
       empty: true
@@ -493,5 +475,6 @@ describe('DashboardPageComponent', () => {
     expect(component.categoryPercent(expensesByCategory.items[0], expensesByCategory.items)).toBe(100);
     expect(component.categoryPercent(expensesByCategory.items[1], expensesByCategory.items)).toBe(50);
     expect(component.paymentMethodPercent(expensesByPaymentMethod.items[0], expensesByPaymentMethod.items)).toBe(100);
+    expect(component.paymentMethodTypePercent(expensesByPaymentMethodType.items[1], expensesByPaymentMethodType.items)).toBe(50);
   });
 });

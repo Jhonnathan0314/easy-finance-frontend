@@ -12,7 +12,8 @@ import {
   DebtSummaryResponseDto,
   ExpenseSummaryResponseDto,
   MonthlySummaryResponseDto,
-  PaymentMethodBreakdownResponseDto
+  PaymentMethodBreakdownResponseDto,
+  PaymentMethodTypeBreakdownResponseDto
 } from '../../shared/models';
 import { ApiClient } from '../http/api-client';
 
@@ -93,6 +94,22 @@ export class AnalyticsApiService {
       to,
       ...expenseQuery(filters)
     });
+  }
+
+  getExpensesByPaymentMethodType(
+    accountId: number,
+    from: string,
+    to: string,
+    filters: Partial<AnalyticsDashboardFilters> = {}
+  ): Observable<PaymentMethodTypeBreakdownResponseDto> {
+    return this.api.get<PaymentMethodTypeBreakdownResponseDto>(
+      `/accounts/${accountId}/analytics/expenses-by-payment-method-type`,
+      {
+        from,
+        to,
+        ...expenseQuery(filters)
+      }
+    );
   }
 
   getIncomesByCategory(

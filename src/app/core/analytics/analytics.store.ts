@@ -11,7 +11,8 @@ import {
   CashflowSummaryResponseDto,
   CategoryBreakdownResponseDto,
   ExpenseSummaryResponseDto,
-  PaymentMethodBreakdownResponseDto
+  PaymentMethodBreakdownResponseDto,
+  PaymentMethodTypeBreakdownResponseDto
 } from '../../shared/models';
 import { FeatureFilterStorageService } from '../filters/feature-filter-storage.service';
 import { AnalyticsApiService } from './analytics-api.service';
@@ -27,6 +28,7 @@ export interface AdvancedDashboardResponse {
   cashflowTimeline: CashflowResponseDto;
   expensesByCategory: CategoryBreakdownResponseDto;
   expensesByPaymentMethod: PaymentMethodBreakdownResponseDto;
+  expensesByPaymentMethodType: PaymentMethodTypeBreakdownResponseDto;
   incomesByCategory: CategoryBreakdownResponseDto;
   budgetVsExpensesByCategory: BudgetVsExpensesByCategoryResponseDto | null;
 }
@@ -50,6 +52,7 @@ export class AnalyticsStore {
   readonly cashflowTimeline = signal<CashflowResponseDto | null>(null);
   readonly expensesByCategory = signal<CategoryBreakdownResponseDto | null>(null);
   readonly expensesByPaymentMethod = signal<PaymentMethodBreakdownResponseDto | null>(null);
+  readonly expensesByPaymentMethodType = signal<PaymentMethodTypeBreakdownResponseDto | null>(null);
   readonly incomesByCategory = signal<CategoryBreakdownResponseDto | null>(null);
   readonly budgetVsExpensesByCategory = signal<BudgetVsExpensesByCategoryItemDto[] | null>(null);
   readonly filters = signal<AnalyticsDashboardFilters>(this.defaultFilters());
@@ -63,6 +66,7 @@ export class AnalyticsStore {
     const hasBreakdowns =
       Boolean(this.expensesByCategory()?.items.length) ||
       Boolean(this.expensesByPaymentMethod()?.items.length) ||
+      Boolean(this.expensesByPaymentMethodType()?.items.length) ||
       Boolean(this.incomesByCategory()?.items.length) ||
       Boolean(this.budgetVsExpensesByCategory()?.length);
 
@@ -125,6 +129,12 @@ export class AnalyticsStore {
       ),
       expensesByCategory: this.analyticsApi.getExpensesByCategory(accountId, normalized.from, normalized.to, normalized),
       expensesByPaymentMethod: this.analyticsApi.getExpensesByPaymentMethod(accountId, normalized.from, normalized.to, normalized),
+      expensesByPaymentMethodType: this.analyticsApi.getExpensesByPaymentMethodType(
+        accountId,
+        normalized.from,
+        normalized.to,
+        normalized
+      ),
       incomesByCategory: this.analyticsApi.getIncomesByCategory(accountId, normalized.from, normalized.to, normalized),
       budgetVsExpensesByCategory: monthlyPeriod
         ? this.analyticsApi.getBudgetVsExpensesByCategory(accountId, monthlyPeriod.year, monthlyPeriod.month)
@@ -182,6 +192,7 @@ export class AnalyticsStore {
   loadCategoryBreakdowns(accountId: number, filters: AnalyticsDashboardFilters = this.filters()): Observable<{
     expensesByCategory: CategoryBreakdownResponseDto;
     expensesByPaymentMethod: PaymentMethodBreakdownResponseDto;
+    expensesByPaymentMethodType: PaymentMethodTypeBreakdownResponseDto;
     incomesByCategory: CategoryBreakdownResponseDto;
   }> {
     this.ensureAccount(accountId);
@@ -192,11 +203,18 @@ export class AnalyticsStore {
     return forkJoin({
       expensesByCategory: this.analyticsApi.getExpensesByCategory(accountId, normalized.from, normalized.to, normalized),
       expensesByPaymentMethod: this.analyticsApi.getExpensesByPaymentMethod(accountId, normalized.from, normalized.to, normalized),
+      expensesByPaymentMethodType: this.analyticsApi.getExpensesByPaymentMethodType(
+        accountId,
+        normalized.from,
+        normalized.to,
+        normalized
+      ),
       incomesByCategory: this.analyticsApi.getIncomesByCategory(accountId, normalized.from, normalized.to, normalized)
     }).pipe(
       tap((response) => {
         this.expensesByCategory.set(response.expensesByCategory);
         this.expensesByPaymentMethod.set(response.expensesByPaymentMethod);
+        this.expensesByPaymentMethodType.set(response.expensesByPaymentMethodType);
         this.incomesByCategory.set(response.incomesByCategory);
       }),
       catchError((error: unknown) => this.handleError(error)),
@@ -224,6 +242,7 @@ export class AnalyticsStore {
     this.cashflowTimeline.set(response.cashflowTimeline);
     this.expensesByCategory.set(response.expensesByCategory);
     this.expensesByPaymentMethod.set(response.expensesByPaymentMethod);
+    this.expensesByPaymentMethodType.set(response.expensesByPaymentMethodType);
     this.incomesByCategory.set(response.incomesByCategory);
     this.budgetVsExpensesByCategory.set(response.budgetVsExpensesByCategory?.items ?? null);
   }
@@ -234,6 +253,7 @@ export class AnalyticsStore {
     this.cashflowTimeline.set(null);
     this.expensesByCategory.set(null);
     this.expensesByPaymentMethod.set(null);
+    this.expensesByPaymentMethodType.set(null);
     this.incomesByCategory.set(null);
     this.budgetVsExpensesByCategory.set(null);
     this.loading.set(false);

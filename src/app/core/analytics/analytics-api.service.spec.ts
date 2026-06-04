@@ -48,11 +48,17 @@ describe('AnalyticsApiService', () => {
     service.getExpenseSummary(4, '2026-05-01', '2026-05-31', filters).subscribe();
     service.getExpensesByCategory(4, '2026-05-01', '2026-05-31', filters).subscribe();
     service.getExpensesByPaymentMethod(4, '2026-05-01', '2026-05-31', filters).subscribe();
+    service.getExpensesByPaymentMethodType(4, '2026-05-01', '2026-05-31', filters).subscribe();
 
     const expectedQuery =
       '?from=2026-05-01&to=2026-05-31&categoryId=2&paymentMethodId=4&participantId=9&status=ACTIVE&paymentState=PAID&expenseType=SIMPLE';
 
-    for (const path of ['expense-summary', 'expenses-by-category', 'expenses-by-payment-method']) {
+    for (const path of [
+      'expense-summary',
+      'expenses-by-category',
+      'expenses-by-payment-method',
+      'expenses-by-payment-method-type'
+    ]) {
       const request = httpTesting.expectOne(`http://localhost:8080/api/v1/accounts/4/analytics/${path}${expectedQuery}`);
       expect(request.request.method).toBe('GET');
       request.flush({});

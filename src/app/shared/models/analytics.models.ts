@@ -117,6 +117,23 @@ export interface PaymentMethodBreakdownResponse {
 
 export type PaymentMethodBreakdownResponseDto = PaymentMethodBreakdownResponse;
 
+export interface PaymentMethodTypeAmountItem {
+  paymentMethodType: string;
+  amount: number;
+  count: number;
+}
+
+export type PaymentMethodTypeAmountItemDto = PaymentMethodTypeAmountItem;
+
+export interface PaymentMethodTypeBreakdownResponse {
+  accountId: number;
+  from: string;
+  to: string;
+  items: PaymentMethodTypeAmountItem[];
+}
+
+export type PaymentMethodTypeBreakdownResponseDto = PaymentMethodTypeBreakdownResponse;
+
 export interface DebtSummaryResponse {
   accountId: number;
   activeDebtsCount: number;

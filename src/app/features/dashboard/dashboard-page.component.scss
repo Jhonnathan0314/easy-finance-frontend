@@ -1,6 +1,5 @@
 .page-header,
 .filters,
-.quick-presets,
 .dashboard-tabs,
 .section-heading,
 .row-heading,
@@ -33,7 +32,6 @@
 }
 
 .filters,
-.quick-presets,
 .dashboard-tabs,
 .timeline-detail {
   flex-wrap: wrap;
@@ -41,11 +39,6 @@
 
 .filters {
   align-items: end;
-}
-
-.quick-presets {
-  border-bottom: 1px solid #edf1f6;
-  padding-bottom: 0.85rem;
 }
 
 .advanced-filters {
@@ -73,7 +66,6 @@
 }
 
 .filters button,
-.quick-presets button,
 .dashboard-tabs button,
 .error-panel button {
   border: 1px solid #c9d2df;
@@ -111,7 +103,6 @@
   font-weight: 700;
 }
 
-.quick-preset-button.active,
 .dashboard-tabs button.active {
   border-color: #2563eb;
   background: #eff6ff;
@@ -246,6 +237,10 @@
   background: #0f766e;
 }
 
+.breakdown-row.payment-type .bar-track span {
+  background: #7c3aed;
+}
+
 .timeline-bars {
   display: grid;
   grid-template-columns: 1fr;
@@ -303,7 +298,6 @@ button:disabled {
 @media (max-width: 760px) {
   .page-header,
   .filters,
-  .quick-presets,
   .dashboard-tabs,
   .section-heading,
   .row-heading {
