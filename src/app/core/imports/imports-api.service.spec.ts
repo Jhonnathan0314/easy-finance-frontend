@@ -67,6 +67,21 @@ describe('ImportsApiService', () => {
     request.flush(new Blob(['template']));
   });
 
+  it('builds income preview multipart request', () => {
+    const file = new File(['excel'], 'incomes.xlsx', {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+
+    service.previewIncomeImport(6, file).subscribe();
+
+    const request = httpTesting.expectOne('http://localhost:8080/api/v1/accounts/6/imports/incomes/preview');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body instanceof FormData).toBeTrue();
+    expect(request.request.body.get('file')).toBe(file);
+    expect(request.request.headers.has('Content-Type')).toBeFalse();
+    request.flush({ createdCount: 0, rows: [] });
+  });
+
   it('builds direct income import multipart request', () => {
     const file = new File(['excel'], 'incomes.xlsx', {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -89,6 +104,21 @@ describe('ImportsApiService', () => {
     expect(request.request.method).toBe('GET');
     expect(request.request.responseType).toBe('blob');
     request.flush(new Blob(['template']));
+  });
+
+  it('builds category preview multipart request', () => {
+    const file = new File(['excel'], 'categories.xlsx', {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+
+    service.previewCategoryImport(8, file).subscribe();
+
+    const request = httpTesting.expectOne('http://localhost:8080/api/v1/accounts/8/imports/categories/preview');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body instanceof FormData).toBeTrue();
+    expect(request.request.body.get('file')).toBe(file);
+    expect(request.request.headers.has('Content-Type')).toBeFalse();
+    request.flush({ createdCount: 0, rows: [] });
   });
 
   it('builds direct category import multipart request', () => {
@@ -115,6 +145,21 @@ describe('ImportsApiService', () => {
     request.flush(new Blob(['template']));
   });
 
+  it('builds payment method preview multipart request', () => {
+    const file = new File(['excel'], 'payment-methods.xlsx', {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+
+    service.previewPaymentMethodImport(10, file).subscribe();
+
+    const request = httpTesting.expectOne('http://localhost:8080/api/v1/accounts/10/imports/payment-methods/preview');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body instanceof FormData).toBeTrue();
+    expect(request.request.body.get('file')).toBe(file);
+    expect(request.request.headers.has('Content-Type')).toBeFalse();
+    request.flush({ createdCount: 0, rows: [] });
+  });
+
   it('builds direct payment method import multipart request', () => {
     const file = new File(['excel'], 'payment-methods.xlsx', {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -137,6 +182,21 @@ describe('ImportsApiService', () => {
     expect(request.request.method).toBe('GET');
     expect(request.request.responseType).toBe('blob');
     request.flush(new Blob(['template']));
+  });
+
+  it('builds annual budget preview multipart request', () => {
+    const file = new File(['excel'], 'annual-budget.xlsx', {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+
+    service.previewAnnualBudgetImport(12, file).subscribe();
+
+    const request = httpTesting.expectOne('http://localhost:8080/api/v1/accounts/12/imports/budgets/annual/preview');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body instanceof FormData).toBeTrue();
+    expect(request.request.body.get('file')).toBe(file);
+    expect(request.request.headers.has('Content-Type')).toBeFalse();
+    request.flush({ createdBudgetsCount: 0, createdSubBudgetsCount: 0, rows: [] });
   });
 
   it('builds annual budget import multipart request', () => {

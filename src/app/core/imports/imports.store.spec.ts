@@ -73,12 +73,16 @@ describe('ImportsStore', () => {
       'getExpenseImportBatch',
       'downloadExpenseImportTemplate',
       'downloadIncomeImportTemplate',
+      'previewIncomeImport',
       'importIncomes',
       'downloadCategoryImportTemplate',
+      'previewCategoryImport',
       'importCategories',
       'downloadPaymentMethodImportTemplate',
+      'previewPaymentMethodImport',
       'importPaymentMethods',
       'downloadAnnualBudgetImportTemplate',
+      'previewAnnualBudgetImport',
       'importAnnualBudget'
     ]);
     service.previewExpenseImport.and.returnValue(of(batch));
@@ -86,12 +90,16 @@ describe('ImportsStore', () => {
     service.getExpenseImportBatch.and.returnValue(of(batch));
     service.downloadExpenseImportTemplate.and.returnValue(of(new Blob(['template'])));
     service.downloadIncomeImportTemplate.and.returnValue(of(new Blob(['template'])));
+    service.previewIncomeImport.and.returnValue(of(incomeResult));
     service.importIncomes.and.returnValue(of(incomeResult));
     service.downloadCategoryImportTemplate.and.returnValue(of(new Blob(['template'])));
+    service.previewCategoryImport.and.returnValue(of(categoryResult));
     service.importCategories.and.returnValue(of(categoryResult));
     service.downloadPaymentMethodImportTemplate.and.returnValue(of(new Blob(['template'])));
+    service.previewPaymentMethodImport.and.returnValue(of(paymentMethodResult));
     service.importPaymentMethods.and.returnValue(of(paymentMethodResult));
     service.downloadAnnualBudgetImportTemplate.and.returnValue(of(new Blob(['template'])));
+    service.previewAnnualBudgetImport.and.returnValue(of(annualBudgetResult));
     service.importAnnualBudget.and.returnValue(of(annualBudgetResult));
 
     TestBed.configureTestingModule({
@@ -235,6 +243,21 @@ describe('ImportsStore', () => {
     });
   });
 
+  it('previews incomes and stores the stateless preview without importing', (done) => {
+    const incomeFile = new File(['excel'], 'incomes.xlsx');
+    store.selectIncomeFile(incomeFile);
+
+    store.previewIncomeFile(10).subscribe(() => {
+      expect(service.previewIncomeImport).toHaveBeenCalledWith(10, incomeFile);
+      expect(service.importIncomes).not.toHaveBeenCalled();
+      expect(store.currentIncomeImportPreview()).toEqual(incomeResult);
+      setTimeout(() => {
+        expect(store.isPreviewingIncome()).toBeFalse();
+        done();
+      });
+    });
+  });
+
   it('downloads category template', (done) => {
     store.downloadCategoryTemplate(10).subscribe((blob) => {
       expect(blob).toEqual(jasmine.any(Blob));
@@ -253,6 +276,21 @@ describe('ImportsStore', () => {
       expect(store.currentCategoryImportResult()).toEqual(categoryResult);
       setTimeout(() => {
         expect(store.isImportingCategory()).toBeFalse();
+        done();
+      });
+    });
+  });
+
+  it('previews categories and stores the stateless preview without importing', (done) => {
+    const categoryFile = new File(['excel'], 'categories.xlsx');
+    store.selectCategoryFile(categoryFile);
+
+    store.previewCategoryFile(10).subscribe(() => {
+      expect(service.previewCategoryImport).toHaveBeenCalledWith(10, categoryFile);
+      expect(service.importCategories).not.toHaveBeenCalled();
+      expect(store.currentCategoryImportPreview()).toEqual(categoryResult);
+      setTimeout(() => {
+        expect(store.isPreviewingCategory()).toBeFalse();
         done();
       });
     });
@@ -281,6 +319,21 @@ describe('ImportsStore', () => {
     });
   });
 
+  it('previews payment methods and stores the stateless preview without importing', (done) => {
+    const paymentMethodFile = new File(['excel'], 'payment-methods.xlsx');
+    store.selectPaymentMethodFile(paymentMethodFile);
+
+    store.previewPaymentMethodFile(10).subscribe(() => {
+      expect(service.previewPaymentMethodImport).toHaveBeenCalledWith(10, paymentMethodFile);
+      expect(service.importPaymentMethods).not.toHaveBeenCalled();
+      expect(store.currentPaymentMethodImportPreview()).toEqual(paymentMethodResult);
+      setTimeout(() => {
+        expect(store.isPreviewingPaymentMethod()).toBeFalse();
+        done();
+      });
+    });
+  });
+
   it('downloads annual budget template', (done) => {
     store.downloadAnnualBudgetTemplate(10).subscribe((blob) => {
       expect(blob).toEqual(jasmine.any(Blob));
@@ -299,6 +352,21 @@ describe('ImportsStore', () => {
       expect(store.currentAnnualBudgetImportResult()).toEqual(annualBudgetResult);
       setTimeout(() => {
         expect(store.isImportingAnnualBudget()).toBeFalse();
+        done();
+      });
+    });
+  });
+
+  it('previews annual budget and stores the stateless preview without importing', (done) => {
+    const annualBudgetFile = new File(['excel'], 'annual-budgets.xlsx');
+    store.selectAnnualBudgetFile(annualBudgetFile);
+
+    store.previewAnnualBudgetFile(10).subscribe(() => {
+      expect(service.previewAnnualBudgetImport).toHaveBeenCalledWith(10, annualBudgetFile);
+      expect(service.importAnnualBudget).not.toHaveBeenCalled();
+      expect(store.currentAnnualBudgetImportPreview()).toEqual(annualBudgetResult);
+      setTimeout(() => {
+        expect(store.isPreviewingAnnualBudget()).toBeFalse();
         done();
       });
     });

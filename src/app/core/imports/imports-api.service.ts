@@ -24,6 +24,13 @@ export class ImportsApiService {
     );
   }
 
+  previewIncomeImport(accountId: number, file: File): Observable<IncomeImportResponseDto> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    return this.api.post<IncomeImportResponseDto, FormData>(`/accounts/${accountId}/imports/incomes/preview`, formData);
+  }
+
   confirmExpenseImport(accountId: number, batchId: number): Observable<ExpenseImportBatchResponseDto> {
     return this.api.post<ExpenseImportBatchResponseDto, Record<string, never>>(
       `/accounts/${accountId}/imports/expenses/${batchId}/confirm`,
@@ -50,6 +57,13 @@ export class ImportsApiService {
     return this.api.post<IncomeImportResponseDto, FormData>(`/accounts/${accountId}/imports/incomes`, formData);
   }
 
+  previewCategoryImport(accountId: number, file: File): Observable<CategoryImportResponseDto> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    return this.api.post<CategoryImportResponseDto, FormData>(`/accounts/${accountId}/imports/categories/preview`, formData);
+  }
+
   downloadCategoryImportTemplate(accountId: number): Observable<Blob> {
     return this.api.getBlob(`/accounts/${accountId}/imports/categories/template`);
   }
@@ -59,6 +73,16 @@ export class ImportsApiService {
     formData.append('file', file);
 
     return this.api.post<CategoryImportResponseDto, FormData>(`/accounts/${accountId}/imports/categories`, formData);
+  }
+
+  previewPaymentMethodImport(accountId: number, file: File): Observable<PaymentMethodImportResponseDto> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    return this.api.post<PaymentMethodImportResponseDto, FormData>(
+      `/accounts/${accountId}/imports/payment-methods/preview`,
+      formData
+    );
   }
 
   downloadPaymentMethodImportTemplate(accountId: number): Observable<Blob> {
@@ -71,6 +95,16 @@ export class ImportsApiService {
 
     return this.api.post<PaymentMethodImportResponseDto, FormData>(
       `/accounts/${accountId}/imports/payment-methods`,
+      formData
+    );
+  }
+
+  previewAnnualBudgetImport(accountId: number, file: File): Observable<AnnualBudgetImportResponseDto> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    return this.api.post<AnnualBudgetImportResponseDto, FormData>(
+      `/accounts/${accountId}/imports/budgets/annual/preview`,
       formData
     );
   }

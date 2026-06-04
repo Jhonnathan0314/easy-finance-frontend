@@ -206,6 +206,10 @@ table {
   min-width: 88rem;
 }
 
+.compact-table table {
+  min-width: 48rem;
+}
+
 th,
 td {
   border-bottom: 1px solid #e5e7eb;

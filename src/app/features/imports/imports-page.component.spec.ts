@@ -5,7 +5,15 @@ import { of } from 'rxjs';
 
 import { ImportsStore } from '../../core/imports/imports.store';
 import { AccountStore } from '../../core/state/account.store';
-import { AccountResponseDto, ApiErrorResponse, ExpenseImportBatchResponseDto } from '../../shared/models';
+import {
+  AccountResponseDto,
+  AnnualBudgetImportResponseDto,
+  ApiErrorResponse,
+  CategoryImportResponseDto,
+  ExpenseImportBatchResponseDto,
+  IncomeImportResponseDto,
+  PaymentMethodImportResponseDto
+} from '../../shared/models';
 import {
   ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME,
   CATEGORY_IMPORT_TEMPLATE_FILENAME,
@@ -137,6 +145,10 @@ describe('ImportsPageComponent', () => {
           createdIncomeId?: number | null;
         }>;
       } | null;
+      incomePreview?: IncomeImportResponseDto | null;
+      categoryPreview?: CategoryImportResponseDto | null;
+      paymentMethodPreview?: PaymentMethodImportResponseDto | null;
+      annualBudgetPreview?: AnnualBudgetImportResponseDto | null;
       importingIncome?: boolean;
       importingCategory?: boolean;
       importingPaymentMethod?: boolean;
@@ -171,6 +183,18 @@ describe('ImportsPageComponent', () => {
     );
     const incomeImportResult = signal(
       Object.prototype.hasOwnProperty.call(options, 'incomeResult') ? options.incomeResult ?? null : null
+    );
+    const incomeImportPreview = signal<IncomeImportResponseDto | null>(
+      Object.prototype.hasOwnProperty.call(options, 'incomePreview') ? options.incomePreview ?? null : null
+    );
+    const categoryImportPreview = signal<CategoryImportResponseDto | null>(
+      Object.prototype.hasOwnProperty.call(options, 'categoryPreview') ? options.categoryPreview ?? null : null
+    );
+    const paymentMethodImportPreview = signal<PaymentMethodImportResponseDto | null>(
+      Object.prototype.hasOwnProperty.call(options, 'paymentMethodPreview') ? options.paymentMethodPreview ?? null : null
+    );
+    const annualBudgetImportPreview = signal<AnnualBudgetImportResponseDto | null>(
+      Object.prototype.hasOwnProperty.call(options, 'annualBudgetPreview') ? options.annualBudgetPreview ?? null : null
     );
     const paymentMethodImportResult = signal(null);
     const annualBudgetImportResult = signal(null);
@@ -211,6 +235,10 @@ describe('ImportsPageComponent', () => {
             isImportingCategory: signal(options.importingCategory ?? false),
             isImportingPaymentMethod: signal(options.importingPaymentMethod ?? false),
             isImportingAnnualBudget: signal(options.importingAnnualBudget ?? false),
+            isPreviewingIncome: signal(false),
+            isPreviewingCategory: signal(false),
+            isPreviewingPaymentMethod: signal(false),
+            isPreviewingAnnualBudget: signal(false),
             error: storeError,
             incomeError: incomeStoreError,
             categoryError: signal<ApiErrorResponse | null>(null),
@@ -226,6 +254,10 @@ describe('ImportsPageComponent', () => {
             selectedCategoryFile,
             selectedPaymentMethodFile,
             selectedAnnualBudgetFile,
+            currentIncomeImportPreview: incomeImportPreview,
+            currentCategoryImportPreview: categoryImportPreview,
+            currentPaymentMethodImportPreview: paymentMethodImportPreview,
+            currentAnnualBudgetImportPreview: annualBudgetImportPreview,
             currentIncomeImportResult: incomeImportResult,
             currentCategoryImportResult: signal(null),
             currentPaymentMethodImportResult: paymentMethodImportResult,
@@ -261,6 +293,17 @@ describe('ImportsPageComponent', () => {
                 rows: [{ rowNumber: 2, description: 'Nomina', amount: 100, valid: true, errors: [], createdIncomeId: 8 }]
               })
             ),
+            previewIncomeFile: jasmine.createSpy('previewIncomeFile').and.returnValue(
+              of({
+                accountId: 1,
+                participantId: 7,
+                originalFilename: 'incomes.xlsx',
+                totalRows: 1,
+                createdCount: 0,
+                invalidRows: 0,
+                rows: [{ rowNumber: 2, description: 'Nomina', amount: 100, valid: true, errors: [], createdIncomeId: null }]
+              })
+            ),
             downloadCategoryTemplate: jasmine
               .createSpy('downloadCategoryTemplate')
               .and.returnValue(of(new Blob(['template']))),
@@ -275,6 +318,17 @@ describe('ImportsPageComponent', () => {
                 rows: [{ rowNumber: 2, name: 'Mercado', type: 'EXPENSE', valid: true, errors: [], createdCategoryId: 12 }]
               })
             ),
+            previewCategoryFile: jasmine.createSpy('previewCategoryFile').and.returnValue(
+              of({
+                accountId: 1,
+                participantId: 7,
+                originalFilename: 'categories.xlsx',
+                totalRows: 1,
+                createdCount: 0,
+                invalidRows: 0,
+                rows: [{ rowNumber: 2, name: 'Mercado', type: 'EXPENSE', valid: true, errors: [], createdCategoryId: null }]
+              })
+            ),
             downloadPaymentMethodTemplate: jasmine
               .createSpy('downloadPaymentMethodTemplate')
               .and.returnValue(of(new Blob(['template']))),
@@ -287,6 +341,17 @@ describe('ImportsPageComponent', () => {
                 createdCount: 1,
                 invalidRows: 0,
                 rows: [{ rowNumber: 2, name: 'Cuenta principal', type: 'BANK_ACCOUNT', valid: true, errors: [], createdPaymentMethodId: 22 }]
+              })
+            ),
+            previewPaymentMethodFile: jasmine.createSpy('previewPaymentMethodFile').and.returnValue(
+              of({
+                accountId: 1,
+                participantId: 7,
+                originalFilename: 'payment-methods.xlsx',
+                totalRows: 1,
+                createdCount: 0,
+                invalidRows: 0,
+                rows: [{ rowNumber: 2, name: 'Cuenta principal', type: 'BANK_ACCOUNT', valid: true, errors: [] }]
               })
             ),
             downloadAnnualBudgetTemplate: jasmine
@@ -304,6 +369,18 @@ describe('ImportsPageComponent', () => {
                 rows: [{ rowNumber: 2, year: 2026, month: 'Todos', plannedAmount: 100000, valid: true, errors: [] }]
               })
             ),
+            previewAnnualBudgetFile: jasmine.createSpy('previewAnnualBudgetFile').and.returnValue(
+              of({
+                accountId: 1,
+                participantId: 7,
+                originalFilename: 'annual-budgets.xlsx',
+                totalRows: 1,
+                createdBudgetsCount: 0,
+                createdSubBudgetsCount: 0,
+                invalidRows: 0,
+                rows: [{ rowNumber: 2, year: 2026, month: 'Todos', appliedMonths: [1, 2], plannedAmount: 100000, valid: true, errors: [] }]
+              })
+            ),
             getBatch: jasmine.createSpy('getBatch').and.returnValue(of(currentBatch())),
             clear: jasmine.createSpy('clear').and.callFake(() => {
               currentBatch.set(null);
@@ -313,21 +390,25 @@ describe('ImportsPageComponent', () => {
             }),
             clearIncomeImportState: jasmine.createSpy('clearIncomeImportState').and.callFake(() => {
               selectedIncomeFile.set(null);
+              incomeImportPreview.set(null);
               incomeImportResult.set(null);
               incomeStoreError.set(null);
               incomeTemplateDownloadError.set(null);
             }),
             clearCategoryImportState: jasmine.createSpy('clearCategoryImportState').and.callFake(() => {
               selectedCategoryFile.set(null);
+              categoryImportPreview.set(null);
               categoryTemplateDownloadError.set(null);
             }),
             clearPaymentMethodImportState: jasmine.createSpy('clearPaymentMethodImportState').and.callFake(() => {
               selectedPaymentMethodFile.set(null);
+              paymentMethodImportPreview.set(null);
               paymentMethodImportResult.set(null);
               paymentMethodTemplateDownloadError.set(null);
             }),
             clearAnnualBudgetImportState: jasmine.createSpy('clearAnnualBudgetImportState').and.callFake(() => {
               selectedAnnualBudgetFile.set(null);
+              annualBudgetImportPreview.set(null);
               annualBudgetImportResult.set(null);
               annualBudgetTemplateDownloadError.set(null);
             })
@@ -630,6 +711,43 @@ describe('ImportsPageComponent', () => {
     expect(fixture.componentInstance.incomeSuccessMessage()).toContain('Se importaron');
   });
 
+  it('previews incomes and renders invalid row values and errors without importing', () => {
+    const fixture = configure({
+      incomePreview: {
+        accountId: 1,
+        participantId: 7,
+        originalFilename: 'incomes-preview.xlsx',
+        totalRows: 2,
+        createdCount: 0,
+        invalidRows: 1,
+        rows: [
+          { rowNumber: 2, incomeDate: '2026-05-01', description: 'Nomina', amount: 1000, categoryName: 'Salario', valid: true, errors: [] },
+          {
+            rowNumber: 3,
+            incomeDate: null,
+            description: 'Fila mala',
+            amount: null,
+            categoryName: 'Categoria inexistente',
+            categoryId: null,
+            valid: false,
+            errors: ['La fecha no tiene formato valido.', { column: 'Categoria', code: 'CATEGORY_NOT_FOUND', message: 'Categoria invalida.' }]
+          }
+        ]
+      }
+    });
+    const store = TestBed.inject(ImportsStore) as jasmine.SpyObj<ImportsStore>;
+    fixture.componentInstance.activeMode.set('incomes');
+    fixture.detectChanges();
+    const text = fixture.nativeElement.textContent;
+
+    expect(text).toContain('Preview stateless de ingresos');
+    expect(text).toContain('Fila mala');
+    expect(text).toContain('Categoria inexistente');
+    expect(text).toContain('La fecha no tiene formato valido.');
+    expect(text).toContain('Categoria invalida.');
+    expect(store.importIncomeFile).not.toHaveBeenCalled();
+  });
+
   it('switches to categories mode and shows direct category import action', () => {
     const fixture = configure();
     fixture.componentInstance.activeMode.set('categories');
@@ -669,6 +787,38 @@ describe('ImportsPageComponent', () => {
 
     expect(store.importCategoryFile).toHaveBeenCalledWith(1);
     expect(fixture.componentInstance.categorySuccessMessage()).toContain('Se importaron');
+  });
+
+  it('previews categories and renders row data with errors', () => {
+    const fixture = configure({
+      categoryPreview: {
+        accountId: 1,
+        participantId: 7,
+        originalFilename: 'categories-preview.xlsx',
+        totalRows: 1,
+        createdCount: 0,
+        invalidRows: 1,
+        rows: [
+          {
+            rowNumber: 2,
+            name: 'Nueva categoria',
+            description: 'Descripcion del usuario',
+            type: 'EXPENSE',
+            valid: false,
+            errors: ['El nombre ya existe.']
+          }
+        ]
+      }
+    });
+    fixture.componentInstance.activeMode.set('categories');
+    fixture.detectChanges();
+    const text = fixture.nativeElement.textContent;
+
+    expect(text).toContain('Preview stateless de categorias');
+    expect(text).toContain('Nueva categoria');
+    expect(text).toContain('Descripcion del usuario');
+    expect(text).toContain('Gasto');
+    expect(text).toContain('El nombre ya existe.');
   });
 
   it('switches to payment methods mode and shows direct import action', () => {
@@ -712,6 +862,38 @@ describe('ImportsPageComponent', () => {
     expect(fixture.componentInstance.paymentMethodSuccessMessage()).toContain('Se importaron');
   });
 
+  it('previews payment methods and renders row data with errors', () => {
+    const fixture = configure({
+      paymentMethodPreview: {
+        accountId: 1,
+        participantId: 7,
+        originalFilename: 'payment-methods-preview.xlsx',
+        totalRows: 1,
+        createdCount: 0,
+        invalidRows: 1,
+        rows: [
+          {
+            rowNumber: 2,
+            name: 'Tarjeta vieja',
+            description: 'Banco',
+            type: 'CREDIT_CARD',
+            valid: false,
+            errors: ['El tipo no es valido.']
+          }
+        ]
+      }
+    });
+    fixture.componentInstance.activeMode.set('paymentMethods');
+    fixture.detectChanges();
+    const text = fixture.nativeElement.textContent;
+
+    expect(text).toContain('Preview stateless de medios de pago');
+    expect(text).toContain('Tarjeta vieja');
+    expect(text).toContain('Banco');
+    expect(text).toContain('Tarjeta de credito');
+    expect(text).toContain('El tipo no es valido.');
+  });
+
   it('switches to budgets mode and shows annual budget import action and help', () => {
     const fixture = configure();
     fixture.componentInstance.activeMode.set('budgets');
@@ -752,5 +934,43 @@ describe('ImportsPageComponent', () => {
 
     expect(store.importAnnualBudgetFile).toHaveBeenCalledWith(1);
     expect(fixture.componentInstance.annualBudgetSuccessMessage()).toBe('Se crearon 12 presupuestos.');
+  });
+
+  it('previews annual budget and renders applied months and row errors', () => {
+    const fixture = configure({
+      annualBudgetPreview: {
+        accountId: 1,
+        participantId: 7,
+        originalFilename: 'annual-budgets-preview.xlsx',
+        totalRows: 1,
+        createdBudgetsCount: 0,
+        createdSubBudgetsCount: 0,
+        invalidRows: 1,
+        rows: [
+          {
+            rowNumber: 2,
+            year: 2026,
+            month: 'Todos',
+            budgetName: 'Presupuesto 2026',
+            categoryName: 'Comida',
+            categoryId: 3,
+            subBudgetName: 'Mercado',
+            plannedAmount: 800000,
+            appliedMonths: [1, 2, 3],
+            valid: false,
+            errors: ['Ya existe presupuesto para ese año.']
+          }
+        ]
+      }
+    });
+    fixture.componentInstance.activeMode.set('budgets');
+    fixture.detectChanges();
+    const text = fixture.nativeElement.textContent;
+
+    expect(text).toContain('Preview stateless de presupuesto anual');
+    expect(text).toContain('Presupuesto 2026');
+    expect(text).toContain('Mercado');
+    expect(text).toContain('1, 2, 3');
+    expect(text).toContain('Ya existe presupuesto para ese año.');
   });
 });

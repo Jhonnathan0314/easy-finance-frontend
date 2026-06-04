@@ -7,7 +7,7 @@ export interface ImportRowError {
   message: string;
 }
 
-export type ImportRowErrorDto = ImportRowError;
+export type ImportRowErrorDto = ImportRowError | string;
 
 export interface ExpenseImportRowResponse {
   id: number;
@@ -27,7 +27,7 @@ export interface ExpenseImportRowResponse {
   debtPaymentType?: DebtPaymentType | null;
   debtPaymentNotes?: string | null;
   valid: boolean;
-  errors: ImportRowError[];
+  errors: ImportRowErrorDto[];
   createdExpenseId?: number | null;
   createdDebtPaymentId?: number | null;
 }
@@ -57,7 +57,7 @@ export interface IncomeImportRowResponse {
   categoryName?: string | null;
   categoryId?: number | null;
   valid: boolean;
-  errors: ImportRowError[];
+  errors: ImportRowErrorDto[];
   createdIncomeId?: number | null;
 }
 
@@ -78,9 +78,10 @@ export type IncomeImportResponseDto = IncomeImportResponse;
 export interface CategoryImportRowResponse {
   rowNumber: number;
   name?: string | null;
+  description?: string | null;
   type?: string | null;
   valid: boolean;
-  errors: ImportRowError[];
+  errors: ImportRowErrorDto[];
   createdCategoryId?: number | null;
 }
 
@@ -101,9 +102,10 @@ export type CategoryImportResponseDto = CategoryImportResponse;
 export interface PaymentMethodImportRowResponse {
   rowNumber: number;
   name?: string | null;
+  description?: string | null;
   type?: string | null;
   valid: boolean;
-  errors: ImportRowError[];
+  errors: ImportRowErrorDto[];
   createdPaymentMethodId?: number | null;
 }
 
@@ -130,8 +132,9 @@ export interface AnnualBudgetImportRowResponse {
   categoryId?: number | null;
   subBudgetName?: string | null;
   plannedAmount?: number | null;
+  appliedMonths?: number[];
   valid: boolean;
-  errors: ImportRowError[];
+  errors: ImportRowErrorDto[];
 }
 
 export type AnnualBudgetImportRowResponseDto = AnnualBudgetImportRowResponse;

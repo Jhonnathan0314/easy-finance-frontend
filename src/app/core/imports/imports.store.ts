@@ -17,6 +17,10 @@ export class ImportsStore {
   private readonly currentAccountId = signal<number | null>(null);
 
   readonly currentBatch = signal<ExpenseImportBatchResponseDto | null>(null);
+  readonly currentIncomeImportPreview = signal<IncomeImportResponseDto | null>(null);
+  readonly currentCategoryImportPreview = signal<CategoryImportResponseDto | null>(null);
+  readonly currentPaymentMethodImportPreview = signal<PaymentMethodImportResponseDto | null>(null);
+  readonly currentAnnualBudgetImportPreview = signal<AnnualBudgetImportResponseDto | null>(null);
   readonly currentIncomeImportResult = signal<IncomeImportResponseDto | null>(null);
   readonly currentCategoryImportResult = signal<CategoryImportResponseDto | null>(null);
   readonly currentPaymentMethodImportResult = signal<PaymentMethodImportResponseDto | null>(null);
@@ -29,6 +33,10 @@ export class ImportsStore {
   readonly isImportingCategory = signal(false);
   readonly isImportingPaymentMethod = signal(false);
   readonly isImportingAnnualBudget = signal(false);
+  readonly isPreviewingIncome = signal(false);
+  readonly isPreviewingCategory = signal(false);
+  readonly isPreviewingPaymentMethod = signal(false);
+  readonly isPreviewingAnnualBudget = signal(false);
   readonly error = signal<ApiErrorResponse | null>(null);
   readonly templateDownloadError = signal<string | null>(null);
   readonly selectedFile = signal<File | null>(null);
@@ -56,6 +64,8 @@ export class ImportsStore {
 
   selectIncomeFile(file: File): void {
     this.selectedIncomeFile.set(file);
+    this.currentIncomeImportPreview.set(null);
+    this.currentIncomeImportResult.set(null);
     this.incomeError.set(null);
   }
 
@@ -65,6 +75,8 @@ export class ImportsStore {
 
   selectCategoryFile(file: File): void {
     this.selectedCategoryFile.set(file);
+    this.currentCategoryImportPreview.set(null);
+    this.currentCategoryImportResult.set(null);
     this.categoryError.set(null);
   }
 
@@ -74,6 +86,8 @@ export class ImportsStore {
 
   selectPaymentMethodFile(file: File): void {
     this.selectedPaymentMethodFile.set(file);
+    this.currentPaymentMethodImportPreview.set(null);
+    this.currentPaymentMethodImportResult.set(null);
     this.paymentMethodError.set(null);
   }
 
@@ -83,6 +97,8 @@ export class ImportsStore {
 
   selectAnnualBudgetFile(file: File): void {
     this.selectedAnnualBudgetFile.set(file);
+    this.currentAnnualBudgetImportPreview.set(null);
+    this.currentAnnualBudgetImportResult.set(null);
     this.annualBudgetError.set(null);
   }
 
@@ -174,6 +190,26 @@ export class ImportsStore {
     );
   }
 
+  previewIncomeFile(accountId: number): Observable<IncomeImportResponseDto> {
+    this.ensureAccount(accountId);
+    const file = this.selectedIncomeFile();
+
+    if (!file) {
+      const error = createLocalError('IMPORT_FILE_REQUIRED', 'Selecciona un archivo .xlsx para continuar.');
+      this.incomeError.set(error);
+      return throwError(() => error);
+    }
+
+    this.isPreviewingIncome.set(true);
+    this.incomeError.set(null);
+
+    return this.importsApi.previewIncomeImport(accountId, file).pipe(
+      tap((result) => this.currentIncomeImportPreview.set(result)),
+      catchError((error: unknown) => this.handleIncomeError(error)),
+      finalize(() => this.isPreviewingIncome.set(false))
+    );
+  }
+
   importIncomeFile(accountId: number): Observable<IncomeImportResponseDto> {
     this.ensureAccount(accountId);
     const file = this.selectedIncomeFile();
@@ -205,6 +241,26 @@ export class ImportsStore {
         return throwError(() => error);
       }),
       finalize(() => this.isDownloadingTemplate.set(false))
+    );
+  }
+
+  previewCategoryFile(accountId: number): Observable<CategoryImportResponseDto> {
+    this.ensureAccount(accountId);
+    const file = this.selectedCategoryFile();
+
+    if (!file) {
+      const error = createLocalError('IMPORT_FILE_REQUIRED', 'Selecciona un archivo .xlsx para continuar.');
+      this.categoryError.set(error);
+      return throwError(() => error);
+    }
+
+    this.isPreviewingCategory.set(true);
+    this.categoryError.set(null);
+
+    return this.importsApi.previewCategoryImport(accountId, file).pipe(
+      tap((result) => this.currentCategoryImportPreview.set(result)),
+      catchError((error: unknown) => this.handleCategoryError(error)),
+      finalize(() => this.isPreviewingCategory.set(false))
     );
   }
 
@@ -244,6 +300,26 @@ export class ImportsStore {
     );
   }
 
+  previewPaymentMethodFile(accountId: number): Observable<PaymentMethodImportResponseDto> {
+    this.ensureAccount(accountId);
+    const file = this.selectedPaymentMethodFile();
+
+    if (!file) {
+      const error = createLocalError('IMPORT_FILE_REQUIRED', 'Selecciona un archivo .xlsx para continuar.');
+      this.paymentMethodError.set(error);
+      return throwError(() => error);
+    }
+
+    this.isPreviewingPaymentMethod.set(true);
+    this.paymentMethodError.set(null);
+
+    return this.importsApi.previewPaymentMethodImport(accountId, file).pipe(
+      tap((result) => this.currentPaymentMethodImportPreview.set(result)),
+      catchError((error: unknown) => this.handlePaymentMethodError(error)),
+      finalize(() => this.isPreviewingPaymentMethod.set(false))
+    );
+  }
+
   importPaymentMethodFile(accountId: number): Observable<PaymentMethodImportResponseDto> {
     this.ensureAccount(accountId);
     const file = this.selectedPaymentMethodFile();
@@ -280,6 +356,26 @@ export class ImportsStore {
     );
   }
 
+  previewAnnualBudgetFile(accountId: number): Observable<AnnualBudgetImportResponseDto> {
+    this.ensureAccount(accountId);
+    const file = this.selectedAnnualBudgetFile();
+
+    if (!file) {
+      const error = createLocalError('IMPORT_FILE_REQUIRED', 'Selecciona un archivo .xlsx para continuar.');
+      this.annualBudgetError.set(error);
+      return throwError(() => error);
+    }
+
+    this.isPreviewingAnnualBudget.set(true);
+    this.annualBudgetError.set(null);
+
+    return this.importsApi.previewAnnualBudgetImport(accountId, file).pipe(
+      tap((result) => this.currentAnnualBudgetImportPreview.set(result)),
+      catchError((error: unknown) => this.handleAnnualBudgetError(error)),
+      finalize(() => this.isPreviewingAnnualBudget.set(false))
+    );
+  }
+
   importAnnualBudgetFile(accountId: number): Observable<AnnualBudgetImportResponseDto> {
     this.ensureAccount(accountId);
     const file = this.selectedAnnualBudgetFile();
@@ -303,6 +399,10 @@ export class ImportsStore {
   clear(): void {
     this.currentAccountId.set(null);
     this.currentBatch.set(null);
+    this.currentIncomeImportPreview.set(null);
+    this.currentCategoryImportPreview.set(null);
+    this.currentPaymentMethodImportPreview.set(null);
+    this.currentAnnualBudgetImportPreview.set(null);
     this.currentIncomeImportResult.set(null);
     this.currentCategoryImportResult.set(null);
     this.currentPaymentMethodImportResult.set(null);
@@ -319,6 +419,10 @@ export class ImportsStore {
     this.isImportingCategory.set(false);
     this.isImportingPaymentMethod.set(false);
     this.isImportingAnnualBudget.set(false);
+    this.isPreviewingIncome.set(false);
+    this.isPreviewingCategory.set(false);
+    this.isPreviewingPaymentMethod.set(false);
+    this.isPreviewingAnnualBudget.set(false);
     this.error.set(null);
     this.incomeError.set(null);
     this.categoryError.set(null);
@@ -332,33 +436,40 @@ export class ImportsStore {
   }
 
   clearIncomeImportState(): void {
+    this.currentIncomeImportPreview.set(null);
     this.currentIncomeImportResult.set(null);
-    this.currentCategoryImportResult.set(null);
     this.selectedIncomeFile.set(null);
+    this.isPreviewingIncome.set(false);
     this.isImportingIncome.set(false);
     this.incomeError.set(null);
     this.incomeTemplateDownloadError.set(null);
   }
 
   clearCategoryImportState(): void {
+    this.currentCategoryImportPreview.set(null);
     this.currentCategoryImportResult.set(null);
     this.selectedCategoryFile.set(null);
+    this.isPreviewingCategory.set(false);
     this.isImportingCategory.set(false);
     this.categoryError.set(null);
     this.categoryTemplateDownloadError.set(null);
   }
 
   clearPaymentMethodImportState(): void {
+    this.currentPaymentMethodImportPreview.set(null);
     this.currentPaymentMethodImportResult.set(null);
     this.selectedPaymentMethodFile.set(null);
+    this.isPreviewingPaymentMethod.set(false);
     this.isImportingPaymentMethod.set(false);
     this.paymentMethodError.set(null);
     this.paymentMethodTemplateDownloadError.set(null);
   }
 
   clearAnnualBudgetImportState(): void {
+    this.currentAnnualBudgetImportPreview.set(null);
     this.currentAnnualBudgetImportResult.set(null);
     this.selectedAnnualBudgetFile.set(null);
+    this.isPreviewingAnnualBudget.set(false);
     this.isImportingAnnualBudget.set(false);
     this.annualBudgetError.set(null);
     this.annualBudgetTemplateDownloadError.set(null);
@@ -376,6 +487,10 @@ export class ImportsStore {
 
     this.currentAccountId.set(accountId);
     this.currentBatch.set(null);
+    this.currentIncomeImportPreview.set(null);
+    this.currentCategoryImportPreview.set(null);
+    this.currentPaymentMethodImportPreview.set(null);
+    this.currentAnnualBudgetImportPreview.set(null);
     this.currentIncomeImportResult.set(null);
     this.currentCategoryImportResult.set(null);
     this.currentPaymentMethodImportResult.set(null);

@@ -5,11 +5,25 @@ import { take } from 'rxjs';
 
 import { ImportsStore } from '../../core/imports/imports.store';
 import { AccountStore } from '../../core/state/account.store';
-import { ApiErrorResponse, ExpenseImportRowResponseDto } from '../../shared/models';
+import {
+  AnnualBudgetImportResponseDto,
+  ApiErrorResponse,
+  CategoryImportResponseDto,
+  ExpenseImportRowResponseDto,
+  ImportRowErrorDto,
+  IncomeImportResponseDto,
+  PaymentMethodImportResponseDto
+} from '../../shared/models';
 import { enumLabel } from '../../shared/ui/enum-labels';
 
 type RowFilter = 'all' | 'valid' | 'invalid';
 type ImportMode = 'expenses' | 'incomes' | 'categories' | 'paymentMethods' | 'budgets';
+type NormalizedImportRowError = { column: string; code: string; message: string };
+type StatelessImportResult =
+  | IncomeImportResponseDto
+  | CategoryImportResponseDto
+  | PaymentMethodImportResponseDto
+  | AnnualBudgetImportResponseDto;
 
 export const MAX_IMPORT_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 export const EXPENSE_IMPORT_TEMPLATE_FILENAME = 'easy-finance-expense-import-template.xlsx';
@@ -252,9 +266,9 @@ export const ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME = 'easy-finance-annual-budge
                         </span>
                       </td>
                       <td>
-                        @if (row.errors.length) {
+                        @if (rowErrors(row).length) {
                           <ul class="row-errors">
-                            @for (error of row.errors; track error.column + error.code + error.message) {
+                            @for (error of rowErrors(row); track error.column + error.code + error.message) {
                               <li><strong>{{ error.column }}</strong>: {{ error.message }}</li>
                             }
                           </ul>
@@ -310,7 +324,7 @@ export const ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME = 'easy-finance-annual-budge
             <button type="button" (click)="clearIncomeFile(incomeFileInput)">Quitar</button>
           </div>
         } @else {
-          <p class="muted">Selecciona un archivo .xlsx para importar ingresos.</p>
+          <p class="muted">Selecciona un archivo .xlsx para generar el preview.</p>
         }
 
         @if (incomeFileError(); as error) {
@@ -318,9 +332,11 @@ export const ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME = 'easy-finance-annual-budge
         }
 
         <div class="actions">
-          <button class="button" type="button" (click)="importIncomes()" [disabled]="!canImportIncomes()">
-            {{ importsStore.isImportingIncome() ? 'Importando...' : 'Importar ingresos' }}
-          </button>
+          @if (!importsStore.currentIncomeImportPreview()) {
+            <button class="button" type="button" (click)="previewIncomes()" [disabled]="!canPreviewIncomes()">
+              {{ importsStore.isPreviewingIncome() ? 'Generando preview...' : 'Preview' }}
+            </button>
+          }
           @if (hasIncomeImportState()) {
             <button type="button" (click)="clearIncomeImport(incomeFileInput)">Cargar otro archivo</button>
           }
@@ -338,30 +354,107 @@ export const ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME = 'easy-finance-annual-budge
         <div class="panel success-panel">{{ message }}</div>
       }
 
-      @if (importsStore.currentIncomeImportResult(); as result) {
+      @if (incomePreviewView(); as view) {
         <section class="panel batch-summary">
           <div class="summary-heading">
             <div>
-              <h2>{{ result.originalFilename }}</h2>
-              <p>Importacion directa de ingresos</p>
+              <h2>{{ view.result.originalFilename || 'Preview de ingresos' }}</h2>
+              <p>Preview stateless de ingresos. No crea datos en backend.</p>
+            </div>
+            <span class="badge">Preview</span>
+          </div>
+          <dl class="summary-grid">
+            <div>
+              <dt>Total filas</dt>
+              <dd>{{ totalRows(view.result) }}</dd>
+            </div>
+            <div>
+              <dt>Validas</dt>
+              <dd>{{ validRows(view.result) }}</dd>
+            </div>
+            <div>
+              <dt>Invalidas</dt>
+              <dd>{{ invalidRows(view.result) }}</dd>
+            </div>
+          </dl>
+          <div class="confirm-row">
+            <button class="button" type="button" (click)="importIncomes()" [disabled]="!canImportIncomes()">
+              {{ importsStore.isImportingIncome() ? 'Confirmando...' : 'Confirmar importacion' }}
+            </button>
+          </div>
+        </section>
+
+        <section class="panel rows-panel">
+          <h2>Filas del preview</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fila</th>
+                  <th>Fecha</th>
+                  <th>Descripcion</th>
+                  <th>Monto</th>
+                  <th>Categoria</th>
+                  <th>Valid</th>
+                  <th>Errores</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of view.result.rows; track row.rowNumber) {
+                  <tr [class.invalid]="!row.valid">
+                    <td>{{ row.rowNumber }}</td>
+                    <td>{{ displayValue(row, ['incomeDate', 'Fecha', 'fecha']) }}</td>
+                    <td>{{ displayValue(row, ['description', 'Descripcion', 'Descripción', 'descripcion']) }}</td>
+                    <td>{{ amountLabel(row, ['amount', 'Monto', 'monto']) }}</td>
+                    <td>{{ displayValue(row, ['categoryName', 'Categoria', 'Categoría', 'categoria'], categoryLabel(row.categoryId)) }}</td>
+                    <td>
+                      <span class="badge" [class.success]="row.valid" [class.danger]="!row.valid">
+                        {{ row.valid ? 'VALID' : 'INVALID' }}
+                      </span>
+                    </td>
+                    <td>
+                      @if (rowErrors(row).length) {
+                        <ul class="row-errors">
+                          @for (error of rowErrors(row); track error.column + error.code + error.message) {
+                            <li><strong>{{ error.column }}</strong>: {{ error.message }}</li>
+                          }
+                        </ul>
+                      } @else {
+                        -
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      }
+
+      @if (incomeResultView(); as view) {
+        <section class="panel batch-summary">
+          <div class="summary-heading">
+            <div>
+              <h2>{{ view.result.originalFilename || 'Importacion de ingresos' }}</h2>
+              <p>Resultado de importacion de ingresos</p>
             </div>
           </div>
           <dl class="summary-grid">
             <div>
               <dt>Total filas</dt>
-              <dd>{{ result.totalRows }}</dd>
+              <dd>{{ totalRows(view.result) }}</dd>
             </div>
             <div>
               <dt>Creados</dt>
-              <dd>{{ result.createdCount }}</dd>
+              <dd>{{ createdCount(view.result) }}</dd>
             </div>
             <div>
               <dt>Invalidos</dt>
-              <dd>{{ result.invalidRows }}</dd>
+              <dd>{{ invalidRows(view.result) }}</dd>
             </div>
           </dl>
 
-          @if (result.invalidRows > 0) {
+          @if (invalidRows(view.result) > 0) {
             <div class="panel warning-panel">
               No se creo ningun ingreso. Corrige el archivo y vuelve a cargarlo.
             </div>
@@ -385,19 +478,13 @@ export const ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME = 'easy-finance-annual-budge
                 </tr>
               </thead>
               <tbody>
-                @for (row of result.rows; track row.rowNumber) {
+                @for (row of view.result.rows; track row.rowNumber) {
                   <tr [class.invalid]="!row.valid">
                     <td>{{ row.rowNumber }}</td>
-                    <td>{{ row.incomeDate || '-' }}</td>
-                    <td>{{ row.description || '-' }}</td>
-                    <td>
-                      @if (row.amount !== null && row.amount !== undefined) {
-                        {{ row.amount | currency: 'COP':'symbol-narrow':'1.0-0' }}
-                      } @else {
-                        -
-                      }
-                    </td>
-                    <td>{{ row.categoryName || categoryLabel(row.categoryId) }}</td>
+                    <td>{{ displayValue(row, ['incomeDate', 'Fecha', 'fecha']) }}</td>
+                    <td>{{ displayValue(row, ['description', 'Descripcion', 'Descripción', 'descripcion']) }}</td>
+                    <td>{{ amountLabel(row, ['amount', 'Monto', 'monto']) }}</td>
+                    <td>{{ displayValue(row, ['categoryName', 'Categoria', 'Categoría', 'categoria'], categoryLabel(row.categoryId)) }}</td>
                     <td>
                       @if (row.createdIncomeId) {
                         <span class="badge success">Ingreso #{{ row.createdIncomeId }}</span>
@@ -411,9 +498,9 @@ export const ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME = 'easy-finance-annual-budge
                       </span>
                     </td>
                     <td>
-                      @if (row.errors.length) {
+                      @if (rowErrors(row).length) {
                         <ul class="row-errors">
-                          @for (error of row.errors; track error.column + error.code + error.message) {
+                          @for (error of rowErrors(row); track error.column + error.code + error.message) {
                             <li><strong>{{ error.column }}</strong>: {{ error.message }}</li>
                           }
                         </ul>
@@ -427,10 +514,10 @@ export const ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME = 'easy-finance-annual-budge
             </table>
           </div>
         </section>
-      } @else if (!importsStore.isImportingIncome()) {
+      } @else if (!importsStore.isImportingIncome() && !importsStore.isPreviewingIncome()) {
         <div class="panel empty-state">
           <h2>Sin importacion de ingresos</h2>
-          <p>Sube un Excel y el sistema intentara crear todos los ingresos en un solo paso.</p>
+          <p>Sube un Excel, genera un preview y luego importa los ingresos.</p>
         </div>
       }
       } @else if (activeMode() === 'categories') {
@@ -480,7 +567,7 @@ export const ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME = 'easy-finance-annual-budge
             <button type="button" (click)="clearCategoryFile(categoryFileInput)">Quitar</button>
           </div>
         } @else {
-          <p class="muted">Selecciona un archivo .xlsx para importar categorias.</p>
+          <p class="muted">Selecciona un archivo .xlsx para generar el preview.</p>
         }
 
         @if (categoryFileError(); as error) {
@@ -488,9 +575,11 @@ export const ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME = 'easy-finance-annual-budge
         }
 
         <div class="actions">
-          <button class="button" type="button" (click)="importCategories()" [disabled]="!canImportCategories()">
-            {{ importsStore.isImportingCategory() ? 'Importando...' : 'Importar categorias' }}
-          </button>
+          @if (!importsStore.currentCategoryImportPreview()) {
+            <button class="button" type="button" (click)="previewCategories()" [disabled]="!canPreviewCategories()">
+              {{ importsStore.isPreviewingCategory() ? 'Generando preview...' : 'Preview' }}
+            </button>
+          }
           @if (hasCategoryImportState()) {
             <button type="button" (click)="clearCategoryImport(categoryFileInput)">Cargar otro archivo</button>
           }
@@ -508,72 +597,66 @@ export const ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME = 'easy-finance-annual-budge
         <div class="panel success-panel">{{ message }}</div>
       }
 
-      @if (importsStore.currentCategoryImportResult(); as result) {
+      @if (categoryPreviewView(); as view) {
         <section class="panel batch-summary">
           <div class="summary-heading">
             <div>
-              <h2>{{ result.originalFilename }}</h2>
-              <p>Importacion directa de categorias</p>
+              <h2>{{ view.result.originalFilename || 'Preview de categorias' }}</h2>
+              <p>Preview stateless de categorias. No crea datos en backend.</p>
             </div>
+            <span class="badge">Preview</span>
           </div>
           <dl class="summary-grid">
             <div>
               <dt>Total filas</dt>
-              <dd>{{ result.totalRows }}</dd>
+              <dd>{{ totalRows(view.result) }}</dd>
             </div>
             <div>
-              <dt>Creadas</dt>
-              <dd>{{ result.createdCount }}</dd>
+              <dt>Validas</dt>
+              <dd>{{ validRows(view.result) }}</dd>
             </div>
             <div>
               <dt>Invalidas</dt>
-              <dd>{{ result.invalidRows }}</dd>
+              <dd>{{ invalidRows(view.result) }}</dd>
             </div>
           </dl>
-
-          @if (result.invalidRows > 0) {
-            <div class="panel warning-panel">
-              No se creo ninguna categoria. Corrige el archivo y vuelve a cargarlo.
-            </div>
-          }
+          <div class="confirm-row">
+            <button class="button" type="button" (click)="importCategories()" [disabled]="!canImportCategories()">
+              {{ importsStore.isImportingCategory() ? 'Confirmando...' : 'Confirmar importacion' }}
+            </button>
+          </div>
         </section>
 
         <section class="panel rows-panel">
-          <h2>Filas procesadas</h2>
-          <div class="table-wrap">
+          <h2>Filas del preview</h2>
+          <div class="table-wrap compact-table">
             <table>
               <thead>
                 <tr>
                   <th>Fila</th>
                   <th>Nombre</th>
+                  <th>Descripcion</th>
                   <th>Tipo</th>
-                  <th>Resultado</th>
                   <th>Valid</th>
                   <th>Errores</th>
                 </tr>
               </thead>
               <tbody>
-                @for (row of result.rows; track row.rowNumber) {
+                @for (row of view.result.rows; track row.rowNumber) {
                   <tr [class.invalid]="!row.valid">
                     <td>{{ row.rowNumber }}</td>
-                    <td>{{ row.name || '-' }}</td>
-                    <td>{{ row.type ? enumLabel(row.type) : '-' }}</td>
-                    <td>
-                      @if (row.createdCategoryId) {
-                        <span class="badge success">Categoria #{{ row.createdCategoryId }}</span>
-                      } @else {
-                        -
-                      }
-                    </td>
+                    <td>{{ displayValue(row, ['name', 'Nombre', 'nombre']) }}</td>
+                    <td>{{ displayValue(row, ['description', 'Descripcion', 'Descripción', 'descripcion']) }}</td>
+                    <td>{{ enumDisplayValue(row, ['type', 'Tipo', 'tipo']) }}</td>
                     <td>
                       <span class="badge" [class.success]="row.valid" [class.danger]="!row.valid">
                         {{ row.valid ? 'VALID' : 'INVALID' }}
                       </span>
                     </td>
                     <td>
-                      @if (row.errors.length) {
+                      @if (rowErrors(row).length) {
                         <ul class="row-errors">
-                          @for (error of row.errors; track error.column + error.code + error.message) {
+                          @for (error of rowErrors(row); track error.column + error.code + error.message) {
                             <li><strong>{{ error.column }}</strong>: {{ error.message }}</li>
                           }
                         </ul>
@@ -587,10 +670,93 @@ export const ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME = 'easy-finance-annual-budge
             </table>
           </div>
         </section>
-      } @else if (!importsStore.isImportingCategory()) {
+      }
+
+      @if (categoryResultView(); as view) {
+        <section class="panel batch-summary">
+          <div class="summary-heading">
+            <div>
+              <h2>{{ view.result.originalFilename || 'Importacion de categorias' }}</h2>
+              <p>Resultado de importacion de categorias</p>
+            </div>
+          </div>
+          <dl class="summary-grid">
+            <div>
+              <dt>Total filas</dt>
+              <dd>{{ totalRows(view.result) }}</dd>
+            </div>
+            <div>
+              <dt>Creadas</dt>
+              <dd>{{ createdCount(view.result) }}</dd>
+            </div>
+            <div>
+              <dt>Invalidas</dt>
+              <dd>{{ invalidRows(view.result) }}</dd>
+            </div>
+          </dl>
+
+          @if (invalidRows(view.result) > 0) {
+            <div class="panel warning-panel">
+              No se creo ninguna categoria. Corrige el archivo y vuelve a cargarlo.
+            </div>
+          }
+        </section>
+
+        <section class="panel rows-panel">
+          <h2>Filas procesadas</h2>
+          <div class="table-wrap compact-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fila</th>
+                  <th>Nombre</th>
+                  <th>Descripcion</th>
+                  <th>Tipo</th>
+                  <th>Resultado</th>
+                  <th>Valid</th>
+                  <th>Errores</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of view.result.rows; track row.rowNumber) {
+                  <tr [class.invalid]="!row.valid">
+                    <td>{{ row.rowNumber }}</td>
+                    <td>{{ displayValue(row, ['name', 'Nombre', 'nombre']) }}</td>
+                    <td>{{ displayValue(row, ['description', 'Descripcion', 'Descripción', 'descripcion']) }}</td>
+                    <td>{{ enumDisplayValue(row, ['type', 'Tipo', 'tipo']) }}</td>
+                    <td>
+                      @if (row.createdCategoryId) {
+                        <span class="badge success">Categoria #{{ row.createdCategoryId }}</span>
+                      } @else {
+                        -
+                      }
+                    </td>
+                    <td>
+                      <span class="badge" [class.success]="row.valid" [class.danger]="!row.valid">
+                        {{ row.valid ? 'VALID' : 'INVALID' }}
+                      </span>
+                    </td>
+                    <td>
+                      @if (rowErrors(row).length) {
+                        <ul class="row-errors">
+                          @for (error of rowErrors(row); track error.column + error.code + error.message) {
+                            <li><strong>{{ error.column }}</strong>: {{ error.message }}</li>
+                          }
+                        </ul>
+                      } @else {
+                        -
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      } @else if (!importsStore.isImportingCategory() && !importsStore.isPreviewingCategory()) {
         <div class="panel empty-state">
           <h2>Sin importacion de categorias</h2>
-          <p>Sube un Excel y el sistema intentara crear todas las categorias en un solo paso.</p>
+          <p>Sube un Excel, genera un preview y luego importa las categorias.</p>
         </div>
       }
       } @else if (activeMode() === 'paymentMethods') {
@@ -639,7 +805,7 @@ export const ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME = 'easy-finance-annual-budge
             <button type="button" (click)="clearPaymentMethodFile(paymentMethodFileInput)">Quitar</button>
           </div>
         } @else {
-          <p class="muted">Selecciona un archivo .xlsx para importar medios de pago.</p>
+          <p class="muted">Selecciona un archivo .xlsx para generar el preview.</p>
         }
 
         @if (paymentMethodFileError(); as error) {
@@ -647,9 +813,11 @@ export const ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME = 'easy-finance-annual-budge
         }
 
         <div class="actions">
-          <button class="button" type="button" (click)="importPaymentMethods()" [disabled]="!canImportPaymentMethods()">
-            {{ importsStore.isImportingPaymentMethod() ? 'Importando...' : 'Importar medios de pago' }}
-          </button>
+          @if (!importsStore.currentPaymentMethodImportPreview()) {
+            <button class="button" type="button" (click)="previewPaymentMethods()" [disabled]="!canPreviewPaymentMethods()">
+              {{ importsStore.isPreviewingPaymentMethod() ? 'Generando preview...' : 'Preview' }}
+            </button>
+          }
           @if (hasPaymentMethodImportState()) {
             <button type="button" (click)="clearPaymentMethodImport(paymentMethodFileInput)">Cargar otro archivo</button>
           }
@@ -667,72 +835,66 @@ export const ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME = 'easy-finance-annual-budge
         <div class="panel success-panel">{{ message }}</div>
       }
 
-      @if (importsStore.currentPaymentMethodImportResult(); as result) {
+      @if (paymentMethodPreviewView(); as view) {
         <section class="panel batch-summary">
           <div class="summary-heading">
             <div>
-              <h2>{{ result.originalFilename }}</h2>
-              <p>Importacion directa de medios de pago</p>
+              <h2>{{ view.result.originalFilename || 'Preview de medios de pago' }}</h2>
+              <p>Preview stateless de medios de pago. No crea datos en backend.</p>
             </div>
+            <span class="badge">Preview</span>
           </div>
           <dl class="summary-grid">
             <div>
               <dt>Total filas</dt>
-              <dd>{{ result.totalRows }}</dd>
+              <dd>{{ totalRows(view.result) }}</dd>
             </div>
             <div>
-              <dt>Creados</dt>
-              <dd>{{ result.createdCount }}</dd>
+              <dt>Validas</dt>
+              <dd>{{ validRows(view.result) }}</dd>
             </div>
             <div>
-              <dt>Invalidos</dt>
-              <dd>{{ result.invalidRows }}</dd>
+              <dt>Invalidas</dt>
+              <dd>{{ invalidRows(view.result) }}</dd>
             </div>
           </dl>
-
-          @if (result.invalidRows > 0) {
-            <div class="panel warning-panel">
-              No se creo ningun medio de pago. Corrige el archivo y vuelve a cargarlo.
-            </div>
-          }
+          <div class="confirm-row">
+            <button class="button" type="button" (click)="importPaymentMethods()" [disabled]="!canImportPaymentMethods()">
+              {{ importsStore.isImportingPaymentMethod() ? 'Confirmando...' : 'Confirmar importacion' }}
+            </button>
+          </div>
         </section>
 
         <section class="panel rows-panel">
-          <h2>Filas procesadas</h2>
-          <div class="table-wrap">
+          <h2>Filas del preview</h2>
+          <div class="table-wrap compact-table">
             <table>
               <thead>
                 <tr>
                   <th>Fila</th>
                   <th>Nombre</th>
+                  <th>Descripcion</th>
                   <th>Tipo</th>
-                  <th>Resultado</th>
                   <th>Valid</th>
                   <th>Errores</th>
                 </tr>
               </thead>
               <tbody>
-                @for (row of result.rows; track row.rowNumber) {
+                @for (row of view.result.rows; track row.rowNumber) {
                   <tr [class.invalid]="!row.valid">
                     <td>{{ row.rowNumber }}</td>
-                    <td>{{ row.name || '-' }}</td>
-                    <td>{{ row.type ? enumLabel(row.type) : '-' }}</td>
-                    <td>
-                      @if (row.createdPaymentMethodId) {
-                        <span class="badge success">Medio #{{ row.createdPaymentMethodId }}</span>
-                      } @else {
-                        -
-                      }
-                    </td>
+                    <td>{{ displayValue(row, ['name', 'Nombre', 'nombre']) }}</td>
+                    <td>{{ displayValue(row, ['description', 'Descripcion', 'Descripción', 'descripcion']) }}</td>
+                    <td>{{ enumDisplayValue(row, ['type', 'Tipo', 'tipo']) }}</td>
                     <td>
                       <span class="badge" [class.success]="row.valid" [class.danger]="!row.valid">
                         {{ row.valid ? 'VALID' : 'INVALID' }}
                       </span>
                     </td>
                     <td>
-                      @if (row.errors.length) {
+                      @if (rowErrors(row).length) {
                         <ul class="row-errors">
-                          @for (error of row.errors; track error.column + error.code + error.message) {
+                          @for (error of rowErrors(row); track error.column + error.code + error.message) {
                             <li><strong>{{ error.column }}</strong>: {{ error.message }}</li>
                           }
                         </ul>
@@ -746,10 +908,93 @@ export const ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME = 'easy-finance-annual-budge
             </table>
           </div>
         </section>
-      } @else if (!importsStore.isImportingPaymentMethod()) {
+      }
+
+      @if (paymentMethodResultView(); as view) {
+        <section class="panel batch-summary">
+          <div class="summary-heading">
+            <div>
+              <h2>{{ view.result.originalFilename || 'Importacion de medios de pago' }}</h2>
+              <p>Resultado de importacion de medios de pago</p>
+            </div>
+          </div>
+          <dl class="summary-grid">
+            <div>
+              <dt>Total filas</dt>
+              <dd>{{ totalRows(view.result) }}</dd>
+            </div>
+            <div>
+              <dt>Creados</dt>
+              <dd>{{ createdCount(view.result) }}</dd>
+            </div>
+            <div>
+              <dt>Invalidos</dt>
+              <dd>{{ invalidRows(view.result) }}</dd>
+            </div>
+          </dl>
+
+          @if (invalidRows(view.result) > 0) {
+            <div class="panel warning-panel">
+              No se creo ningun medio de pago. Corrige el archivo y vuelve a cargarlo.
+            </div>
+          }
+        </section>
+
+        <section class="panel rows-panel">
+          <h2>Filas procesadas</h2>
+          <div class="table-wrap compact-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fila</th>
+                  <th>Nombre</th>
+                  <th>Descripcion</th>
+                  <th>Tipo</th>
+                  <th>Resultado</th>
+                  <th>Valid</th>
+                  <th>Errores</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of view.result.rows; track row.rowNumber) {
+                  <tr [class.invalid]="!row.valid">
+                    <td>{{ row.rowNumber }}</td>
+                    <td>{{ displayValue(row, ['name', 'Nombre', 'nombre']) }}</td>
+                    <td>{{ displayValue(row, ['description', 'Descripcion', 'Descripción', 'descripcion']) }}</td>
+                    <td>{{ enumDisplayValue(row, ['type', 'Tipo', 'tipo']) }}</td>
+                    <td>
+                      @if (row.createdPaymentMethodId) {
+                        <span class="badge success">Medio #{{ row.createdPaymentMethodId }}</span>
+                      } @else {
+                        -
+                      }
+                    </td>
+                    <td>
+                      <span class="badge" [class.success]="row.valid" [class.danger]="!row.valid">
+                        {{ row.valid ? 'VALID' : 'INVALID' }}
+                      </span>
+                    </td>
+                    <td>
+                      @if (rowErrors(row).length) {
+                        <ul class="row-errors">
+                          @for (error of rowErrors(row); track error.column + error.code + error.message) {
+                            <li><strong>{{ error.column }}</strong>: {{ error.message }}</li>
+                          }
+                        </ul>
+                      } @else {
+                        -
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      } @else if (!importsStore.isImportingPaymentMethod() && !importsStore.isPreviewingPaymentMethod()) {
         <div class="panel empty-state">
           <h2>Sin importacion de medios de pago</h2>
-          <p>Sube un Excel y el sistema intentara crear todos los medios de pago en un solo paso.</p>
+          <p>Sube un Excel, genera un preview y luego importa los medios de pago.</p>
         </div>
       }
       } @else if (activeMode() === 'budgets') {
@@ -797,7 +1042,7 @@ export const ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME = 'easy-finance-annual-budge
             <button type="button" (click)="clearAnnualBudgetFile(annualBudgetFileInput)">Quitar</button>
           </div>
         } @else {
-          <p class="muted">Selecciona un archivo .xlsx para importar presupuestos.</p>
+          <p class="muted">Selecciona un archivo .xlsx para generar el preview.</p>
         }
 
         @if (annualBudgetFileError(); as error) {
@@ -805,9 +1050,11 @@ export const ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME = 'easy-finance-annual-budge
         }
 
         <div class="actions">
-          <button class="button" type="button" (click)="importAnnualBudget()" [disabled]="!canImportAnnualBudget()">
-            {{ importsStore.isImportingAnnualBudget() ? 'Importando...' : 'Importar presupuesto anual' }}
-          </button>
+          @if (!importsStore.currentAnnualBudgetImportPreview()) {
+            <button class="button" type="button" (click)="previewAnnualBudget()" [disabled]="!canPreviewAnnualBudget()">
+              {{ importsStore.isPreviewingAnnualBudget() ? 'Generando preview...' : 'Preview' }}
+            </button>
+          }
           @if (hasAnnualBudgetImportState()) {
             <button type="button" (click)="clearAnnualBudgetImport(annualBudgetFileInput)">Cargar otro archivo</button>
           }
@@ -825,34 +1072,117 @@ export const ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME = 'easy-finance-annual-budge
         <div class="panel success-panel">{{ message }}</div>
       }
 
-      @if (importsStore.currentAnnualBudgetImportResult(); as result) {
+      @if (annualBudgetPreviewView(); as view) {
         <section class="panel batch-summary">
           <div class="summary-heading">
             <div>
-              <h2>{{ result.originalFilename }}</h2>
-              <p>Importacion directa de presupuesto anual</p>
+              <h2>{{ view.result.originalFilename || 'Preview de presupuesto anual' }}</h2>
+              <p>Preview stateless de presupuesto anual. No crea datos en backend.</p>
+            </div>
+            <span class="badge">Preview</span>
+          </div>
+          <dl class="summary-grid">
+            <div>
+              <dt>Total filas</dt>
+              <dd>{{ totalRows(view.result) }}</dd>
+            </div>
+            <div>
+              <dt>Validas</dt>
+              <dd>{{ validRows(view.result) }}</dd>
+            </div>
+            <div>
+              <dt>Invalidas</dt>
+              <dd>{{ invalidRows(view.result) }}</dd>
+            </div>
+          </dl>
+          <div class="confirm-row">
+            <button class="button" type="button" (click)="importAnnualBudget()" [disabled]="!canImportAnnualBudget()">
+              {{ importsStore.isImportingAnnualBudget() ? 'Confirmando...' : 'Confirmar importacion' }}
+            </button>
+          </div>
+        </section>
+
+        <section class="panel rows-panel">
+          <h2>Filas del preview</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fila</th>
+                  <th>AÃ±o</th>
+                  <th>Mes</th>
+                  <th>Meses aplicados</th>
+                  <th>Presupuesto</th>
+                  <th>Categoria</th>
+                  <th>Subpresupuesto</th>
+                  <th>Valor</th>
+                  <th>Valid</th>
+                  <th>Errores</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of view.result.rows; track row.rowNumber) {
+                  <tr [class.invalid]="!row.valid">
+                    <td>{{ row.rowNumber }}</td>
+                    <td>{{ displayValue(row, ['year', 'AÃ±o', 'Ano', 'anio']) }}</td>
+                    <td>{{ displayValue(row, ['month', 'Mes', 'mes']) }}</td>
+                    <td>{{ appliedMonthsLabel(row) }}</td>
+                    <td>{{ displayValue(row, ['budgetName', 'NombrePresupuesto', 'nombrePresupuesto']) }}</td>
+                    <td>{{ displayValue(row, ['categoryName', 'Categoria', 'CategorÃ­a', 'categoria'], categoryLabel(row.categoryId)) }}</td>
+                    <td>{{ displayValue(row, ['subBudgetName', 'NombreSubpresupuesto', 'nombreSubpresupuesto']) }}</td>
+                    <td>{{ amountLabel(row, ['plannedAmount', 'Valor', 'valor']) }}</td>
+                    <td>
+                      <span class="badge" [class.success]="row.valid" [class.danger]="!row.valid">
+                        {{ row.valid ? 'VALID' : 'INVALID' }}
+                      </span>
+                    </td>
+                    <td>
+                      @if (rowErrors(row).length) {
+                        <ul class="row-errors">
+                          @for (error of rowErrors(row); track error.column + error.code + error.message) {
+                            <li><strong>{{ error.column }}</strong>: {{ error.message }}</li>
+                          }
+                        </ul>
+                      } @else {
+                        -
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      }
+
+      @if (annualBudgetResultView(); as view) {
+        <section class="panel batch-summary">
+          <div class="summary-heading">
+            <div>
+              <h2>{{ view.result.originalFilename || 'Importacion de presupuesto anual' }}</h2>
+              <p>Resultado de importacion de presupuesto anual</p>
             </div>
           </div>
           <dl class="summary-grid">
             <div>
               <dt>Total filas</dt>
-              <dd>{{ result.totalRows }}</dd>
+              <dd>{{ totalRows(view.result) }}</dd>
             </div>
             <div>
               <dt>Presupuestos creados</dt>
-              <dd>{{ result.createdBudgetsCount }}</dd>
+              <dd>{{ createdBudgetsCount(view.result) }}</dd>
             </div>
             <div>
               <dt>Subpresupuestos creados</dt>
-              <dd>{{ result.createdSubBudgetsCount }}</dd>
+              <dd>{{ createdSubBudgetsCount(view.result) }}</dd>
             </div>
             <div>
               <dt>Invalidos</dt>
-              <dd>{{ result.invalidRows }}</dd>
+              <dd>{{ invalidRows(view.result) }}</dd>
             </div>
           </dl>
 
-          @if (result.invalidRows > 0) {
+          @if (invalidRows(view.result) > 0) {
             <div class="panel warning-panel">
               No se creo ningun presupuesto. Corrige el archivo y vuelve a cargarlo.
             </div>
@@ -877,30 +1207,24 @@ export const ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME = 'easy-finance-annual-budge
                 </tr>
               </thead>
               <tbody>
-                @for (row of result.rows; track row.rowNumber) {
+                @for (row of view.result.rows; track row.rowNumber) {
                   <tr [class.invalid]="!row.valid">
                     <td>{{ row.rowNumber }}</td>
-                    <td>{{ row.year ?? '-' }}</td>
-                    <td>{{ row.month || '-' }}</td>
-                    <td>{{ row.budgetName || '-' }}</td>
-                    <td>{{ row.categoryName || categoryLabel(row.categoryId) }}</td>
-                    <td>{{ row.subBudgetName || '-' }}</td>
-                    <td>
-                      @if (row.plannedAmount !== null && row.plannedAmount !== undefined) {
-                        {{ row.plannedAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}
-                      } @else {
-                        -
-                      }
-                    </td>
+                    <td>{{ displayValue(row, ['year', 'AÃ±o', 'Ano', 'anio']) }}</td>
+                    <td>{{ displayValue(row, ['month', 'Mes', 'mes']) }}</td>
+                    <td>{{ displayValue(row, ['budgetName', 'NombrePresupuesto', 'nombrePresupuesto']) }}</td>
+                    <td>{{ displayValue(row, ['categoryName', 'Categoria', 'CategorÃ­a', 'categoria'], categoryLabel(row.categoryId)) }}</td>
+                    <td>{{ displayValue(row, ['subBudgetName', 'NombreSubpresupuesto', 'nombreSubpresupuesto']) }}</td>
+                    <td>{{ amountLabel(row, ['plannedAmount', 'Valor', 'valor']) }}</td>
                     <td>
                       <span class="badge" [class.success]="row.valid" [class.danger]="!row.valid">
                         {{ row.valid ? 'VALID' : 'INVALID' }}
                       </span>
                     </td>
                     <td>
-                      @if (row.errors.length) {
+                      @if (rowErrors(row).length) {
                         <ul class="row-errors">
-                          @for (error of row.errors; track error.column + error.code + error.message) {
+                          @for (error of rowErrors(row); track error.column + error.code + error.message) {
                             <li><strong>{{ error.column }}</strong>: {{ error.message }}</li>
                           }
                         </ul>
@@ -914,10 +1238,10 @@ export const ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME = 'easy-finance-annual-budge
             </table>
           </div>
         </section>
-      } @else if (!importsStore.isImportingAnnualBudget()) {
+      } @else if (!importsStore.isImportingAnnualBudget() && !importsStore.isPreviewingAnnualBudget()) {
         <div class="panel empty-state">
           <h2>Sin importacion de presupuestos</h2>
-          <p>Sube un Excel y el sistema intentara crear el presupuesto anual en un solo paso.</p>
+          <p>Sube un Excel, genera un preview y luego importa el presupuesto anual.</p>
         </div>
       }
       }
@@ -943,6 +1267,26 @@ export class ImportsPageComponent {
   readonly annualBudgetSuccessMessage = signal<string | null>(null);
   readonly accountId = computed(() => this.accountStore.selectedAccountId() ?? 0);
   readonly canWrite = computed(() => this.accountStore.selectedAccount()?.status === 'ACTIVE');
+  readonly incomePreviewView = computed(() =>
+    this.importsStore.currentIncomeImportResult() ? null : this.statelessView(this.importsStore.currentIncomeImportPreview(), false)
+  );
+  readonly incomeResultView = computed(() => this.statelessView(this.importsStore.currentIncomeImportResult(), true));
+  readonly categoryPreviewView = computed(() =>
+    this.importsStore.currentCategoryImportResult() ? null : this.statelessView(this.importsStore.currentCategoryImportPreview(), false)
+  );
+  readonly categoryResultView = computed(() => this.statelessView(this.importsStore.currentCategoryImportResult(), true));
+  readonly paymentMethodPreviewView = computed(() =>
+    this.importsStore.currentPaymentMethodImportResult()
+      ? null
+      : this.statelessView(this.importsStore.currentPaymentMethodImportPreview(), false)
+  );
+  readonly paymentMethodResultView = computed(() => this.statelessView(this.importsStore.currentPaymentMethodImportResult(), true));
+  readonly annualBudgetPreviewView = computed(() =>
+    this.importsStore.currentAnnualBudgetImportResult()
+      ? null
+      : this.statelessView(this.importsStore.currentAnnualBudgetImportPreview(), false)
+  );
+  readonly annualBudgetResultView = computed(() => this.statelessView(this.importsStore.currentAnnualBudgetImportResult(), true));
   readonly hasImportState = computed(
     () =>
       Boolean(this.importsStore.selectedFile()) ||
@@ -955,6 +1299,7 @@ export class ImportsPageComponent {
   readonly hasIncomeImportState = computed(
     () =>
       Boolean(this.importsStore.selectedIncomeFile()) ||
+      Boolean(this.importsStore.currentIncomeImportPreview()) ||
       Boolean(this.importsStore.currentIncomeImportResult()) ||
       Boolean(this.importsStore.incomeError()) ||
       Boolean(this.importsStore.incomeTemplateDownloadError()) ||
@@ -964,6 +1309,7 @@ export class ImportsPageComponent {
   readonly hasCategoryImportState = computed(
     () =>
       Boolean(this.importsStore.selectedCategoryFile()) ||
+      Boolean(this.importsStore.currentCategoryImportPreview()) ||
       Boolean(this.importsStore.currentCategoryImportResult()) ||
       Boolean(this.importsStore.categoryError()) ||
       Boolean(this.importsStore.categoryTemplateDownloadError()) ||
@@ -973,6 +1319,7 @@ export class ImportsPageComponent {
   readonly hasPaymentMethodImportState = computed(
     () =>
       Boolean(this.importsStore.selectedPaymentMethodFile()) ||
+      Boolean(this.importsStore.currentPaymentMethodImportPreview()) ||
       Boolean(this.importsStore.currentPaymentMethodImportResult()) ||
       Boolean(this.importsStore.paymentMethodError()) ||
       Boolean(this.importsStore.paymentMethodTemplateDownloadError()) ||
@@ -982,6 +1329,7 @@ export class ImportsPageComponent {
   readonly hasAnnualBudgetImportState = computed(
     () =>
       Boolean(this.importsStore.selectedAnnualBudgetFile()) ||
+      Boolean(this.importsStore.currentAnnualBudgetImportPreview()) ||
       Boolean(this.importsStore.currentAnnualBudgetImportResult()) ||
       Boolean(this.importsStore.annualBudgetError()) ||
       Boolean(this.importsStore.annualBudgetTemplateDownloadError()) ||
@@ -1295,6 +1643,26 @@ export class ImportsPageComponent {
     });
   }
 
+  previewIncomes(): void {
+    this.incomeSuccessMessage.set(null);
+    this.incomeFileError.set(null);
+
+    if (!this.canWrite()) {
+      this.incomeFileError.set('La cuenta archivada no permite preview de ingresos.');
+      return;
+    }
+
+    const file = this.importsStore.selectedIncomeFile();
+    const validationError = file ? validateImportFile(file) : 'Selecciona un archivo .xlsx.';
+
+    if (validationError) {
+      this.incomeFileError.set(validationError);
+      return;
+    }
+
+    this.importsStore.previewIncomeFile(this.accountId()).pipe(take(1)).subscribe({ error: () => undefined });
+  }
+
   importIncomes(): void {
     this.incomeSuccessMessage.set(null);
     this.incomeFileError.set(null);
@@ -1323,6 +1691,26 @@ export class ImportsPageComponent {
       },
       error: () => undefined
     });
+  }
+
+  previewCategories(): void {
+    this.categorySuccessMessage.set(null);
+    this.categoryFileError.set(null);
+
+    if (!this.canWrite()) {
+      this.categoryFileError.set('La cuenta archivada no permite preview de categorias.');
+      return;
+    }
+
+    const file = this.importsStore.selectedCategoryFile();
+    const validationError = file ? validateImportFile(file) : 'Selecciona un archivo .xlsx.';
+
+    if (validationError) {
+      this.categoryFileError.set(validationError);
+      return;
+    }
+
+    this.importsStore.previewCategoryFile(this.accountId()).pipe(take(1)).subscribe({ error: () => undefined });
   }
 
   importCategories(): void {
@@ -1355,6 +1743,26 @@ export class ImportsPageComponent {
     });
   }
 
+  previewPaymentMethods(): void {
+    this.paymentMethodSuccessMessage.set(null);
+    this.paymentMethodFileError.set(null);
+
+    if (!this.canWrite()) {
+      this.paymentMethodFileError.set('La cuenta archivada no permite preview de medios de pago.');
+      return;
+    }
+
+    const file = this.importsStore.selectedPaymentMethodFile();
+    const validationError = file ? validateImportFile(file) : 'Selecciona un archivo .xlsx.';
+
+    if (validationError) {
+      this.paymentMethodFileError.set(validationError);
+      return;
+    }
+
+    this.importsStore.previewPaymentMethodFile(this.accountId()).pipe(take(1)).subscribe({ error: () => undefined });
+  }
+
   importPaymentMethods(): void {
     this.paymentMethodSuccessMessage.set(null);
     this.paymentMethodFileError.set(null);
@@ -1383,6 +1791,26 @@ export class ImportsPageComponent {
       },
       error: () => undefined
     });
+  }
+
+  previewAnnualBudget(): void {
+    this.annualBudgetSuccessMessage.set(null);
+    this.annualBudgetFileError.set(null);
+
+    if (!this.canWrite()) {
+      this.annualBudgetFileError.set('La cuenta archivada no permite preview de presupuestos.');
+      return;
+    }
+
+    const file = this.importsStore.selectedAnnualBudgetFile();
+    const validationError = file ? validateImportFile(file) : 'Selecciona un archivo .xlsx.';
+
+    if (validationError) {
+      this.annualBudgetFileError.set(validationError);
+      return;
+    }
+
+    this.importsStore.previewAnnualBudgetFile(this.accountId()).pipe(take(1)).subscribe({ error: () => undefined });
   }
 
   importAnnualBudget(): void {
@@ -1439,8 +1867,16 @@ export class ImportsPageComponent {
     return this.canWrite() && Boolean(this.importsStore.selectedIncomeFile()) && !this.importsStore.isImportingIncome();
   }
 
+  canPreviewIncomes(): boolean {
+    return this.canWrite() && Boolean(this.importsStore.selectedIncomeFile()) && !this.importsStore.isPreviewingIncome();
+  }
+
   canImportCategories(): boolean {
     return this.canWrite() && Boolean(this.importsStore.selectedCategoryFile()) && !this.importsStore.isImportingCategory();
+  }
+
+  canPreviewCategories(): boolean {
+    return this.canWrite() && Boolean(this.importsStore.selectedCategoryFile()) && !this.importsStore.isPreviewingCategory();
   }
 
   canImportPaymentMethods(): boolean {
@@ -1451,8 +1887,24 @@ export class ImportsPageComponent {
     );
   }
 
+  canPreviewPaymentMethods(): boolean {
+    return (
+      this.canWrite() &&
+      Boolean(this.importsStore.selectedPaymentMethodFile()) &&
+      !this.importsStore.isPreviewingPaymentMethod()
+    );
+  }
+
   canImportAnnualBudget(): boolean {
     return this.canWrite() && Boolean(this.importsStore.selectedAnnualBudgetFile()) && !this.importsStore.isImportingAnnualBudget();
+  }
+
+  canPreviewAnnualBudget(): boolean {
+    return (
+      this.canWrite() &&
+      Boolean(this.importsStore.selectedAnnualBudgetFile()) &&
+      !this.importsStore.isPreviewingAnnualBudget()
+    );
   }
 
   hasCatalogErrors(): boolean {
@@ -1460,7 +1912,7 @@ export class ImportsPageComponent {
 
     return rows.some((row) =>
       row.errors.some((error) => {
-        const normalized = `${error.column} ${error.code}`.toUpperCase();
+        const normalized = typeof error === 'string' ? error.toUpperCase() : `${error.column} ${error.code}`.toUpperCase();
         return normalized.includes('CATEGORY') || normalized.includes('CATEGORIA') || normalized.includes('PAYMENT');
       })
     );
@@ -1476,6 +1928,92 @@ export class ImportsPageComponent {
 
   paymentMethodLabel(paymentMethodId?: number | null): string {
     return paymentMethodId ? `Medio ${paymentMethodId}` : '-';
+  }
+
+  totalRows(result: StatelessImportResult): number {
+    return result.totalRows ?? result.rows.length;
+  }
+
+  validRows(result: StatelessImportResult): number {
+    return result.rows.filter((row) => row.valid).length;
+  }
+
+  invalidRows(result: StatelessImportResult): number {
+    return result.invalidRows ?? result.rows.filter((row) => !row.valid).length;
+  }
+
+  createdCount(result: IncomeImportResponseDto | CategoryImportResponseDto | PaymentMethodImportResponseDto): number {
+    return result.createdCount ?? 0;
+  }
+
+  createdBudgetsCount(result: AnnualBudgetImportResponseDto): number {
+    return result.createdBudgetsCount ?? 0;
+  }
+
+  createdSubBudgetsCount(result: AnnualBudgetImportResponseDto): number {
+    return result.createdSubBudgetsCount ?? 0;
+  }
+
+  displayValue(row: object, keys: string[], fallback: string | number = '-'): string | number {
+    const value = this.rowValue(row, keys);
+
+    if (value === null || value === undefined || value === '') {
+      return fallback;
+    }
+
+    if (typeof value === 'string' || typeof value === 'number') {
+      return value;
+    }
+
+    return String(value);
+  }
+
+  enumDisplayValue(row: object, keys: string[]): string {
+    const value = this.displayValue(row, keys);
+
+    return value === '-' ? '-' : enumLabel(String(value));
+  }
+
+  amountLabel(row: object, keys: string[]): string {
+    const value = this.rowValue(row, keys);
+
+    if (value === null || value === undefined || value === '') {
+      return '-';
+    }
+
+    if (typeof value === 'number') {
+      return new Intl.NumberFormat('es-CO', {
+        currency: 'COP',
+        maximumFractionDigits: 0,
+        style: 'currency'
+      }).format(value);
+    }
+
+    return String(value);
+  }
+
+  rowErrors(row: { errors?: ImportRowErrorDto[] | null }): NormalizedImportRowError[] {
+    return (row.errors ?? []).map((error) => {
+      if (typeof error === 'string') {
+        return { column: 'Fila', code: 'ROW_ERROR', message: error };
+      }
+
+      return {
+        column: error.column || 'Fila',
+        code: error.code || 'ROW_ERROR',
+        message: error.message || error.code || 'Error de validacion.'
+      };
+    });
+  }
+
+  appliedMonthsLabel(row: object): string {
+    const appliedMonths = (row as Record<string, unknown>)['appliedMonths'];
+
+    if (!Array.isArray(appliedMonths) || appliedMonths.length === 0) {
+      return '-';
+    }
+
+    return appliedMonths.join(', ');
   }
 
   debtLabel(row: ExpenseImportRowResponseDto): string {
@@ -1554,6 +2092,38 @@ export class ImportsPageComponent {
     };
 
     return messages[error.code] ?? error.message;
+  }
+
+  private statelessView<T extends StatelessImportResult>(result: T | null, imported: boolean): { result: T; imported: boolean } | null {
+    return result ? { result, imported } : null;
+  }
+
+  private rowValue(row: object, keys: string[]): unknown {
+    const rowValues = row as Record<string, unknown>;
+
+    for (const key of keys) {
+      if (Object.prototype.hasOwnProperty.call(rowValues, key)) {
+        return rowValues[key];
+      }
+    }
+
+    for (const containerKey of ['rawValues', 'originalValues', 'values', 'columns', 'raw']) {
+      const container = rowValues[containerKey];
+
+      if (!container || typeof container !== 'object') {
+        continue;
+      }
+
+      const values = container as Record<string, unknown>;
+
+      for (const key of keys) {
+        if (Object.prototype.hasOwnProperty.call(values, key)) {
+          return values[key];
+        }
+      }
+    }
+
+    return undefined;
   }
 
   private saveTemplateBlob(blob: Blob, fileName: string = EXPENSE_IMPORT_TEMPLATE_FILENAME): void {
