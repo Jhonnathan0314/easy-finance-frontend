@@ -89,9 +89,14 @@
 .file-field {
   display: grid;
   gap: 0.4rem;
+  min-width: 0;
 }
 
 .file-field input {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   border: 1px solid #c9d2df;
   border-radius: 6px;
   background: #ffffff;

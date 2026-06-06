@@ -55,7 +55,7 @@
 
 .filter-fields {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
   gap: 0.85rem;
 }
 
@@ -100,11 +100,18 @@
 .page-size-field select {
   width: 100%;
   min-width: 0;
+  max-width: 100%;
   box-sizing: border-box;
   border: 1px solid #c9d2df;
   border-radius: 6px;
   background: #ffffff;
   padding: 0.65rem 0.75rem;
+}
+
+.filters select,
+.field select {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .filters button,
@@ -183,8 +190,13 @@
 .income-form,
 .duplicate-income-form {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
   gap: 1rem;
+}
+
+.income-form > *,
+.duplicate-income-form > * {
+  min-width: 0;
 }
 
 .income-form h2,

@@ -46,6 +46,7 @@
 .field {
   display: grid;
   gap: 0.35rem;
+  min-width: 0;
 }
 
 .filters input,
@@ -53,10 +54,20 @@
 .field input,
 .field select,
 .field textarea {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   border: 1px solid #c9d2df;
   border-radius: 6px;
   background: #ffffff;
   padding: 0.65rem 0.75rem;
+}
+
+.filters select,
+.field select {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .checkbox-field {
@@ -74,7 +85,7 @@
 
 .associated-expense-fields {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
   gap: 0.85rem;
   border: 1px solid #dce2ea;
   border-radius: 8px;
@@ -97,8 +108,14 @@
 .debt-form,
 .payment-form {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
   gap: 1rem;
+}
+
+.debt-form > *,
+.payment-form > *,
+.associated-expense-fields > * {
+  min-width: 0;
 }
 
 .debt-form h2,

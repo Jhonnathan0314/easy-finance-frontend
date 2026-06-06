@@ -3,16 +3,33 @@ import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testin
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 
+import { AccountsApiService } from '../../core/accounts/accounts-api.service';
 import { AuthStore } from '../../core/auth/auth.store';
 import { CatalogsApiService } from '../../core/catalogs/catalogs-api.service';
 import { ExpensesStore } from '../../core/expenses/expenses.store';
 import { AccountStore } from '../../core/state/account.store';
-import { ExpenseResponseDto } from '../../shared/models';
+import { AccountMemberResponseDto, ExpenseResponseDto } from '../../shared/models';
 import { ExpensesPageComponent } from './expenses-page.component';
 
 describe('ExpensesPageComponent', () => {
   const category = { id: 1, accountId: 1, name: 'Food', description: null, type: 'EXPENSE', status: 'ACTIVE', createdAt: '', updatedAt: '' };
   const method = { id: 2, accountId: 1, name: 'Cash', description: null, type: 'CASH', status: 'ACTIVE', createdAt: '', updatedAt: '' };
+  const member: AccountMemberResponseDto = {
+    participantId: 7,
+    email: 'owner@example.com',
+    displayName: 'Owner',
+    role: 'ACCOUNT_ADMIN',
+    status: 'ACTIVE',
+    joinedAt: ''
+  };
+  const otherMember: AccountMemberResponseDto = {
+    participantId: 9,
+    email: 'member@example.com',
+    displayName: 'Member',
+    role: 'ACCOUNT_MEMBER',
+    status: 'ACTIVE',
+    joinedAt: ''
+  };
   const ownExpense: ExpenseResponseDto = {
     id: 1,
     accountId: 1,
@@ -43,6 +60,7 @@ describe('ExpensesPageComponent', () => {
       saving?: boolean;
       persistedFilters?: unknown;
       pagination?: { page: number; size: number; totalElements: number; totalPages: number };
+      members?: AccountMemberResponseDto[];
     } = {}
   ) {
     const role = options.role ?? 'ACCOUNT_ADMIN';
@@ -80,6 +98,12 @@ describe('ExpensesPageComponent', () => {
       providers: [
         provideRouter([]),
         { provide: AuthStore, useValue: { user: signal({ participantId: options.userParticipantId ?? 7 }) } },
+        {
+          provide: AccountsApiService,
+          useValue: {
+            listMembers: jasmine.createSpy('listMembers').and.returnValue(of(options.members ?? [member, otherMember]))
+          }
+        },
         {
           provide: AccountStore,
           useValue: {
@@ -232,7 +256,8 @@ describe('ExpensesPageComponent', () => {
       installmentAmount: 40,
       firstInstallmentDate: '2026-06-12',
       debtName: 'Laptop financiada',
-      notes: 'Con intereses'
+      notes: 'Con intereses',
+      participantId: 7
     });
   });
 
@@ -372,8 +397,72 @@ describe('ExpensesPageComponent', () => {
       categoryId: 1,
       paymentMethodId: 2,
       description: 'Gasto rápido',
-      paymentState: 'PAID'
+      paymentState: 'PAID',
+      participantId: 7
     }));
+  });
+
+  it('lets admin assign an active participant when creating a simple expense', () => {
+    const fixture = configure({ role: 'ACCOUNT_ADMIN' });
+    const component = fixture.componentInstance;
+    const store = TestBed.inject(ExpensesStore) as jasmine.SpyObj<ExpensesStore>;
+
+    component.startCreateSimple();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Participante');
+    expect(fixture.nativeElement.textContent).toContain('Member (member@example.com)');
+
+    component.simpleForm.patchValue({
+      categoryId: 1,
+      paymentMethodId: 2,
+      description: 'Mercado',
+      amount: 85000,
+      expenseDate: '2026-05-12',
+      paymentState: 'PAID',
+      participantId: '9'
+    });
+    component.saveSimpleExpense();
+
+    expect(store.createSimpleExpense).toHaveBeenCalledWith(1, jasmine.objectContaining({ participantId: 9 }));
+  });
+
+  it('limits member participant assignment to themselves', () => {
+    const fixture = configure({ role: 'ACCOUNT_MEMBER', userParticipantId: 7 });
+    const component = fixture.componentInstance;
+
+    expect(component.assignableParticipants().map((item) => item.participantId)).toEqual([7]);
+  });
+
+  it('prefills participant when editing a simple expense', () => {
+    const fixture = configure({ role: 'ACCOUNT_ADMIN' });
+    const component = fixture.componentInstance;
+
+    component.startEditSimple({ ...ownExpense, participantId: 9 });
+
+    expect(component.simpleForm.getRawValue().participantId).toBe('9');
+  });
+
+  it('sends participant to installment expense so derived debt inherits it', () => {
+    const fixture = configure({ role: 'ACCOUNT_ADMIN' });
+    const component = fixture.componentInstance;
+    const store = TestBed.inject(ExpensesStore) as jasmine.SpyObj<ExpensesStore>;
+
+    component.startCreateInstallment();
+    component.installmentForm.patchValue({
+      categoryId: 1,
+      paymentMethodId: 2,
+      description: 'Laptop',
+      totalAmount: 100,
+      expenseDate: '2026-05-12',
+      installmentCount: 3,
+      installmentAmount: 40,
+      firstInstallmentDate: '2026-06-12',
+      participantId: '9'
+    });
+    component.saveInstallmentExpense();
+
+    expect(store.createInstallmentExpense).toHaveBeenCalledWith(1, jasmine.objectContaining({ participantId: 9 }));
   });
 
   it('closes and resets quick expense after success', () => {

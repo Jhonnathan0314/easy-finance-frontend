@@ -2,11 +2,19 @@ import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 
+import { AccountsApiService } from '../../core/accounts/accounts-api.service';
 import { AuthStore } from '../../core/auth/auth.store';
 import { CatalogsApiService } from '../../core/catalogs/catalogs-api.service';
 import { DebtsPersistedFilters, DebtsStore } from '../../core/debts/debts.store';
 import { AccountStore } from '../../core/state/account.store';
-import { AccountResponseDto, CategoryResponseDto, DebtPaymentResponseDto, DebtResponseDto, PaymentMethodResponseDto } from '../../shared/models';
+import {
+  AccountMemberResponseDto,
+  AccountResponseDto,
+  CategoryResponseDto,
+  DebtPaymentResponseDto,
+  DebtResponseDto,
+  PaymentMethodResponseDto
+} from '../../shared/models';
 import { DebtsPageComponent } from './debts-page.component';
 
 describe('DebtsPageComponent', () => {
@@ -67,6 +75,22 @@ describe('DebtsPageComponent', () => {
     createdAt: '',
     updatedAt: ''
   };
+  const adminMember: AccountMemberResponseDto = {
+    participantId: 7,
+    email: 'admin@example.com',
+    displayName: 'Admin',
+    role: 'ACCOUNT_ADMIN',
+    status: 'ACTIVE',
+    joinedAt: ''
+  };
+  const member: AccountMemberResponseDto = {
+    participantId: 9,
+    email: 'member@example.com',
+    displayName: 'Member',
+    role: 'ACCOUNT_MEMBER',
+    status: 'ACTIVE',
+    joinedAt: ''
+  };
   const defaultPersistedFilters: DebtsPersistedFilters = {
     debtFilters: {
       state: 'ACTIVE',
@@ -95,6 +119,7 @@ describe('DebtsPageComponent', () => {
       createdExpenseId?: number | null;
       categories?: CategoryResponseDto[];
       paymentMethods?: PaymentMethodResponseDto[];
+      members?: AccountMemberResponseDto[];
     } = {}
   ): ComponentFixture<DebtsPageComponent> {
     const account: AccountResponseDto = {
@@ -152,6 +177,12 @@ describe('DebtsPageComponent', () => {
           }
         },
         {
+          provide: AccountsApiService,
+          useValue: {
+            listMembers: jasmine.createSpy('listMembers').and.returnValue(of(options.members ?? [adminMember, member]))
+          }
+        },
+        {
           provide: CatalogsApiService,
           useValue: {
             listCategories: jasmine
@@ -192,6 +223,79 @@ describe('DebtsPageComponent', () => {
     component.manualDebtForm.patchValue({ installmentCount: 3, installmentAmount: null });
 
     expect(component.manualDebtForm.hasError('installmentsPairRequired')).toBeTrue();
+  });
+
+  it('lets admin assign an active participant when creating a manual debt', () => {
+    const fixture = configure();
+    const component = fixture.componentInstance;
+    const store = TestBed.inject(DebtsStore) as jasmine.SpyObj<DebtsStore>;
+
+    component.startCreateDebt();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Participante');
+    expect(fixture.nativeElement.textContent).toContain('Member (member@example.com)');
+
+    component.manualDebtForm.patchValue({
+      name: 'Deuda familiar',
+      totalAmount: 500000,
+      startDate: '2026-06-01',
+      participantId: '9'
+    });
+    component.saveManualDebt();
+
+    expect(store.createManualDebt).toHaveBeenCalledWith(
+      1,
+      jasmine.objectContaining({
+        name: 'Deuda familiar',
+        participantId: 9
+      })
+    );
+  });
+
+  it('falls back to logged participant when creating manual debt without selecting participant', () => {
+    const fixture = configure();
+    const component = fixture.componentInstance;
+    const store = TestBed.inject(DebtsStore) as jasmine.SpyObj<DebtsStore>;
+
+    component.startCreateDebt();
+    component.manualDebtForm.patchValue({
+      name: 'Deuda propia',
+      totalAmount: 300000,
+      startDate: '2026-06-01',
+      participantId: ''
+    });
+    component.saveManualDebt();
+
+    expect(store.createManualDebt).toHaveBeenCalledWith(
+      1,
+      jasmine.objectContaining({
+        participantId: 7
+      })
+    );
+  });
+
+  it('limits member participant assignment to themselves', () => {
+    const fixture = configure({ role: 'ACCOUNT_MEMBER' });
+    const component = fixture.componentInstance;
+
+    expect(component.assignableParticipants().map((item) => item.participantId)).toEqual([7]);
+  });
+
+  it('shows inherited participant for derived debts', () => {
+    const derivedDebt: DebtResponseDto = {
+      ...debt,
+      participantId: 9,
+      sourceType: 'INSTALLMENT_EXPENSE',
+      originExpenseId: 55
+    };
+    const fixture = configure({ debts: [derivedDebt], selectedDebt: derivedDebt });
+
+    expect(fixture.nativeElement.textContent).toContain('Desde gasto en cuotas');
+    expect(fixture.nativeElement.textContent).toContain('Participante heredado');
+    expect(fixture.nativeElement.textContent).toContain('El participante se hereda del gasto origen');
+    expect(fixture.nativeElement.textContent).toContain('Member (member@example.com)');
+    expect(fixture.nativeElement.querySelector('.detail-panel [formcontrolname="participantId"]')).toBeNull();
   });
 
   it('validates payment amount does not exceed remaining balance', () => {
@@ -471,8 +575,7 @@ describe('DebtsPageComponent', () => {
   it('does not render participant id debt filter', () => {
     const fixture = configure();
 
-    expect(fixture.nativeElement.textContent).not.toContain('Participante');
-    expect(fixture.nativeElement.querySelector('[formcontrolname="participantId"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.filters [formcontrolname="participantId"]')).toBeNull();
   });
 
   it('shows empty state when there are no debts', () => {

@@ -3,11 +3,13 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { AbstractControl, NonNullableFormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { take } from 'rxjs';
 
+import { AccountsApiService } from '../../core/accounts/accounts-api.service';
 import { AuthStore } from '../../core/auth/auth.store';
 import { CatalogsApiService } from '../../core/catalogs/catalogs-api.service';
 import { DebtFilters, DebtsPersistedFilters, DebtsStore, PaymentFilters } from '../../core/debts/debts.store';
 import { AccountStore } from '../../core/state/account.store';
 import {
+  AccountMemberResponseDto,
   CategoryResponseDto,
   CreateManualDebtRequest,
   DebtPaymentStatus,
@@ -106,6 +108,15 @@ import { enumLabel } from '../../shared/ui/enum-labels';
             <input type="date" formControlName="dueDate">
           </label>
           <label class="field">
+            <span>Participante</span>
+            <select formControlName="participantId">
+              <option value="">Yo mismo</option>
+              @for (member of assignableParticipants(); track member.participantId) {
+                <option [value]="member.participantId">{{ participantLabel(member) }}</option>
+              }
+            </select>
+          </label>
+          <label class="field">
             <span>Numero de cuotas</span>
             <input type="number" min="1" step="1" formControlName="installmentCount">
           </label>
@@ -151,6 +162,10 @@ import { enumLabel } from '../../shared/ui/enum-labels';
                   <div>
                     <h3>{{ debt.name }}</h3>
                     <p>{{ debt.startDate }} @if (debt.endDate) { <span>hasta {{ debt.endDate }}</span> }</p>
+                    <p>
+                      {{ debt.sourceType === 'INSTALLMENT_EXPENSE' ? 'Participante heredado' : 'Participante' }}
+                      {{ participantName(debt.participantId) }}
+                    </p>
                   </div>
                   <div class="debt-card-amount">
                     <span>Capital pendiente</span>
@@ -204,7 +219,7 @@ import { enumLabel } from '../../shared/ui/enum-labels';
             </div>
 
             @if (debt.sourceType === 'INSTALLMENT_EXPENSE') {
-              <p class="hint">Creada desde gasto en cuotas.</p>
+              <p class="hint">Creada desde gasto en cuotas. El participante se hereda del gasto origen y no se edita desde Deudas.</p>
             }
 
             <dl class="summary-grid">
@@ -233,6 +248,10 @@ import { enumLabel } from '../../shared/ui/enum-labels';
               <div>
                 <dt>Origen</dt>
                 <dd>{{ enumLabel(debt.sourceType) }}</dd>
+              </div>
+              <div>
+                <dt>{{ debt.sourceType === 'INSTALLMENT_EXPENSE' ? 'Participante heredado' : 'Participante' }}</dt>
+                <dd>{{ participantName(debt.participantId) }}</dd>
               </div>
             </dl>
 
@@ -364,6 +383,7 @@ export class DebtsPageComponent implements OnInit {
   protected readonly accountStore = inject(AccountStore);
   protected readonly enumLabel = enumLabel;
   private readonly authStore = inject(AuthStore);
+  private readonly accountsApi = inject(AccountsApiService);
   private readonly catalogsApi = inject(CatalogsApiService);
   private readonly fb = inject(NonNullableFormBuilder);
 
@@ -376,6 +396,18 @@ export class DebtsPageComponent implements OnInit {
   readonly paymentFormError = signal<string | null>(null);
   readonly expenseCategories = signal<CategoryResponseDto[]>([]);
   readonly paymentMethods = signal<PaymentMethodResponseDto[]>([]);
+  readonly accountMembers = signal<AccountMemberResponseDto[]>([]);
+  readonly assignableParticipants = computed(() => {
+    const activeMembers = this.accountMembers().filter((member) => member.status === 'ACTIVE');
+    const account = this.accountStore.selectedAccount();
+    const currentParticipantId = this.authStore.user()?.participantId;
+
+    if (account?.currentUserRole === 'ACCOUNT_ADMIN') {
+      return activeMembers;
+    }
+
+    return activeMembers.filter((member) => member.participantId === currentParticipantId);
+  });
 
   readonly debtStates: DebtState[] = ['ACTIVE', 'PAID', 'CANCELLED'];
   readonly sourceTypes: DebtSourceType[] = ['MANUAL', 'INSTALLMENT_EXPENSE'];
@@ -398,7 +430,8 @@ export class DebtsPageComponent implements OnInit {
       installmentAmount: [null as number | null, [Validators.min(0.01)]],
       startDate: [today(), [Validators.required]],
       dueDate: [''],
-      notes: ['', [Validators.maxLength(1000)]]
+      notes: ['', [Validators.maxLength(1000)]],
+      participantId: ['']
     },
     { validators: installmentPairValidator }
   );
@@ -426,6 +459,7 @@ export class DebtsPageComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadCatalogs();
+    this.loadMembers();
     this.patchFilterForms(this.debtsStore.loadPersistedFilters(this.accountId()));
     this.debtsStore.loadDebts(this.accountId()).pipe(take(1)).subscribe({ error: () => undefined });
   }
@@ -470,7 +504,8 @@ export class DebtsPageComponent implements OnInit {
       installmentAmount: null,
       startDate: today(),
       dueDate: '',
-      notes: ''
+      notes: '',
+      participantId: ''
     });
     this.showDebtForm.set(true);
   }
@@ -490,7 +525,8 @@ export class DebtsPageComponent implements OnInit {
       installmentAmount: raw.installmentAmount,
       startDate: raw.startDate,
       dueDate: raw.dueDate || null,
-      notes: raw.notes || null
+      notes: raw.notes || null,
+      participantId: this.selectedParticipantId(raw.participantId)
     };
 
     this.debtsStore
@@ -660,6 +696,16 @@ export class DebtsPageComponent implements OnInit {
     return Math.max(0, this.scheduledTotal(debt) - debt.totalAmount);
   }
 
+  participantLabel(member: AccountMemberResponseDto): string {
+    return member.displayName ? `${member.displayName} (${member.email})` : member.email;
+  }
+
+  participantName(participantId: number): string {
+    const member = this.accountMembers().find((item) => item.participantId === participantId);
+
+    return member ? this.participantLabel(member) : `Participante ${participantId}`;
+  }
+
   friendlyError(code: string, fallback: string): string {
     const messages: Record<string, string> = {
       DEBT_PAYMENT_EXCEEDS_REMAINING_BALANCE: 'El pago supera el saldo pendiente.',
@@ -705,6 +751,16 @@ export class DebtsPageComponent implements OnInit {
       });
   }
 
+  private loadMembers(): void {
+    this.accountsApi
+      .listMembers(this.accountId())
+      .pipe(take(1))
+      .subscribe({
+        next: (members) => this.accountMembers.set(members),
+        error: () => this.accountMembers.set([])
+      });
+  }
+
   private patchFilterForms(filters: DebtsPersistedFilters): void {
     this.patchDebtFilterForm(filters.debtFilters);
     this.patchPaymentFilterForm(filters.paymentFilters);
@@ -726,6 +782,19 @@ export class DebtsPageComponent implements OnInit {
       paymentType: filters.paymentType ?? '',
       status: filters.status
     });
+  }
+
+  private selectedParticipantId(value: string): number | null {
+    const selectedParticipantId = value ? Number(value) : null;
+    const currentParticipantId = this.authStore.user()?.participantId ?? null;
+
+    if (!selectedParticipantId) {
+      return currentParticipantId;
+    }
+
+    const canAssign = this.assignableParticipants().some((member) => member.participantId === selectedParticipantId);
+
+    return canAssign ? selectedParticipantId : currentParticipantId;
   }
 }
 

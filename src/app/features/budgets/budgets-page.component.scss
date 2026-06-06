@@ -64,14 +64,14 @@
 
 .budget-list-filters {
   display: grid;
-  grid-template-columns: 10rem 12rem minmax(16rem, 1fr) auto;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
   align-items: end;
 }
 
 .compact-period-filters {
   margin-top: 0.25rem;
   display: grid;
-  grid-template-columns: 14rem auto;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
   align-items: end;
 }
 
@@ -88,6 +88,7 @@
 .field {
   display: grid;
   gap: 0.35rem;
+  min-width: 0;
 }
 
 .filters input,
@@ -95,10 +96,21 @@
 .field input,
 .field select,
 .field textarea {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   border: 1px solid #c9d2df;
   border-radius: 6px;
   background: #fff;
   padding: 0.65rem 0.75rem;
+}
+
+.filters select,
+.field select,
+.subbudget-filters select {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .filters button,
@@ -137,8 +149,15 @@
 .duplicate-form,
 .subbudget-form {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
   gap: 1rem;
+}
+
+.budget-form > *,
+.annual-form > *,
+.duplicate-form > *,
+.subbudget-form > * {
+  min-width: 0;
 }
 
 .budget-form h2,
@@ -163,7 +182,7 @@
 }
 
 .annual-subbudget-row {
-  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
   border: 1px solid #dce2ea;
   border-radius: 8px;
   padding: 0.75rem;
@@ -238,10 +257,15 @@
 .subbudget-filters label {
   display: grid;
   gap: 0.35rem;
+  min-width: 0;
 }
 
 .subbudget-filters input,
 .subbudget-filters select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   border: 1px solid #c9d2df;
   border-radius: 6px;
   background: #fff;

@@ -4,11 +4,13 @@ import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angula
 import { RouterLink } from '@angular/router';
 import { take } from 'rxjs';
 
+import { AccountsApiService } from '../../core/accounts/accounts-api.service';
 import { AuthStore } from '../../core/auth/auth.store';
 import { CatalogsApiService } from '../../core/catalogs/catalogs-api.service';
 import { ExpensesStore } from '../../core/expenses/expenses.store';
 import { AccountStore } from '../../core/state/account.store';
 import {
+  AccountMemberResponseDto,
   CategoryResponseDto,
   CreateInstallmentExpenseRequest,
   ExpensePaymentState,
@@ -183,6 +185,15 @@ type ExpenseDateSort = 'expenseDate,asc' | 'expenseDate,desc';
               }
             </select>
           </label>
+          <label class="field">
+            <span>Participante</span>
+            <select formControlName="participantId">
+              <option value="">Yo mismo</option>
+              @for (member of assignableParticipants(); track member.participantId) {
+                <option [value]="member.participantId">{{ participantLabel(member) }}</option>
+              }
+            </select>
+          </label>
           <label class="field wide">
             <span>Descripcion</span>
             <input type="text" formControlName="description" placeholder="Gasto rápido">
@@ -220,6 +231,15 @@ type ExpenseDateSort = 'expenseDate,asc' | 'expenseDate,desc';
           <label class="field wide">
             <span>Descripcion</span>
             <input type="text" formControlName="description">
+          </label>
+          <label class="field">
+            <span>Participante</span>
+            <select formControlName="participantId">
+              <option value="">Yo mismo</option>
+              @for (member of assignableParticipants(); track member.participantId) {
+                <option [value]="member.participantId">{{ participantLabel(member) }}</option>
+              }
+            </select>
           </label>
 
           @if (formMode() === 'simple') {
@@ -272,6 +292,7 @@ type ExpenseDateSort = 'expenseDate,asc' | 'expenseDate,desc';
               <span>Total financiado/programado</span>
               <strong>{{ installmentFinancedTotal() | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
               <p class="hint">El valor original queda en el gasto; el total financiado/programado queda en la deuda.</p>
+              <p class="hint">La deuda asociada quedara asignada a {{ selectedInstallmentParticipantLabel() }}.</p>
               @if (installmentFinancingDifference() > 0) {
                 <p class="hint">
                   La diferencia corresponde a intereses o costos financieros:
@@ -400,6 +421,7 @@ export class ExpensesPageComponent implements OnInit {
   protected readonly accountStore = inject(AccountStore);
   protected readonly enumLabel = enumLabel;
   private readonly authStore = inject(AuthStore);
+  private readonly accountsApi = inject(AccountsApiService);
   private readonly catalogsApi = inject(CatalogsApiService);
   private readonly fb = inject(NonNullableFormBuilder);
 
@@ -407,6 +429,7 @@ export class ExpensesPageComponent implements OnInit {
 
   readonly expenseCategories = signal<CategoryResponseDto[]>([]);
   readonly paymentMethods = signal<PaymentMethodResponseDto[]>([]);
+  readonly accountMembers = signal<AccountMemberResponseDto[]>([]);
   readonly selectedDetail = signal<ExpenseResponseDto | null>(null);
   readonly showQuickForm = signal(false);
   readonly showForm = signal(false);
@@ -420,6 +443,17 @@ export class ExpensesPageComponent implements OnInit {
   readonly hasRequiredCatalogs = computed(() => this.expenseCategories().length > 0 && this.paymentMethods().length > 0);
   readonly canCreate = computed(() => this.accountStore.selectedAccount()?.status === 'ACTIVE');
   readonly canUseQuickExpense = computed(() => this.canCreate() && this.hasRequiredCatalogs());
+  readonly assignableParticipants = computed(() => {
+    const activeMembers = this.accountMembers().filter((member) => member.status === 'ACTIVE');
+    const account = this.accountStore.selectedAccount();
+    const currentParticipantId = this.authStore.user()?.participantId;
+
+    if (account?.currentUserRole === 'ACCOUNT_ADMIN') {
+      return activeMembers;
+    }
+
+    return activeMembers.filter((member) => member.participantId === currentParticipantId);
+  });
   readonly currentPageNumber = computed(() => (this.expensesStore.pagination().totalPages ? this.expensesStore.pagination().page + 1 : 1));
   readonly totalPagesNumber = computed(() => Math.max(this.expensesStore.pagination().totalPages, 1));
   readonly canGoPreviousPage = computed(() => this.expensesStore.pagination().page > 0);
@@ -463,7 +497,8 @@ export class ExpensesPageComponent implements OnInit {
     paymentMethodId: [0, [Validators.required, Validators.min(1)]],
     description: ['', [Validators.maxLength(500)]],
     paymentState: ['PAID' as ExpensePaymentState],
-    expenseDate: [today(), [Validators.required]]
+    expenseDate: [today(), [Validators.required]],
+    participantId: ['']
   });
 
   readonly simpleForm = this.fb.group({
@@ -472,7 +507,8 @@ export class ExpensesPageComponent implements OnInit {
     description: ['', [Validators.required, Validators.maxLength(500)]],
     amount: [0, [Validators.required, Validators.min(0.01)]],
     expenseDate: [today(), [Validators.required]],
-    paymentState: ['PAID' as ExpensePaymentState, [Validators.required]]
+    paymentState: ['PAID' as ExpensePaymentState, [Validators.required]],
+    participantId: ['']
   });
 
   readonly duplicateExpenseForm = this.fb.group({
@@ -493,13 +529,15 @@ export class ExpensesPageComponent implements OnInit {
       installmentAmount: [0, [Validators.required, Validators.min(0.01)]],
       firstInstallmentDate: [today(), [Validators.required]],
       debtName: [''],
-      notes: ['']
+      notes: [''],
+      participantId: ['']
     },
     { validators: installmentTotalValidator }
   );
 
   ngOnInit(): void {
     this.loadCatalogs();
+    this.loadMembers();
     const filters = this.expensesStore.loadPersistedFilters(this.accountId());
     this.patchFilterForm(filters);
     this.expensesStore.loadExpenses(this.accountId(), filters).pipe(take(1)).subscribe({ error: () => undefined });
@@ -582,7 +620,8 @@ export class ExpensesPageComponent implements OnInit {
       description: '',
       amount: 0,
       expenseDate: today(),
-      paymentState: 'PAID'
+      paymentState: 'PAID',
+      participantId: ''
     });
     this.showForm.set(true);
   }
@@ -606,7 +645,8 @@ export class ExpensesPageComponent implements OnInit {
       installmentAmount: 0,
       firstInstallmentDate: today(),
       debtName: '',
-      notes: ''
+      notes: '',
+      participantId: ''
     });
     this.showForm.set(true);
   }
@@ -626,7 +666,8 @@ export class ExpensesPageComponent implements OnInit {
       description: expense.description,
       amount: expense.amount,
       expenseDate: expense.expenseDate,
-      paymentState: expense.paymentState
+      paymentState: expense.paymentState,
+      participantId: expense.participantId.toString()
     });
     this.showForm.set(true);
   }
@@ -651,7 +692,8 @@ export class ExpensesPageComponent implements OnInit {
       paymentMethodId: this.paymentMethods()[0]?.id ?? 0,
       description: '',
       paymentState: 'PAID',
-      expenseDate: today()
+      expenseDate: today(),
+      participantId: ''
     });
     this.showQuickForm.set(true);
     setTimeout(() => this.quickAmountInput?.nativeElement.focus());
@@ -673,7 +715,8 @@ export class ExpensesPageComponent implements OnInit {
         description: raw.description.trim() || 'Gasto rápido',
         amount: raw.amount,
         expenseDate: raw.expenseDate,
-        paymentState: raw.paymentState
+        paymentState: raw.paymentState,
+        participantId: this.selectedParticipantId(raw.participantId)
       })
       .pipe(take(1))
       .subscribe({
@@ -776,7 +819,8 @@ export class ExpensesPageComponent implements OnInit {
       description: raw.description,
       amount: raw.amount,
       expenseDate: raw.expenseDate,
-      paymentState: raw.paymentState
+      paymentState: raw.paymentState,
+      participantId: this.selectedParticipantId(raw.participantId)
     };
     const request$ = editing
       ? this.expensesStore.updateExpense(this.accountId(), editing.id, request)
@@ -808,7 +852,8 @@ export class ExpensesPageComponent implements OnInit {
       installmentAmount: raw.installmentAmount,
       firstInstallmentDate: raw.firstInstallmentDate,
       debtName: raw.debtName || null,
-      notes: raw.notes || null
+      notes: raw.notes || null,
+      participantId: this.selectedParticipantId(raw.participantId)
     };
 
     this.expensesStore
@@ -864,6 +909,17 @@ export class ExpensesPageComponent implements OnInit {
     return this.paymentMethods().find((method) => method.id === paymentMethodId)?.name ?? `Medio ${paymentMethodId}`;
   }
 
+  participantLabel(member: AccountMemberResponseDto): string {
+    return member.displayName ? `${member.displayName} (${member.email})` : member.email;
+  }
+
+  selectedInstallmentParticipantLabel(): string {
+    const participantId = this.selectedParticipantId(this.installmentForm.controls.participantId.value);
+    const member = this.assignableParticipants().find((item) => item.participantId === participantId);
+
+    return member ? this.participantLabel(member) : 'el usuario logueado';
+  }
+
   friendlyError(code: string, fallback: string): string {
     const messages: Record<string, string> = {
       EXPENSE_CATEGORY_NOT_FOUND: 'La categoria no existe.',
@@ -903,6 +959,16 @@ export class ExpensesPageComponent implements OnInit {
       });
   }
 
+  private loadMembers(): void {
+    this.accountsApi
+      .listMembers(this.accountId())
+      .pipe(take(1))
+      .subscribe({
+        next: (members) => this.accountMembers.set(members),
+        error: () => this.accountMembers.set([])
+      });
+  }
+
   private resetQuickExpenseForm(): void {
     this.quickExpenseForm.reset({
       amount: 0,
@@ -910,12 +976,26 @@ export class ExpensesPageComponent implements OnInit {
       paymentMethodId: this.paymentMethods()[0]?.id ?? 0,
       description: '',
       paymentState: 'PAID',
-      expenseDate: today()
+      expenseDate: today(),
+      participantId: ''
     });
   }
 
   private loadPage(page: number): void {
     this.expensesStore.loadExpenses(this.accountId(), { page }).pipe(take(1)).subscribe({ error: () => undefined });
+  }
+
+  private selectedParticipantId(value: string): number | null {
+    const selectedParticipantId = toNumberOrNull(value);
+    const currentParticipantId = this.authStore.user()?.participantId ?? null;
+
+    if (!selectedParticipantId) {
+      return currentParticipantId;
+    }
+
+    const canAssign = this.assignableParticipants().some((member) => member.participantId === selectedParticipantId);
+
+    return canAssign ? selectedParticipantId : currentParticipantId;
   }
 
   private patchFilterForm(filters: {

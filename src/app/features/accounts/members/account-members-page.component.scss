@@ -73,10 +73,26 @@ select:disabled {
 .field textarea,
 .compact-field select {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   border: 1px solid #c9d2df;
   border-radius: 6px;
   background: #ffffff;
   padding: 0.75rem 0.85rem;
+}
+
+.field,
+.compact-field,
+.member-actions,
+.member-row > * {
+  min-width: 0;
+}
+
+.field select,
+.compact-field select {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .account-edit-panel h2 {

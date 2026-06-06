@@ -20,6 +20,7 @@ export interface CreateIncomeRequest {
   description: string;
   amount: number;
   incomeDate: string;
+  participantId?: number | null;
 }
 
 export interface UpdateIncomeRequest {
@@ -27,6 +28,7 @@ export interface UpdateIncomeRequest {
   description: string;
   amount: number;
   incomeDate: string;
+  participantId?: number | null;
 }
 
 export interface DuplicateIncomeRequest {

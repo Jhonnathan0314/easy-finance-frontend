@@ -60,6 +60,7 @@
 .field {
   display: grid;
   gap: 0.35rem;
+  min-width: 0;
 }
 
 .filters input,
@@ -68,10 +69,20 @@
 .field select,
 .field textarea,
 .page-size-field select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   border: 1px solid #c9d2df;
   border-radius: 6px;
   background: #ffffff;
   padding: 0.65rem 0.75rem;
+}
+
+.filters select,
+.field select {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .filters button,
@@ -159,8 +170,14 @@
 .expense-form,
 .duplicate-expense-form {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
   gap: 1rem;
+}
+
+.quick-expense-form > *,
+.expense-form > *,
+.duplicate-expense-form > * {
+  min-width: 0;
 }
 
 .quick-expense-form > div:first-child,

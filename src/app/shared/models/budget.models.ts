@@ -37,12 +37,14 @@ export interface CreateSubBudgetRequest {
   categoryId?: number | null;
   name: string;
   plannedAmount: number;
+  participantId?: number | null;
 }
 
 export interface UpdateSubBudgetRequest {
   categoryId?: number | null;
   name: string;
   plannedAmount: number;
+  participantId?: number | null;
 }
 
 export interface BudgetResponse {
@@ -79,6 +81,7 @@ export interface SubBudgetResponse {
   spentCurrency: CurrencyCode;
   status: SubBudgetStatus;
   sourceType: SubBudgetSourceType;
+  participantId?: number | null;
   createdAt: string;
   updatedAt: string;
 }

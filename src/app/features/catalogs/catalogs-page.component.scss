@@ -95,6 +95,7 @@
 .field {
   display: grid;
   gap: 0.35rem;
+  min-width: 0;
 }
 
 .filters input,
@@ -102,10 +103,20 @@
 .field input,
 .field textarea,
 .field select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   border: 1px solid #c9d2df;
   border-radius: 6px;
   background: #ffffff;
   padding: 0.65rem 0.75rem;
+}
+
+.filters select,
+.field select {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .search-field {

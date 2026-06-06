@@ -16,6 +16,9 @@
 
 .field textarea {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   resize: vertical;
   border: 1px solid #c9d2df;
   border-radius: 6px;

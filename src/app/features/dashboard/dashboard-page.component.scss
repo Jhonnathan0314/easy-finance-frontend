@@ -53,12 +53,17 @@
 .advanced-filters label {
   display: grid;
   gap: 0.35rem;
+  min-width: 0;
 }
 
 .filters input,
 .filters select,
 .advanced-filters input,
 .advanced-filters select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   border: 1px solid #c9d2df;
   border-radius: 6px;
   background: #ffffff;

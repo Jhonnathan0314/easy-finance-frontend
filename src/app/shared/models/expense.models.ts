@@ -8,6 +8,7 @@ export interface CreateExpenseRequest {
   amount: number;
   expenseDate: string;
   paymentState?: ExpensePaymentState | null;
+  participantId?: number | null;
 }
 
 export interface UpdateExpenseRequest {
@@ -17,6 +18,7 @@ export interface UpdateExpenseRequest {
   amount: number;
   expenseDate: string;
   paymentState: ExpensePaymentState;
+  participantId?: number | null;
 }
 
 export interface DuplicateExpenseRequest {
@@ -37,6 +39,7 @@ export interface CreateInstallmentExpenseRequest {
   firstInstallmentDate: string;
   debtName?: string | null;
   notes?: string | null;
+  participantId?: number | null;
 }
 
 export interface ExpenseResponse {

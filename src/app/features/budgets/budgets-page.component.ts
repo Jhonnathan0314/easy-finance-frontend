@@ -4,10 +4,13 @@ import { FormArray, NonNullableFormBuilder, ReactiveFormsModule, Validators } fr
 import { RouterLink } from '@angular/router';
 import { take } from 'rxjs';
 
+import { AccountsApiService } from '../../core/accounts/accounts-api.service';
+import { AuthStore } from '../../core/auth/auth.store';
 import { BudgetPersistedFilters, BudgetsStore } from '../../core/budgets/budgets.store';
 import { CatalogsApiService } from '../../core/catalogs/catalogs-api.service';
 import { AccountStore } from '../../core/state/account.store';
 import {
+  AccountMemberResponseDto,
   BudgetImpactResponseDto,
   BudgetResponseDto,
   BudgetStatus,
@@ -366,6 +369,7 @@ interface BudgetSubBudgetFilters {
                                 <div>
                                   <h3>{{ subBudget.name }}</h3>
                                   <p>{{ categoryName(subBudget.categoryId) }}</p>
+                                  <p>{{ subBudgetParticipantLabel(subBudget.participantId) }}</p>
                                 </div>
                                 <div class="amount-block">
                                   <span>Presupuestado</span>
@@ -482,6 +486,17 @@ interface BudgetSubBudgetFilters {
                       <span>Planeado</span>
                       <input type="number" min="0" step="0.01" formControlName="plannedAmount">
                     </label>
+                    <label class="field">
+                      <span>Participante</span>
+                      <select formControlName="participantId">
+                        @if (canAssignGlobalSubBudget()) {
+                          <option value="">Global</option>
+                        }
+                        @for (member of assignableParticipants(); track member.participantId) {
+                          <option [value]="member.participantId">{{ participantLabel(member) }}</option>
+                        }
+                      </select>
+                    </label>
                     <div class="form-actions">
                       <button class="button" type="submit" [disabled]="subBudgetForm.invalid || budgetsStore.isSaving()">Guardar</button>
                       <button type="button" (click)="cancelSubBudgetForm()">Cancelar</button>
@@ -500,6 +515,7 @@ interface BudgetSubBudgetFilters {
                         <div>
                           <h3>{{ subBudget.name }}</h3>
                           <p>{{ categoryName(subBudget.categoryId) }}</p>
+                          <p>{{ subBudgetParticipantLabel(subBudget.participantId) }}</p>
                         </div>
                         <div class="amount-block">
                           <span>Presupuestado</span>
@@ -586,11 +602,14 @@ export class BudgetsPageComponent implements OnInit {
   protected readonly budgetsStore = inject(BudgetsStore);
   protected readonly accountStore = inject(AccountStore);
   protected readonly enumLabel = enumLabel;
+  private readonly accountsApi = inject(AccountsApiService);
+  private readonly authStore = inject(AuthStore);
   private readonly catalogsApi = inject(CatalogsApiService);
   private readonly fb = inject(NonNullableFormBuilder);
 
   readonly currentDate = new Date();
   readonly expenseCategories = signal<CategoryResponseDto[]>([]);
+  readonly accountMembers = signal<AccountMemberResponseDto[]>([]);
   readonly showBudgetForm = signal(false);
   readonly showAnnualBudgetForm = signal(false);
   readonly showDuplicateBudgetForm = signal(false);
@@ -608,6 +627,18 @@ export class BudgetsPageComponent implements OnInit {
   readonly canWrite = computed(
     () => this.accountStore.selectedAccount()?.currentUserRole === 'ACCOUNT_ADMIN' && !this.accountStore.selectedAccountArchived()
   );
+  readonly canAssignGlobalSubBudget = computed(() => this.accountStore.selectedAccount()?.currentUserRole === 'ACCOUNT_ADMIN');
+  readonly assignableParticipants = computed(() => {
+    const activeMembers = this.accountMembers().filter((member) => member.status === 'ACTIVE');
+    const account = this.accountStore.selectedAccount();
+    const currentParticipantId = this.authStore.user()?.participantId;
+
+    if (account?.currentUserRole === 'ACCOUNT_ADMIN') {
+      return activeMembers;
+    }
+
+    return activeMembers.filter((member) => member.participantId === currentParticipantId);
+  });
   readonly impactTotals = computed(() => {
     const summary = this.budgetsStore.budgetSummary();
 
@@ -733,7 +764,8 @@ export class BudgetsPageComponent implements OnInit {
   readonly subBudgetForm = this.fb.group({
     categoryId: [null as number | null],
     name: ['', [Validators.required, Validators.maxLength(150)]],
-    plannedAmount: [0, [Validators.required, Validators.min(0)]]
+    plannedAmount: [0, [Validators.required, Validators.min(0)]],
+    participantId: ['']
   });
   readonly annualBudgetForm = this.fb.group({
     year: [this.currentDate.getFullYear(), [Validators.required, Validators.min(2000), Validators.max(2100)]],
@@ -748,6 +780,7 @@ export class BudgetsPageComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadCategories();
+    this.loadMembers();
     this.patchFilters(this.budgetsStore.loadPersistedFilters(this.accountId()));
     this.loadBudgets();
   }
@@ -1039,7 +1072,8 @@ export class BudgetsPageComponent implements OnInit {
     this.subBudgetForm.reset({
       categoryId: null,
       name: '',
-      plannedAmount: 0
+      plannedAmount: 0,
+      participantId: this.canAssignGlobalSubBudget() ? '' : this.currentParticipantIdValue()
     });
     this.showSubBudgetForm.set(true);
   }
@@ -1076,7 +1110,8 @@ export class BudgetsPageComponent implements OnInit {
     this.subBudgetForm.reset({
       categoryId: subBudget.categoryId ?? null,
       name: subBudget.name,
-      plannedAmount: subBudget.plannedAmount
+      plannedAmount: subBudget.plannedAmount,
+      participantId: subBudget.participantId?.toString() ?? ''
     });
     this.showSubBudgetForm.set(true);
   }
@@ -1095,7 +1130,8 @@ export class BudgetsPageComponent implements OnInit {
     const request = {
       categoryId: raw.categoryId || null,
       name: raw.name,
-      plannedAmount: raw.plannedAmount
+      plannedAmount: raw.plannedAmount,
+      participantId: this.selectedParticipantId(raw.participantId)
     };
     const request$ = editing
       ? this.budgetsStore.updateSubBudget(this.accountId(), detail.budget.id, editing.id, request)
@@ -1163,6 +1199,20 @@ export class BudgetsPageComponent implements OnInit {
     return this.expenseCategories().find((category) => category.id === categoryId)?.name ?? `Categoria ${categoryId}`;
   }
 
+  participantLabel(member: AccountMemberResponseDto): string {
+    return member.displayName ? `${member.displayName} (${member.email})` : member.email;
+  }
+
+  subBudgetParticipantLabel(participantId?: number | null): string {
+    if (!participantId) {
+      return 'Global';
+    }
+
+    const member = this.accountMembers().find((item) => item.participantId === participantId);
+
+    return member ? this.participantLabel(member) : `Participante ${participantId}`;
+  }
+
   twoDigits(value: number): string {
     return value.toString().padStart(2, '0');
   }
@@ -1197,6 +1247,16 @@ export class BudgetsPageComponent implements OnInit {
       });
   }
 
+  private loadMembers(): void {
+    this.accountsApi
+      .listMembers(this.accountId())
+      .pipe(take(1))
+      .subscribe({
+        next: (members) => this.accountMembers.set(members),
+        error: () => this.accountMembers.set([])
+      });
+  }
+
   private patchFilters(filters: BudgetPersistedFilters): void {
     this.listFilterForm.patchValue({
       year: filters.year ?? filters.selectedYear,
@@ -1224,5 +1284,25 @@ export class BudgetsPageComponent implements OnInit {
     });
     this.annualSubBudgets.clear();
     this.annualSubBudgets.push(this.createAnnualSubBudgetGroup());
+  }
+
+  private selectedParticipantId(value: string): number | null {
+    const selectedParticipantId = value ? Number(value) : null;
+
+    if (!selectedParticipantId) {
+      return this.canAssignGlobalSubBudget() ? null : this.currentParticipantId();
+    }
+
+    const canAssign = this.assignableParticipants().some((member) => member.participantId === selectedParticipantId);
+
+    return canAssign ? selectedParticipantId : this.currentParticipantId();
+  }
+
+  private currentParticipantIdValue(): string {
+    return this.currentParticipantId()?.toString() ?? '';
+  }
+
+  private currentParticipantId(): number | null {
+    return this.authStore.user()?.participantId ?? null;
   }
 }

@@ -2,10 +2,13 @@ import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 
+import { AccountsApiService } from '../../core/accounts/accounts-api.service';
+import { AuthStore } from '../../core/auth/auth.store';
 import { BudgetPersistedFilters, BudgetsStore } from '../../core/budgets/budgets.store';
 import { CatalogsApiService } from '../../core/catalogs/catalogs-api.service';
 import { AccountStore } from '../../core/state/account.store';
 import {
+  AccountMemberResponseDto,
   AccountResponseDto,
   BudgetDetailResponseDto,
   BudgetResponseDto,
@@ -105,6 +108,22 @@ describe('BudgetsPageComponent', () => {
     createdAt: '',
     updatedAt: ''
   };
+  const adminMember: AccountMemberResponseDto = {
+    participantId: 7,
+    email: 'admin@example.com',
+    displayName: 'Admin',
+    role: 'ACCOUNT_ADMIN',
+    status: 'ACTIVE',
+    joinedAt: ''
+  };
+  const member: AccountMemberResponseDto = {
+    participantId: 9,
+    email: 'member@example.com',
+    displayName: 'Member',
+    role: 'ACCOUNT_MEMBER',
+    status: 'ACTIVE',
+    joinedAt: ''
+  };
   const defaultPersistedFilters: BudgetPersistedFilters = {
     selectedYear: 2026,
     selectedMonth: 5,
@@ -127,6 +146,7 @@ describe('BudgetsPageComponent', () => {
       error?: { code: string; message: string };
       persistedFilters?: BudgetPersistedFilters;
       budgetSummary?: BudgetSummaryResponseDto | null;
+      members?: AccountMemberResponseDto[];
     } = {}
   ): ComponentFixture<BudgetsPageComponent> {
     const account = {
@@ -141,6 +161,7 @@ describe('BudgetsPageComponent', () => {
     TestBed.configureTestingModule({
       imports: [BudgetsPageComponent],
       providers: [
+        { provide: AuthStore, useValue: { user: signal({ participantId: 7 }) } },
         {
           provide: AccountStore,
           useValue: {
@@ -173,6 +194,12 @@ describe('BudgetsPageComponent', () => {
           }
         },
         {
+          provide: AccountsApiService,
+          useValue: {
+            listMembers: jasmine.createSpy('listMembers').and.returnValue(of(options.members ?? [adminMember, member]))
+          }
+        },
+        {
           provide: CatalogsApiService,
           useValue: {
             listCategories: jasmine
@@ -200,6 +227,113 @@ describe('BudgetsPageComponent', () => {
     expect(component.subBudgetForm.valid).toBeFalse();
     expect(component.subBudgetForm.controls.name.hasError('required')).toBeTrue();
     expect(component.subBudgetForm.controls.plannedAmount.hasError('min')).toBeTrue();
+  });
+
+  it('creates a global sub budget with null participant when no participant is selected', () => {
+    const fixture = configure();
+    const component = fixture.componentInstance;
+    const store = TestBed.inject(BudgetsStore) as jasmine.SpyObj<BudgetsStore>;
+
+    component.viewMode.set('monthlyDetail');
+    component.changeDetailTab('subBudgets');
+    component.startCreateSubBudget();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Participante');
+    expect(fixture.nativeElement.textContent).toContain('Global');
+
+    component.subBudgetForm.patchValue({
+      categoryId: 3,
+      name: 'Mercado global',
+      plannedAmount: 500000,
+      participantId: ''
+    });
+    component.saveSubBudget();
+
+    expect(store.createSubBudget).toHaveBeenCalledWith(
+      1,
+      1,
+      jasmine.objectContaining({
+        categoryId: 3,
+        name: 'Mercado global',
+        plannedAmount: 500000,
+        participantId: null
+      })
+    );
+  });
+
+  it('lets admin assign participant when creating a sub budget', () => {
+    const fixture = configure();
+    const component = fixture.componentInstance;
+    const store = TestBed.inject(BudgetsStore) as jasmine.SpyObj<BudgetsStore>;
+
+    component.viewMode.set('monthlyDetail');
+    component.changeDetailTab('subBudgets');
+    component.startCreateSubBudget();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Member (member@example.com)');
+
+    component.subBudgetForm.patchValue({
+      categoryId: 3,
+      name: 'Mercado Member',
+      plannedAmount: 250000,
+      participantId: '9'
+    });
+    component.saveSubBudget();
+
+    expect(store.createSubBudget).toHaveBeenCalledWith(
+      1,
+      1,
+      jasmine.objectContaining({
+        participantId: 9
+      })
+    );
+  });
+
+  it('prefills participant when editing a sub budget', () => {
+    const subBudgetWithParticipant: SubBudgetResponseDto = { ...manualSubBudget, participantId: 9 };
+    const fixture = configure({ selectedDetail: { ...detail, subBudgets: [subBudgetWithParticipant] } });
+    const component = fixture.componentInstance;
+    const store = TestBed.inject(BudgetsStore) as jasmine.SpyObj<BudgetsStore>;
+
+    component.startEditSubBudget(subBudgetWithParticipant);
+
+    expect(component.subBudgetForm.controls.participantId.value).toBe('9');
+
+    component.subBudgetForm.patchValue({ name: 'Mercado editado' });
+    component.saveSubBudget();
+
+    expect(store.updateSubBudget).toHaveBeenCalledWith(
+      1,
+      1,
+      2,
+      jasmine.objectContaining({
+        name: 'Mercado editado',
+        participantId: 9
+      })
+    );
+  });
+
+  it('limits member participant assignment to themselves', () => {
+    const fixture = configure({ role: 'ACCOUNT_MEMBER' });
+    const component = fixture.componentInstance;
+
+    expect(component.canAssignGlobalSubBudget()).toBeFalse();
+    expect(component.assignableParticipants().map((item) => item.participantId)).toEqual([7]);
+  });
+
+  it('shows participant label on sub budget cards', () => {
+    const subBudgetWithParticipant: SubBudgetResponseDto = { ...manualSubBudget, participantId: 9 };
+    const fixture = configure({ selectedDetail: { ...detail, subBudgets: [subBudgetWithParticipant] } });
+    const component = fixture.componentInstance;
+
+    component.viewMode.set('monthlyDetail');
+    component.changeDetailTab('subBudgets');
+    fixture.detectChanges();
+
+    const card = fixture.nativeElement.querySelector('.subbudget-card') as HTMLElement;
+    expect(card.textContent).toContain('Member (member@example.com)');
   });
 
   it('hides write actions for account members', () => {

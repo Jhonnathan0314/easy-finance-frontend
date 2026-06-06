@@ -3,11 +3,12 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 
+import { AccountsApiService } from '../../core/accounts/accounts-api.service';
 import { AuthStore } from '../../core/auth/auth.store';
 import { CatalogsApiService } from '../../core/catalogs/catalogs-api.service';
 import { IncomeFilters, IncomeStore } from '../../core/income/income.store';
 import { AccountStore } from '../../core/state/account.store';
-import { AccountResponseDto, CategoryResponseDto, IncomeResponseDto } from '../../shared/models';
+import { AccountMemberResponseDto, AccountResponseDto, CategoryResponseDto, IncomeResponseDto } from '../../shared/models';
 import { IncomePageComponent } from './income-page.component';
 
 describe('IncomePageComponent', () => {
@@ -34,6 +35,22 @@ describe('IncomePageComponent', () => {
     createdAt: '',
     updatedAt: ''
   };
+  const member: AccountMemberResponseDto = {
+    participantId: 7,
+    email: 'owner@example.com',
+    displayName: 'Owner',
+    role: 'ACCOUNT_ADMIN',
+    status: 'ACTIVE',
+    joinedAt: ''
+  };
+  const otherMember: AccountMemberResponseDto = {
+    participantId: 9,
+    email: 'member@example.com',
+    displayName: 'Member',
+    role: 'ACCOUNT_MEMBER',
+    status: 'ACTIVE',
+    joinedAt: ''
+  };
   const defaultFilters: IncomeFilters = {
     year: null,
     month: null,
@@ -58,6 +75,7 @@ describe('IncomePageComponent', () => {
       error?: { code: string; message: string };
       persistedFilters?: IncomeFilters;
       pagination?: { page: number; size: number; totalElements: number; totalPages: number };
+      members?: AccountMemberResponseDto[];
     } = {}
   ): ComponentFixture<IncomePageComponent> {
     const account: AccountResponseDto = {
@@ -77,6 +95,12 @@ describe('IncomePageComponent', () => {
       providers: [
         provideRouter([]),
         { provide: AuthStore, useValue: { user: signal({ participantId: options.userParticipantId ?? 7 }) } },
+        {
+          provide: AccountsApiService,
+          useValue: {
+            listMembers: jasmine.createSpy('listMembers').and.returnValue(of(options.members ?? [member, otherMember]))
+          }
+        },
         {
           provide: AccountStore,
           useValue: {
@@ -216,8 +240,48 @@ describe('IncomePageComponent', () => {
       categoryId: 1,
       description: 'Bonus',
       amount: 100000,
-      incomeDate: '2026-05-12'
+      incomeDate: '2026-05-12',
+      participantId: 7
     });
+  });
+
+  it('lets admin assign an active participant when creating income', () => {
+    const fixture = configure({ role: 'ACCOUNT_ADMIN' });
+    const component = fixture.componentInstance;
+    const store = TestBed.inject(IncomeStore) as jasmine.SpyObj<IncomeStore>;
+
+    component.startCreateIncome();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Participante');
+    expect(fixture.nativeElement.textContent).toContain('Member (member@example.com)');
+
+    component.incomeForm.patchValue({
+      categoryId: 1,
+      description: 'Bonus',
+      amount: 100000,
+      incomeDate: '2026-05-12',
+      participantId: '9'
+    });
+    component.saveIncome();
+
+    expect(store.createIncome).toHaveBeenCalledWith(1, jasmine.objectContaining({ participantId: 9 }));
+  });
+
+  it('limits member participant assignment to themselves', () => {
+    const fixture = configure({ role: 'ACCOUNT_MEMBER', userParticipantId: 7 });
+    const component = fixture.componentInstance;
+
+    expect(component.assignableParticipants().map((item) => item.participantId)).toEqual([7]);
+  });
+
+  it('prefills participant when editing income', () => {
+    const fixture = configure({ role: 'ACCOUNT_ADMIN' });
+    const component = fixture.componentInstance;
+
+    component.startEditIncome({ ...income, participantId: 9 });
+
+    expect(component.incomeForm.getRawValue().participantId).toBe('9');
   });
 
   it('loads persisted filters on init', () => {

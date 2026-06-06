@@ -16,6 +16,9 @@ export interface ExpenseImportRowResponse {
   description?: string | null;
   amount?: number | null;
   currency?: CurrencyCode | null;
+  participantId?: number | null;
+  participantLabel?: string | null;
+  participantName?: string | null;
   categoryName?: string | null;
   categoryId?: number | null;
   paymentMethodName?: string | null;
@@ -54,6 +57,9 @@ export interface IncomeImportRowResponse {
   incomeDate?: string | null;
   description?: string | null;
   amount?: number | null;
+  participantId?: number | null;
+  participantLabel?: string | null;
+  participantName?: string | null;
   categoryName?: string | null;
   categoryId?: number | null;
   valid: boolean;
@@ -132,6 +138,9 @@ export interface AnnualBudgetImportRowResponse {
   categoryId?: number | null;
   subBudgetName?: string | null;
   plannedAmount?: number | null;
+  participantId?: number | null;
+  participantLabel?: string | null;
+  participantName?: string | null;
   appliedMonths?: number[];
   valid: boolean;
   errors: ImportRowErrorDto[];

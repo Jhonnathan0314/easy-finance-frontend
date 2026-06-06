@@ -4,11 +4,12 @@ import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angula
 import { RouterLink } from '@angular/router';
 import { take } from 'rxjs';
 
+import { AccountsApiService } from '../../core/accounts/accounts-api.service';
 import { AuthStore } from '../../core/auth/auth.store';
 import { CatalogsApiService } from '../../core/catalogs/catalogs-api.service';
 import { IncomeFilters, IncomeStore } from '../../core/income/income.store';
 import { AccountStore } from '../../core/state/account.store';
-import { CategoryResponseDto, IncomeResponseDto } from '../../shared/models';
+import { AccountMemberResponseDto, CategoryResponseDto, IncomeResponseDto } from '../../shared/models';
 
 type IncomeDateSort = 'incomeDate,asc' | 'incomeDate,desc';
 type IncomeMonthOption = { value: number; label: string };
@@ -145,6 +146,15 @@ type IncomeMonthOption = { value: number; label: string };
             <span>Fecha</span>
             <input type="date" formControlName="incomeDate">
           </label>
+          <label class="field">
+            <span>Participante</span>
+            <select formControlName="participantId">
+              <option value="">Yo mismo</option>
+              @for (member of assignableParticipants(); track member.participantId) {
+                <option [value]="member.participantId">{{ participantLabel(member) }}</option>
+              }
+            </select>
+          </label>
           <label class="field wide">
             <span>Descripcion</span>
             <input type="text" formControlName="description">
@@ -265,10 +275,12 @@ export class IncomePageComponent implements OnInit {
   protected readonly incomeStore = inject(IncomeStore);
   protected readonly accountStore = inject(AccountStore);
   private readonly authStore = inject(AuthStore);
+  private readonly accountsApi = inject(AccountsApiService);
   private readonly catalogsApi = inject(CatalogsApiService);
   private readonly fb = inject(NonNullableFormBuilder);
 
   readonly incomeCategories = signal<CategoryResponseDto[]>([]);
+  readonly accountMembers = signal<AccountMemberResponseDto[]>([]);
   readonly selectedDetail = signal<IncomeResponseDto | null>(null);
   readonly showForm = signal(false);
   readonly showDuplicateForm = signal(false);
@@ -280,6 +292,17 @@ export class IncomePageComponent implements OnInit {
   readonly accountId = computed(() => this.accountStore.selectedAccountId() ?? 0);
   readonly canCreate = computed(() => this.accountStore.selectedAccount()?.status === 'ACTIVE');
   readonly hasRequiredCatalogs = computed(() => this.incomeCategories().length > 0);
+  readonly assignableParticipants = computed(() => {
+    const activeMembers = this.accountMembers().filter((member) => member.status === 'ACTIVE');
+    const account = this.accountStore.selectedAccount();
+    const currentParticipantId = this.authStore.user()?.participantId;
+
+    if (account?.currentUserRole === 'ACCOUNT_ADMIN') {
+      return activeMembers;
+    }
+
+    return activeMembers.filter((member) => member.participantId === currentParticipantId);
+  });
   readonly currentPageNumber = computed(() => (this.incomeStore.pagination().totalPages ? this.incomeStore.pagination().page + 1 : 1));
   readonly totalPagesNumber = computed(() => Math.max(this.incomeStore.pagination().totalPages, 1));
   readonly canGoPreviousPage = computed(() => this.incomeStore.pagination().page > 0);
@@ -325,7 +348,8 @@ export class IncomePageComponent implements OnInit {
     categoryId: [0, [Validators.required, Validators.min(1)]],
     description: ['', [Validators.required, Validators.maxLength(500)]],
     amount: [0, [Validators.required, Validators.min(0.01)]],
-    incomeDate: [today(), [Validators.required]]
+    incomeDate: [today(), [Validators.required]],
+    participantId: ['']
   });
   readonly duplicateIncomeForm = this.fb.group({
     incomeDate: [today(), [Validators.required]],
@@ -335,6 +359,7 @@ export class IncomePageComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadCategories();
+    this.loadMembers();
     this.patchFilterForm(this.incomeStore.loadPersistedFilters(this.accountId()));
     this.incomeStore.loadIncomes(this.accountId()).pipe(take(1)).subscribe({ error: () => undefined });
   }
@@ -420,7 +445,8 @@ export class IncomePageComponent implements OnInit {
       categoryId: this.incomeCategories()[0]?.id ?? 0,
       description: '',
       amount: 0,
-      incomeDate: today()
+      incomeDate: today(),
+      participantId: ''
     });
     this.showForm.set(true);
   }
@@ -437,7 +463,8 @@ export class IncomePageComponent implements OnInit {
       categoryId: income.categoryId,
       description: income.description,
       amount: income.amount,
-      incomeDate: income.incomeDate
+      incomeDate: income.incomeDate,
+      participantId: income.participantId.toString()
     });
     this.showForm.set(true);
   }
@@ -503,7 +530,8 @@ export class IncomePageComponent implements OnInit {
       categoryId: raw.categoryId,
       description: raw.description,
       amount: raw.amount,
-      incomeDate: raw.incomeDate
+      incomeDate: raw.incomeDate,
+      participantId: this.selectedParticipantId(raw.participantId)
     };
     const request$ = editing
       ? this.incomeStore.updateIncome(this.accountId(), editing.id, request)
@@ -559,6 +587,10 @@ export class IncomePageComponent implements OnInit {
     return this.incomeCategories().find((category) => category.id === categoryId)?.name ?? `Categoria ${categoryId}`;
   }
 
+  participantLabel(member: AccountMemberResponseDto): string {
+    return member.displayName ? `${member.displayName} (${member.email})` : member.email;
+  }
+
   friendlyError(code: string, fallback: string): string {
     const messages: Record<string, string> = {
       INCOME_CATEGORY_NOT_FOUND: 'La categoria no existe.',
@@ -587,6 +619,16 @@ export class IncomePageComponent implements OnInit {
       });
   }
 
+  private loadMembers(): void {
+    this.accountsApi
+      .listMembers(this.accountId())
+      .pipe(take(1))
+      .subscribe({
+        next: (members) => this.accountMembers.set(members),
+        error: () => this.accountMembers.set([])
+      });
+  }
+
   private patchFilterForm(filters: IncomeFilters): void {
     this.filterForm.patchValue({
       search: filters.search ?? '',
@@ -600,6 +642,19 @@ export class IncomePageComponent implements OnInit {
 
   private loadPage(page: number): void {
     this.incomeStore.loadIncomes(this.accountId(), { page }).pipe(take(1)).subscribe({ error: () => undefined });
+  }
+
+  private selectedParticipantId(value: string): number | null {
+    const selectedParticipantId = toNumberOrNull(value);
+    const currentParticipantId = this.authStore.user()?.participantId ?? null;
+
+    if (!selectedParticipantId) {
+      return currentParticipantId;
+    }
+
+    const canAssign = this.assignableParticipants().some((member) => member.participantId === selectedParticipantId);
+
+    return canAssign ? selectedParticipantId : currentParticipantId;
   }
 }
 

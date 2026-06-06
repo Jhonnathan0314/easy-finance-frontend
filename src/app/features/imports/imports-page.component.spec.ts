@@ -52,6 +52,8 @@ describe('ImportsPageComponent', () => {
         description: 'Lunch',
         amount: 12000,
         currency: 'COP',
+        participantId: 7,
+        participantLabel: 'Jonatan',
         categoryName: 'Food',
         categoryId: 3,
         paymentMethodName: 'Cash',
@@ -74,6 +76,8 @@ describe('ImportsPageComponent', () => {
         description: 'Bad row',
         amount: null,
         currency: null,
+        participantId: 9,
+        participantLabel: 'Mary',
         categoryName: 'Missing',
         categoryId: null,
         paymentMethodName: null,
@@ -463,6 +467,8 @@ describe('ImportsPageComponent', () => {
   it('shows row errors', () => {
     const fixture = configure();
 
+    expect(fixture.nativeElement.textContent).toContain('Jonatan');
+    expect(fixture.nativeElement.textContent).toContain('Mary');
     expect(fixture.nativeElement.textContent).toContain('Categoria no existe.');
     expect(fixture.nativeElement.textContent).toContain('Revisar catalogos');
   });
@@ -732,12 +738,24 @@ describe('ImportsPageComponent', () => {
         createdCount: 0,
         invalidRows: 1,
         rows: [
-          { rowNumber: 2, incomeDate: '2026-05-01', description: 'Nomina', amount: 1000, categoryName: 'Salario', valid: true, errors: [] },
+          {
+            rowNumber: 2,
+            incomeDate: '2026-05-01',
+            description: 'Nomina',
+            amount: 1000,
+            participantId: 8,
+            participantLabel: 'Empleado principal',
+            categoryName: 'Salario',
+            valid: true,
+            errors: []
+          },
           {
             rowNumber: 3,
             incomeDate: null,
             description: 'Fila mala',
             amount: null,
+            participantId: 9,
+            participantLabel: 'Empleado apoyo',
             categoryName: 'Categoria inexistente',
             categoryId: null,
             valid: false,
@@ -753,6 +771,8 @@ describe('ImportsPageComponent', () => {
 
     expect(text).toContain('Preview stateless de ingresos');
     expect(text).toContain('Fila mala');
+    expect(text).toContain('Empleado principal');
+    expect(text).toContain('Empleado apoyo');
     expect(text).toContain('Categoria inexistente');
     expect(text).toContain('La fecha no tiene formato valido.');
     expect(text).toContain('Categoria invalida.');
@@ -967,6 +987,8 @@ describe('ImportsPageComponent', () => {
             categoryId: 3,
             subBudgetName: 'Mercado',
             plannedAmount: 800000,
+            participantId: 7,
+            participantLabel: 'Presupuesto familiar',
             appliedMonths: [1, 2, 3],
             valid: false,
             errors: ['Ya existe presupuesto para ese año.']
@@ -981,6 +1003,7 @@ describe('ImportsPageComponent', () => {
     expect(text).toContain('Preview stateless de presupuesto anual');
     expect(text).toContain('Presupuesto 2026');
     expect(text).toContain('Mercado');
+    expect(text).toContain('Presupuesto familiar');
     expect(text).toContain('1, 2, 3');
     expect(text).toContain('Ya existe presupuesto para ese año.');
   });

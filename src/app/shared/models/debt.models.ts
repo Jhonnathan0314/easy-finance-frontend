@@ -10,6 +10,7 @@ export interface CreateManualDebtRequest {
   startDate: string;
   dueDate?: string | null;
   notes?: string | null;
+  participantId?: number | null;
 }
 
 export interface RegisterDebtPaymentRequest {

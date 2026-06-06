@@ -214,6 +214,7 @@ export const ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME = 'easy-finance-annual-budge
                     <th>Fila</th>
                     <th>Fecha</th>
                     <th>Descripcion</th>
+                    <th>Participante</th>
                     <th>Monto</th>
                     <th>Categoria</th>
                     <th>Medio pago</th>
@@ -233,6 +234,7 @@ export const ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME = 'easy-finance-annual-budge
                       <td>{{ row.rowNumber }}</td>
                       <td>{{ row.expenseDate || '-' }}</td>
                       <td>{{ row.description || '-' }}</td>
+                      <td>{{ participantLabel(row, batch.participantId) }}</td>
                       <td>
                         @if (row.amount !== null && row.amount !== undefined) {
                           {{ row.amount | currency: 'COP':'symbol-narrow':'1.0-0' }}
@@ -393,6 +395,7 @@ export const ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME = 'easy-finance-annual-budge
                   <th>Fila</th>
                   <th>Fecha</th>
                   <th>Descripcion</th>
+                  <th>Participante</th>
                   <th>Monto</th>
                   <th>Categoria</th>
                   <th>Valid</th>
@@ -405,6 +408,7 @@ export const ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME = 'easy-finance-annual-budge
                     <td>{{ row.rowNumber }}</td>
                     <td>{{ displayValue(row, ['incomeDate', 'Fecha', 'fecha']) }}</td>
                     <td>{{ displayValue(row, ['description', 'Descripcion', 'Descripción', 'descripcion']) }}</td>
+                    <td>{{ participantLabel(row, view.result.participantId) }}</td>
                     <td>{{ amountLabel(row, ['amount', 'Monto', 'monto']) }}</td>
                     <td>{{ displayValue(row, ['categoryName', 'Categoria', 'Categoría', 'categoria'], categoryLabel(row.categoryId)) }}</td>
                     <td>
@@ -470,6 +474,7 @@ export const ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME = 'easy-finance-annual-budge
                   <th>Fila</th>
                   <th>Fecha</th>
                   <th>Descripcion</th>
+                  <th>Participante</th>
                   <th>Monto</th>
                   <th>Categoria</th>
                   <th>Resultado</th>
@@ -483,6 +488,7 @@ export const ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME = 'easy-finance-annual-budge
                     <td>{{ row.rowNumber }}</td>
                     <td>{{ displayValue(row, ['incomeDate', 'Fecha', 'fecha']) }}</td>
                     <td>{{ displayValue(row, ['description', 'Descripcion', 'Descripción', 'descripcion']) }}</td>
+                    <td>{{ participantLabel(row, view.result.participantId) }}</td>
                     <td>{{ amountLabel(row, ['amount', 'Monto', 'monto']) }}</td>
                     <td>{{ displayValue(row, ['categoryName', 'Categoria', 'Categoría', 'categoria'], categoryLabel(row.categoryId)) }}</td>
                     <td>
@@ -1115,6 +1121,7 @@ export const ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME = 'easy-finance-annual-budge
                   <th>Presupuesto</th>
                   <th>Categoria</th>
                   <th>Subpresupuesto</th>
+                  <th>Participante</th>
                   <th>Valor</th>
                   <th>Valid</th>
                   <th>Errores</th>
@@ -1130,6 +1137,7 @@ export const ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME = 'easy-finance-annual-budge
                     <td>{{ displayValue(row, ['budgetName', 'NombrePresupuesto', 'nombrePresupuesto']) }}</td>
                     <td>{{ displayValue(row, ['categoryName', 'Categoria', 'CategorÃ­a', 'categoria'], categoryLabel(row.categoryId)) }}</td>
                     <td>{{ displayValue(row, ['subBudgetName', 'NombreSubpresupuesto', 'nombreSubpresupuesto']) }}</td>
+                    <td>{{ participantLabel(row, view.result.participantId) }}</td>
                     <td>{{ amountLabel(row, ['plannedAmount', 'Valor', 'valor']) }}</td>
                     <td>
                       <span class="badge" [class.success]="row.valid" [class.danger]="!row.valid">
@@ -1201,6 +1209,7 @@ export const ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME = 'easy-finance-annual-budge
                   <th>Presupuesto</th>
                   <th>Categoria</th>
                   <th>Subpresupuesto</th>
+                  <th>Participante</th>
                   <th>Valor</th>
                   <th>Valid</th>
                   <th>Errores</th>
@@ -1215,6 +1224,7 @@ export const ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME = 'easy-finance-annual-budge
                     <td>{{ displayValue(row, ['budgetName', 'NombrePresupuesto', 'nombrePresupuesto']) }}</td>
                     <td>{{ displayValue(row, ['categoryName', 'Categoria', 'CategorÃ­a', 'categoria'], categoryLabel(row.categoryId)) }}</td>
                     <td>{{ displayValue(row, ['subBudgetName', 'NombreSubpresupuesto', 'nombreSubpresupuesto']) }}</td>
+                    <td>{{ participantLabel(row, view.result.participantId) }}</td>
                     <td>{{ amountLabel(row, ['plannedAmount', 'Valor', 'valor']) }}</td>
                     <td>
                       <span class="badge" [class.success]="row.valid" [class.danger]="!row.valid">
@@ -1928,6 +1938,26 @@ export class ImportsPageComponent {
 
   paymentMethodLabel(paymentMethodId?: number | null): string {
     return paymentMethodId ? `Medio ${paymentMethodId}` : '-';
+  }
+
+  participantLabel(row: object, fallbackParticipantId?: number | null): string | number {
+    const label = this.displayValue(
+      row,
+      ['participantLabel', 'participantName', 'participantDisplayName', 'Participante', 'participante'],
+      ''
+    );
+
+    if (label !== '') {
+      return label;
+    }
+
+    const participantId = this.rowValue(row, ['participantId', 'participant_id', 'ParticipanteId', 'participanteId']);
+
+    if (participantId !== null && participantId !== undefined && participantId !== '') {
+      return `Participante ${participantId}`;
+    }
+
+    return fallbackParticipantId ? `Participante ${fallbackParticipantId}` : '-';
   }
 
   totalRows(result: StatelessImportResult): number {
