@@ -56,6 +56,7 @@ interface NavigationItem {
 
           <div class="user-context">
             <span>{{ authStore.user()?.fullName ?? authStore.user()?.email }}</span>
+            <a routerLink="/app/profile">Mi perfil</a>
             <button type="button" (click)="logout()">Salir</button>
           </div>
         </header>

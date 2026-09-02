@@ -1,7 +1,13 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
-import { AuthTokenResponseDto, AuthenticatedUserDto, LoginRequest, RegisterRequest } from '../../shared/models';
+import {
+  AuthTokenResponseDto,
+  AuthenticatedUserDto,
+  LoginRequest,
+  RegisterRequest,
+  UpdateProfileRequest
+} from '../../shared/models';
 import { AccountStore } from '../state/account.store';
 import { AuthApiService } from './auth-api.service';
 import { AuthStore } from './auth.store';
@@ -22,6 +28,10 @@ export class AuthService {
 
   me(): Observable<AuthenticatedUserDto> {
     return this.authApi.me();
+  }
+
+  updateProfile(request: UpdateProfileRequest): Observable<AuthenticatedUserDto> {
+    return this.authStore.updateProfile(request);
   }
 
   logout(): void {

@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 
 import { AuthTokenResponseDto } from '../../shared/models';
 import { AuthApiService } from './auth-api.service';
@@ -49,7 +49,8 @@ describe('AuthStore', () => {
           useValue: {
             login: jasmine.createSpy('login').and.returnValue(of(session)),
             register: jasmine.createSpy('register').and.returnValue(of(session)),
-            me: jasmine.createSpy('me').and.returnValue(of(session.user))
+            me: jasmine.createSpy('me').and.returnValue(of(session.user)),
+            updateProfile: jasmine.createSpy('updateProfile').and.returnValue(of({ ...session.user, fullName: 'Jane Smith' }))
           }
         }
       ]
@@ -77,5 +78,30 @@ describe('AuthStore', () => {
     expect(store.user()).toBeNull();
     expect(store.isAuthenticated()).toBeFalse();
     expect(storage.read()).toBeNull();
+  });
+
+  it('updates the user in place after a successful profile update', (done) => {
+    store.setSession(session);
+
+    store.updateProfile({ fullName: 'Jane Smith' }).subscribe((user) => {
+      expect(user.fullName).toBe('Jane Smith');
+      expect(store.user()?.fullName).toBe('Jane Smith');
+      expect(store.token()).toBe('token-value');
+      expect(storage.read()?.user.fullName).toBe('Jane Smith');
+      done();
+    });
+  });
+
+  it('propagates profile update errors into authError', (done) => {
+    const api = TestBed.inject(AuthApiService) as unknown as { updateProfile: jasmine.Spy };
+    api.updateProfile.and.returnValue(throwError(() => ({ error: { code: 'FULL_NAME_REQUIRED', message: 'Full name is required.' } })));
+    store.setSession(session);
+
+    store.updateProfile({ fullName: '' }).subscribe({
+      error: () => {
+        expect(store.authError()?.code).toBe('FULL_NAME_REQUIRED');
+        done();
+      }
+    });
   });
 });

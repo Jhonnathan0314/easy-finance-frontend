@@ -102,6 +102,13 @@ describe('PrivateLayoutComponent', () => {
     expect(text).toContain('Cambiar de cuenta');
   });
 
+  it('shows a link to the profile page next to the user name', () => {
+    const link = fixture.nativeElement.querySelector('.user-context a') as HTMLAnchorElement;
+
+    expect(link.textContent).toContain('Mi perfil');
+    expect(link.getAttribute('href')).toBe('/app/profile');
+  });
+
   it('keeps Dashboard in navigation and hides Analytics placeholder link', () => {
     const text = fixture.nativeElement.textContent;
 

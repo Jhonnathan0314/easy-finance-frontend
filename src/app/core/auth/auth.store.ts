@@ -6,7 +6,8 @@ import {
   AuthTokenResponseDto,
   AuthenticatedUserDto,
   LoginRequest,
-  RegisterRequest
+  RegisterRequest,
+  UpdateProfileRequest
 } from '../../shared/models';
 import { AuthApiService } from './auth-api.service';
 import { AuthStorageService } from './auth-storage.service';
@@ -49,6 +50,26 @@ export class AuthStore {
 
     return this.authApi.register(request).pipe(
       tap((session) => this.setSession(session)),
+      catchError((error: unknown) => {
+        this.authError.set(toApiError(error));
+        return throwAuthError(error);
+      }),
+      finalize(() => this.isLoading.set(false))
+    );
+  }
+
+  updateProfile(request: UpdateProfileRequest): Observable<AuthenticatedUserDto> {
+    this.isLoading.set(true);
+    this.authError.set(null);
+
+    return this.authApi.updateProfile(request).pipe(
+      tap((user) => {
+        const current = this.session();
+
+        if (current) {
+          this.setSession({ ...current, user });
+        }
+      }),
       catchError((error: unknown) => {
         this.authError.set(toApiError(error));
         return throwAuthError(error);

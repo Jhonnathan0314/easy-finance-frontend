@@ -1,0 +1,18 @@
+.page-header,
+.form-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.success-panel {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.error-panel {
+  border-color: #fecaca;
+  background: #fff1f2;
+  color: #991b1b;
+}

@@ -11,6 +11,10 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface UpdateProfileRequest {
+  fullName: string;
+}
+
 export interface AuthenticatedUserDto {
   userId: number;
   participantId: number;

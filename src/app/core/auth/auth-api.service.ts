@@ -5,7 +5,8 @@ import {
   AuthenticatedUserDto,
   AuthTokenResponseDto,
   LoginRequest,
-  RegisterRequest
+  RegisterRequest,
+  UpdateProfileRequest
 } from '../../shared/models';
 import { ApiClient } from '../http/api-client';
 
@@ -23,5 +24,9 @@ export class AuthApiService {
 
   me(): Observable<AuthenticatedUserDto> {
     return this.api.get<AuthenticatedUserDto>('/auth/me');
+  }
+
+  updateProfile(request: UpdateProfileRequest): Observable<AuthenticatedUserDto> {
+    return this.api.put<AuthenticatedUserDto, UpdateProfileRequest>('/auth/me', request);
   }
 }
