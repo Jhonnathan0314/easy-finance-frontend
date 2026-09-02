@@ -1,5 +1,6 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { of } from 'rxjs';
 
 import { AccountsApiService } from '../../core/accounts/accounts-api.service';
@@ -120,6 +121,7 @@ describe('DebtsPageComponent', () => {
       categories?: CategoryResponseDto[];
       paymentMethods?: PaymentMethodResponseDto[];
       members?: AccountMemberResponseDto[];
+      queryParams?: Record<string, string>;
     } = {}
   ): ComponentFixture<DebtsPageComponent> {
     const account: AccountResponseDto = {
@@ -192,6 +194,10 @@ describe('DebtsPageComponent', () => {
               .createSpy('listPaymentMethods')
               .and.returnValue(of({ content: options.paymentMethods ?? [paymentMethod], page: 0, size: 100, totalElements: 1, totalPages: 1 }))
           }
+        },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { queryParamMap: convertToParamMap(options.queryParams ?? {}) } }
         }
       ]
     });
@@ -582,5 +588,31 @@ describe('DebtsPageComponent', () => {
     const fixture = configure({ debts: [] });
 
     expect(fixture.nativeElement.textContent).toContain('Aun no tienes deudas');
+  });
+
+  describe('opening a debt from a query param', () => {
+    it('selects and opens the debt matching openDebtId on init', () => {
+      const fixture = configure({ queryParams: { openDebtId: '1' } });
+      const store = TestBed.inject(DebtsStore) as jasmine.SpyObj<DebtsStore>;
+
+      expect(store.getDebt).toHaveBeenCalledWith(1, 1);
+      expect(store.loadPayments).toHaveBeenCalledWith(1, 1);
+      expect(fixture.componentInstance.selectedDebt()?.id).toBe(1);
+    });
+
+    it('does nothing when openDebtId is absent', () => {
+      const fixture = configure();
+      const store = TestBed.inject(DebtsStore) as jasmine.SpyObj<DebtsStore>;
+
+      expect(store.getDebt).not.toHaveBeenCalled();
+      expect(fixture.componentInstance.selectedDebt()).toBeNull();
+    });
+
+    it('does nothing when openDebtId is not a valid number', () => {
+      const fixture = configure({ queryParams: { openDebtId: 'not-a-number' } });
+      const store = TestBed.inject(DebtsStore) as jasmine.SpyObj<DebtsStore>;
+
+      expect(store.getDebt).not.toHaveBeenCalled();
+    });
   });
 });

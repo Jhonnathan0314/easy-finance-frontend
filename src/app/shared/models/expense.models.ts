@@ -1,5 +1,5 @@
 import { CurrencyCode } from './common.models';
-import { ExpensePaymentState, ExpenseStatus, ExpenseType } from './enums';
+import { ExpensePaymentState, ExpenseSourceType, ExpenseStatus, ExpenseType } from './enums';
 
 export interface CreateExpenseRequest {
   categoryId: number;
@@ -55,6 +55,12 @@ export interface ExpenseResponse {
   paymentState: ExpensePaymentState;
   status: ExpenseStatus;
   expenseType: ExpenseType;
+  /** Origin of the expense. May be absent/unknown on older cached data; treat that as a normal (non-debt-payment) expense. */
+  sourceType?: ExpenseSourceType | string | null;
+  /** Only set when sourceType === 'DEBT_PAYMENT'. */
+  sourceDebtPaymentId?: number | null;
+  /** Only set when sourceType === 'DEBT_PAYMENT' and the backend could resolve the originating debt. */
+  sourceDebtId?: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -71,7 +77,14 @@ export interface ExpenseListFilters {
   paymentState?: ExpensePaymentState | null;
   expenseType?: ExpenseType | null;
   status?: ExpenseStatus | null;
+  /** true = only DEBT_PAYMENT origin; false = anything that is not DEBT_PAYMENT; omitted/null = no filter. */
+  debtPaymentOrigin?: boolean | null;
   page?: number | null;
   size?: number | null;
   sort?: string | null;
+}
+
+/** True only when the backend explicitly reports this expense as originated from a debt payment. */
+export function isDebtPaymentExpense(expense: Pick<ExpenseResponse, 'sourceType'>): boolean {
+  return expense.sourceType === 'DEBT_PAYMENT';
 }

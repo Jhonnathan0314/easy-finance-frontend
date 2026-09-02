@@ -1,6 +1,6 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 
 import { AccountsApiService } from '../../core/accounts/accounts-api.service';
@@ -832,5 +832,182 @@ describe('ExpensesPageComponent', () => {
 
     expect(window.confirm).toHaveBeenCalled();
     expect(store.cancelExpense).toHaveBeenCalledWith(1, 1);
+  });
+
+  describe('debt payment origin', () => {
+    const debtPaymentExpense: ExpenseResponseDto = {
+      ...ownExpense,
+      id: 3,
+      description: 'Pago tarjeta',
+      sourceType: 'DEBT_PAYMENT',
+      sourceDebtPaymentId: 50,
+      sourceDebtId: 30
+    };
+
+    it('shows the debt payment badge only for DEBT_PAYMENT expenses', () => {
+      const fixture = configure({ expenses: [debtPaymentExpense] });
+
+      expect(fixture.nativeElement.querySelector('.badge-debt-payment')).not.toBeNull();
+    });
+
+    it('does not show the debt payment badge for a MANUAL expense', () => {
+      const fixture = configure({ expenses: [{ ...ownExpense, sourceType: 'MANUAL' }] });
+      expect(fixture.nativeElement.querySelector('.badge-debt-payment')).toBeNull();
+    });
+
+    it('does not show the debt payment badge for an IMPORT expense', () => {
+      const fixture = configure({ expenses: [{ ...ownExpense, sourceType: 'IMPORT' }] });
+      expect(fixture.nativeElement.querySelector('.badge-debt-payment')).toBeNull();
+    });
+
+    it('does not show the debt payment badge when sourceType is null', () => {
+      const fixture = configure({ expenses: [{ ...ownExpense, sourceType: null }] });
+      expect(fixture.nativeElement.querySelector('.badge-debt-payment')).toBeNull();
+    });
+
+    it('does not show the debt payment badge when sourceType is missing', () => {
+      const fixture = configure({ expenses: [ownExpense] });
+      expect(fixture.nativeElement.querySelector('.badge-debt-payment')).toBeNull();
+    });
+
+    it('does not show the debt payment badge for an unknown future sourceType', () => {
+      const fixture = configure({ expenses: [{ ...ownExpense, sourceType: 'SOME_FUTURE_TYPE' }] });
+      expect(fixture.nativeElement.querySelector('.badge-debt-payment')).toBeNull();
+    });
+
+    it('hides edit and cancel for debt payment expenses but keeps duplicate available', () => {
+      const fixture = configure({ expenses: [debtPaymentExpense] });
+
+      expect(fixture.nativeElement.textContent).not.toContain('Editar');
+      expect(fixture.nativeElement.textContent).not.toContain('Cancelar');
+      expect(findButton(fixture, 'Duplicar')).toBeTruthy();
+    });
+
+    it('treats an expense with null/unknown sourceType as a normal expense (edit/cancel/duplicate allowed, no badge)', () => {
+      const unknownSource = configure({ expenses: [{ ...ownExpense, sourceType: 'SOME_FUTURE_TYPE' }] });
+
+      expect(findButton(unknownSource, 'Editar')).toBeTruthy();
+      expect(findButton(unknownSource, 'Cancelar')).toBeTruthy();
+      expect(findButton(unknownSource, 'Duplicar')).toBeTruthy();
+    });
+
+    it('blocks a direct startEditSimple call on a debt payment expense with a clear message', () => {
+      const fixture = configure();
+      const component = fixture.componentInstance;
+
+      component.startEditSimple(debtPaymentExpense);
+
+      expect(component.showForm()).toBeFalse();
+      expect(component.blockedActionMessage()).toBe(
+        'Este gasto fue generado por un pago de deuda y debe gestionarse desde la deuda asociada.'
+      );
+    });
+
+    it('blocks a direct cancelExpense call on a debt payment expense with a clear message', () => {
+      spyOn(window, 'confirm');
+      const fixture = configure();
+      const component = fixture.componentInstance;
+      const store = TestBed.inject(ExpensesStore) as jasmine.SpyObj<ExpensesStore>;
+
+      component.cancelExpense(debtPaymentExpense);
+
+      expect(window.confirm).not.toHaveBeenCalled();
+      expect(store.cancelExpense).not.toHaveBeenCalled();
+      expect(component.blockedActionMessage()).toBe(
+        'Este gasto fue generado por un pago de deuda y debe gestionarse desde la deuda asociada.'
+      );
+    });
+
+    it('duplicates a debt payment expense through the store like any other duplicable expense', () => {
+      const fixture = configure({ expenses: [debtPaymentExpense] });
+      const component = fixture.componentInstance;
+      const store = TestBed.inject(ExpensesStore) as jasmine.SpyObj<ExpensesStore>;
+
+      component.startDuplicateExpense(debtPaymentExpense);
+      component.saveDuplicateExpense();
+
+      expect(store.duplicateExpense).toHaveBeenCalledWith(1, 3, jasmine.any(Object));
+    });
+
+    it('shows a friendly message for the backend debt-payment update rejection', () => {
+      const fixture = configure({
+        error: { code: 'EXPENSE_DEBT_PAYMENT_UPDATE_NOT_ALLOWED', message: 'not allowed' }
+      });
+      expect(fixture.nativeElement.textContent).toContain(
+        'Este gasto fue generado por un pago de deuda y debe gestionarse desde la deuda asociada.'
+      );
+    });
+
+    it('shows a friendly message for the backend debt-payment cancel rejection', () => {
+      const fixture = configure({
+        error: { code: 'EXPENSE_DEBT_PAYMENT_CANCEL_NOT_ALLOWED', message: 'not allowed' }
+      });
+      expect(fixture.nativeElement.textContent).toContain(
+        'Este gasto fue generado por un pago de deuda y debe gestionarse desde la deuda asociada.'
+      );
+    });
+
+    it('shows the "go to debt" action when sourceDebtId is resolvable', () => {
+      const fixture = configure({ expenses: [debtPaymentExpense] });
+      expect(findButton(fixture, 'Ir a deuda')).toBeTruthy();
+    });
+
+    it('hides the "go to debt" action when sourceDebtId is missing', () => {
+      const fixture = configure({ expenses: [{ ...debtPaymentExpense, sourceDebtId: null }] });
+      expect(findButton(fixture, 'Ir a deuda')).toBeUndefined();
+    });
+
+    it('navigates to the Debts page with the openDebtId query param', () => {
+      const fixture = configure({ expenses: [debtPaymentExpense] });
+      const router = TestBed.inject(Router);
+      spyOn(router, 'navigate').and.resolveTo(true);
+
+      fixture.componentInstance.goToRelatedDebt(debtPaymentExpense);
+
+      expect(router.navigate).toHaveBeenCalledWith(['/app/accounts', 1, 'debts'], { queryParams: { openDebtId: 30 } });
+    });
+
+    it('maps the origin filter select to the debtPaymentOrigin flag when applying filters', () => {
+      const fixture = configure();
+      const store = TestBed.inject(ExpensesStore) as jasmine.SpyObj<ExpensesStore>;
+      const component = fixture.componentInstance;
+
+      store.loadExpenses.calls.reset();
+      component.filterForm.patchValue({ origin: 'DEBT_PAYMENT' });
+      component.applyFilters();
+      expect(store.loadExpenses).toHaveBeenCalledWith(1, jasmine.objectContaining({ debtPaymentOrigin: true }), { persist: true });
+
+      store.loadExpenses.calls.reset();
+      component.filterForm.patchValue({ origin: 'NOT_DEBT_PAYMENT' });
+      component.applyFilters();
+      expect(store.loadExpenses).toHaveBeenCalledWith(1, jasmine.objectContaining({ debtPaymentOrigin: false }), { persist: true });
+
+      store.loadExpenses.calls.reset();
+      component.filterForm.patchValue({ origin: '' });
+      component.applyFilters();
+      expect(store.loadExpenses).toHaveBeenCalledWith(1, jasmine.objectContaining({ debtPaymentOrigin: null }), { persist: true });
+    });
+
+    it('restores the origin filter select from persisted debtPaymentOrigin', () => {
+      const fixture = configure({
+        persistedFilters: {
+          from: null,
+          to: null,
+          search: null,
+          categoryId: null,
+          paymentMethodId: null,
+          participantId: null,
+          paymentState: null,
+          status: 'ACTIVE',
+          expenseType: null,
+          debtPaymentOrigin: true,
+          page: 0,
+          size: 20,
+          sort: 'expenseDate,desc'
+        }
+      });
+
+      expect(fixture.componentInstance.filterForm.getRawValue().origin).toBe('DEBT_PAYMENT');
+    });
   });
 });

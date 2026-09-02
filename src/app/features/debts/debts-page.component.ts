@@ -1,6 +1,7 @@
 import { CurrencyPipe } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { AbstractControl, NonNullableFormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { take } from 'rxjs';
 
 import { AccountsApiService } from '../../core/accounts/accounts-api.service';
@@ -386,6 +387,7 @@ export class DebtsPageComponent implements OnInit {
   private readonly accountsApi = inject(AccountsApiService);
   private readonly catalogsApi = inject(CatalogsApiService);
   private readonly fb = inject(NonNullableFormBuilder);
+  private readonly route = inject(ActivatedRoute);
 
   readonly accountId = computed(() => this.accountStore.selectedAccountId() ?? 0);
   readonly selectedDebt = computed(() => this.debtsStore.selectedDebt());
@@ -462,6 +464,20 @@ export class DebtsPageComponent implements OnInit {
     this.loadMembers();
     this.patchFilterForms(this.debtsStore.loadPersistedFilters(this.accountId()));
     this.debtsStore.loadDebts(this.accountId()).pipe(take(1)).subscribe({ error: () => undefined });
+    this.openDebtFromQueryParam();
+  }
+
+  private openDebtFromQueryParam(): void {
+    const openDebtId = Number(this.route.snapshot.queryParamMap.get('openDebtId'));
+
+    if (!openDebtId) {
+      return;
+    }
+
+    this.paymentFormError.set(null);
+    this.showPaymentForm.set(false);
+    this.debtsStore.getDebt(this.accountId(), openDebtId).pipe(take(1)).subscribe({ error: () => undefined });
+    this.debtsStore.loadPayments(this.accountId(), openDebtId).pipe(take(1)).subscribe({ error: () => undefined });
   }
 
   applyDebtFilters(): void {

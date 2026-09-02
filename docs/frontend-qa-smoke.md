@@ -285,4 +285,4 @@ Expected:
 
 - Build: ejecutar antes de RC.
 - Tests: ejecutar antes de RC.
-- Smoke real: seguir este checklist contra backend v0.2.0.
+- Smoke real: seguir este checklist contra backend v0.3.0 (ultimo tag compartido por ambos repositorios).

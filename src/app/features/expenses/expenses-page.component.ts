@@ -1,7 +1,7 @@
 import { CurrencyPipe } from '@angular/common';
 import { Component, ElementRef, OnInit, ViewChild, computed, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { take } from 'rxjs';
 
 import { AccountsApiService } from '../../core/accounts/accounts-api.service';
@@ -17,12 +17,14 @@ import {
   ExpenseResponseDto,
   ExpenseStatus,
   ExpenseType,
-  PaymentMethodResponseDto
+  PaymentMethodResponseDto,
+  isDebtPaymentExpense
 } from '../../shared/models';
 import { enumLabel } from '../../shared/ui/enum-labels';
 
 type ExpenseFormMode = 'simple' | 'installment';
 type ExpenseDateSort = 'expenseDate,asc' | 'expenseDate,desc';
+type ExpenseOriginFilter = '' | 'DEBT_PAYMENT' | 'NOT_DEBT_PAYMENT';
 
 @Component({
   selector: 'ef-expenses-page',
@@ -64,6 +66,10 @@ type ExpenseDateSort = 'expenseDate,asc' | 'expenseDate,desc';
 
       @if (successMessage(); as message) {
         <div class="panel success-panel">{{ message }}</div>
+      }
+
+      @if (blockedActionMessage(); as message) {
+        <div class="panel warning-panel">{{ message }}</div>
       }
 
       @if (expensesStore.error(); as error) {
@@ -120,6 +126,14 @@ type ExpenseDateSort = 'expenseDate,asc' | 'expenseDate,desc';
             @for (type of expenseTypes; track type) {
               <option [value]="type">{{ enumLabel(type) }}</option>
             }
+          </select>
+        </label>
+        <label>
+          <span>Origen</span>
+          <select formControlName="origin">
+            <option value="">Todos</option>
+            <option value="DEBT_PAYMENT">Pago de deuda</option>
+            <option value="NOT_DEBT_PAYMENT">No pago de deuda</option>
           </select>
         </label>
         <div class="filter-actions">
@@ -389,12 +403,20 @@ type ExpenseDateSort = 'expenseDate,asc' | 'expenseDate,desc';
               <div class="badges">
                 <span>{{ enumLabel(expense.paymentState) }}</span>
                 <span>{{ enumLabel(expense.expenseType) }}</span>
+                @if (isDebtPaymentExpense(expense)) {
+                  <span class="badge-debt-payment">{{ enumLabel('DEBT_PAYMENT') }}</span>
+                }
               </div>
               <div class="actions">
+                @if (isDebtPaymentExpense(expense) && expense.sourceDebtId) {
+                  <button type="button" (click)="goToRelatedDebt(expense)">Ir a deuda</button>
+                }
                 @if (canMutateExpense(expense)) {
                   <button type="button" (click)="startEditSimple(expense)">Editar</button>
-                  <button type="button" (click)="startDuplicateExpense(expense)">Duplicar</button>
                   <button type="button" (click)="cancelExpense(expense)">Cancelar</button>
+                }
+                @if (canDuplicateExpense(expense)) {
+                  <button type="button" (click)="startDuplicateExpense(expense)">Duplicar</button>
                 }
               </div>
             </article>
@@ -420,10 +442,12 @@ export class ExpensesPageComponent implements OnInit {
   protected readonly expensesStore = inject(ExpensesStore);
   protected readonly accountStore = inject(AccountStore);
   protected readonly enumLabel = enumLabel;
+  protected readonly isDebtPaymentExpense = isDebtPaymentExpense;
   private readonly authStore = inject(AuthStore);
   private readonly accountsApi = inject(AccountsApiService);
   private readonly catalogsApi = inject(CatalogsApiService);
   private readonly fb = inject(NonNullableFormBuilder);
+  private readonly router = inject(Router);
 
   @ViewChild('quickAmountInput') private quickAmountInput?: ElementRef<HTMLInputElement>;
 
@@ -439,6 +463,7 @@ export class ExpensesPageComponent implements OnInit {
   readonly duplicatingExpense = signal<ExpenseResponseDto | null>(null);
   readonly successMessage = signal<string | null>(null);
   readonly duplicateExpenseError = signal<string | null>(null);
+  readonly blockedActionMessage = signal<string | null>(null);
   readonly accountId = computed(() => this.accountStore.selectedAccountId() ?? 0);
   readonly hasRequiredCatalogs = computed(() => this.expenseCategories().length > 0 && this.paymentMethods().length > 0);
   readonly canCreate = computed(() => this.accountStore.selectedAccount()?.status === 'ACTIVE');
@@ -488,7 +513,8 @@ export class ExpensesPageComponent implements OnInit {
     categoryId: [''],
     paymentMethodId: [''],
     paymentState: [''],
-    expenseType: ['']
+    expenseType: [''],
+    origin: ['' as ExpenseOriginFilter]
   });
 
   readonly quickExpenseForm = this.fb.group({
@@ -558,6 +584,7 @@ export class ExpensesPageComponent implements OnInit {
         paymentMethodId: toNumberOrNull(raw.paymentMethodId),
         paymentState: raw.paymentState ? (raw.paymentState as ExpensePaymentState) : null,
         expenseType: raw.expenseType ? (raw.expenseType as ExpenseType) : null,
+        debtPaymentOrigin: originFilterToBoolean(raw.origin),
         status: 'ACTIVE',
         page: 0
       }, { persist: true })
@@ -652,10 +679,16 @@ export class ExpensesPageComponent implements OnInit {
   }
 
   startEditSimple(expense: ExpenseResponseDto): void {
+    if (isDebtPaymentExpense(expense)) {
+      this.blockedActionMessage.set('Este gasto fue generado por un pago de deuda y debe gestionarse desde la deuda asociada.');
+      return;
+    }
+
     if (!this.canMutateExpense(expense)) {
       return;
     }
 
+    this.blockedActionMessage.set(null);
     this.closeQuickExpense();
     this.formMode.set('simple');
     this.cancelDuplicateForm();
@@ -683,6 +716,7 @@ export class ExpensesPageComponent implements OnInit {
     }
 
     this.successMessage.set(null);
+    this.blockedActionMessage.set(null);
     this.showForm.set(false);
     this.cancelDuplicateForm();
     this.editingExpense.set(null);
@@ -708,6 +742,7 @@ export class ExpensesPageComponent implements OnInit {
     const raw = this.quickExpenseForm.getRawValue();
 
     this.successMessage.set(null);
+    this.blockedActionMessage.set(null);
     this.expensesStore
       .createSimpleExpense(this.accountId(), {
         categoryId: raw.categoryId,
@@ -743,6 +778,7 @@ export class ExpensesPageComponent implements OnInit {
     }
 
     this.successMessage.set(null);
+    this.blockedActionMessage.set(null);
     this.closeQuickExpense();
     this.showForm.set(false);
     this.editingExpense.set(null);
@@ -768,6 +804,7 @@ export class ExpensesPageComponent implements OnInit {
     const raw = this.duplicateExpenseForm.getRawValue();
 
     this.successMessage.set(null);
+    this.blockedActionMessage.set(null);
     this.duplicateExpenseError.set(null);
 
     this.expensesStore
@@ -796,6 +833,7 @@ export class ExpensesPageComponent implements OnInit {
 
   saveExpense(): void {
     this.successMessage.set(null);
+    this.blockedActionMessage.set(null);
 
     if (this.formMode() === 'simple') {
       this.saveSimpleExpense();
@@ -879,26 +917,53 @@ export class ExpensesPageComponent implements OnInit {
   }
 
   cancelExpense(expense: ExpenseResponseDto): void {
+    if (isDebtPaymentExpense(expense)) {
+      this.blockedActionMessage.set('Este gasto fue generado por un pago de deuda y debe gestionarse desde la deuda asociada.');
+      return;
+    }
+
     if (!this.canMutateExpense(expense) || !globalThis.confirm(`Cancelar gasto "${expense.description}"?`)) {
       return;
     }
 
+    this.blockedActionMessage.set(null);
     this.expensesStore.cancelExpense(this.accountId(), expense.id).pipe(take(1)).subscribe({ error: () => undefined });
   }
 
+  goToRelatedDebt(expense: ExpenseResponseDto): void {
+    if (!isDebtPaymentExpense(expense) || !expense.sourceDebtId) {
+      return;
+    }
+
+    this.router.navigate(['/app/accounts', this.accountId(), 'debts'], { queryParams: { openDebtId: expense.sourceDebtId } });
+  }
+
   canMutateExpense(expense: ExpenseResponseDto): boolean {
+    if (
+      this.accountStore.selectedAccountArchived() ||
+      expense.expenseType === 'INSTALLMENT' ||
+      expense.status !== 'ACTIVE' ||
+      isDebtPaymentExpense(expense)
+    ) {
+      return false;
+    }
+
+    return this.hasWriteAccessToExpense(expense);
+  }
+
+  canDuplicateExpense(expense: ExpenseResponseDto): boolean {
     if (this.accountStore.selectedAccountArchived() || expense.expenseType === 'INSTALLMENT' || expense.status !== 'ACTIVE') {
       return false;
     }
 
+    return this.hasWriteAccessToExpense(expense);
+  }
+
+  private hasWriteAccessToExpense(expense: ExpenseResponseDto): boolean {
     const account = this.accountStore.selectedAccount();
     const participantId = this.authStore.user()?.participantId;
 
     return account?.currentUserRole === 'ACCOUNT_ADMIN' || expense.participantId === participantId;
-  }
-
-  canDuplicateExpense(expense: ExpenseResponseDto): boolean {
-    return this.canMutateExpense(expense);
   }
 
   categoryName(categoryId: number): string {
@@ -935,6 +1000,8 @@ export class ExpensesPageComponent implements OnInit {
       INSTALLMENT_FINANCED_TOTAL_INVALID: 'El total financiado no puede ser menor al valor original del gasto.',
       INSTALLMENT_EXPENSE_UPDATE_NOT_ALLOWED: 'Los gastos en cuotas no se actualizan desde esta pantalla.',
       INSTALLMENT_EXPENSE_CANCEL_NOT_ALLOWED: 'Los gastos en cuotas no se cancelan desde esta pantalla.',
+      EXPENSE_DEBT_PAYMENT_UPDATE_NOT_ALLOWED: 'Este gasto fue generado por un pago de deuda y debe gestionarse desde la deuda asociada.',
+      EXPENSE_DEBT_PAYMENT_CANCEL_NOT_ALLOWED: 'Este gasto fue generado por un pago de deuda y debe gestionarse desde la deuda asociada.',
       VALIDATION_ERROR: 'Revisa los datos del formulario.'
     };
 
@@ -1007,6 +1074,7 @@ export class ExpensesPageComponent implements OnInit {
     paymentState: ExpensePaymentState | null;
     expenseType: ExpenseType | null;
     status: ExpenseStatus;
+    debtPaymentOrigin: boolean | null;
   }): void {
     this.filterForm.patchValue({
       search: filters.search ?? '',
@@ -1015,9 +1083,34 @@ export class ExpensesPageComponent implements OnInit {
       categoryId: filters.categoryId ? String(filters.categoryId) : '',
       paymentMethodId: filters.paymentMethodId ? String(filters.paymentMethodId) : '',
       paymentState: filters.paymentState ?? '',
-      expenseType: filters.expenseType ?? ''
+      expenseType: filters.expenseType ?? '',
+      origin: booleanToOriginFilter(filters.debtPaymentOrigin)
     });
   }
+}
+
+function originFilterToBoolean(value: ExpenseOriginFilter): boolean | null {
+  if (value === 'DEBT_PAYMENT') {
+    return true;
+  }
+
+  if (value === 'NOT_DEBT_PAYMENT') {
+    return false;
+  }
+
+  return null;
+}
+
+function booleanToOriginFilter(value: boolean | null | undefined): ExpenseOriginFilter {
+  if (value === true) {
+    return 'DEBT_PAYMENT';
+  }
+
+  if (value === false) {
+    return 'NOT_DEBT_PAYMENT';
+  }
+
+  return '';
 }
 
 export function installmentTotalValidator(control: { get(path: string): { value: unknown } | null }) {

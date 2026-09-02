@@ -48,7 +48,7 @@ export class ExpensesApiService {
   }
 }
 
-function normalizeFilters(filters: ExpenseListFilters): Record<string, string | number | null | undefined> {
+function normalizeFilters(filters: ExpenseListFilters): Record<string, string | number | boolean | null | undefined> {
   return {
     from: filters.from,
     to: filters.to,
@@ -59,6 +59,7 @@ function normalizeFilters(filters: ExpenseListFilters): Record<string, string | 
     paymentState: filters.paymentState,
     expenseType: filters.expenseType,
     status: filters.status ?? 'ACTIVE',
+    debtPaymentOrigin: filters.debtPaymentOrigin ?? undefined,
     page: filters.page ?? 0,
     size: filters.size ?? 20,
     sort: filters.sort ?? 'expenseDate,desc'

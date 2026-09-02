@@ -118,6 +118,37 @@ describe('ExpensesStore', () => {
       });
   });
 
+  it('filters and persists debtPaymentOrigin like other filters', (done) => {
+    store
+      .loadExpenses(10, { debtPaymentOrigin: true }, { persist: true })
+      .subscribe(() => {
+        expect(service.listExpenses).toHaveBeenCalledWith(10, jasmine.objectContaining({ debtPaymentOrigin: true }));
+        expect(store.filters().debtPaymentOrigin).toBeTrue();
+        expect(JSON.parse(localStorage.getItem('easyFinance.filters.expenses.10') ?? '{}')).toEqual(
+          jasmine.objectContaining({ debtPaymentOrigin: true })
+        );
+
+        store
+          .loadExpenses(10, { debtPaymentOrigin: false }, { persist: true })
+          .subscribe(() => {
+            expect(service.listExpenses).toHaveBeenCalledWith(10, jasmine.objectContaining({ debtPaymentOrigin: false }));
+            expect(store.filters().debtPaymentOrigin).toBeFalse();
+
+            const restored = store.loadPersistedFilters(10);
+            expect(restored.debtPaymentOrigin).toBeFalse();
+            done();
+          });
+      });
+  });
+
+  it('defaults debtPaymentOrigin to null (no filter) when omitted', (done) => {
+    store.loadExpenses(10).subscribe(() => {
+      expect(service.listExpenses).toHaveBeenCalledWith(10, jasmine.objectContaining({ debtPaymentOrigin: null }));
+      expect(store.filters().debtPaymentOrigin).toBeNull();
+      done();
+    });
+  });
+
   it('clears blank search values instead of sending them to the API', (done) => {
     store.loadExpenses(10, { search: '   ' }).subscribe(() => {
       expect(service.listExpenses).toHaveBeenCalledWith(10, jasmine.objectContaining({ search: null }));

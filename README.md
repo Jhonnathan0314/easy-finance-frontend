@@ -1,6 +1,6 @@
 # Easy Finance Frontend
 
-Frontend Angular standalone para Easy Finance, alineado con backend v0.2.0.
+Frontend Angular standalone para Easy Finance, alineado con backend v0.3.0 (ultimo tag compartido por ambos repositorios).
 
 ## Stack
 

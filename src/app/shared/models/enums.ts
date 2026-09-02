@@ -8,6 +8,7 @@ export type PaymentMethodType = 'CASH' | 'BANK_ACCOUNT' | 'CREDIT_CARD' | 'DEBIT
 export type ExpensePaymentState = 'PENDING' | 'PARTIAL' | 'PAID';
 export type ExpenseStatus = 'ACTIVE' | 'CANCELLED';
 export type ExpenseType = 'SIMPLE' | 'INSTALLMENT';
+export type ExpenseSourceType = 'MANUAL' | 'IMPORT' | 'DEBT_PAYMENT';
 export type DebtState = 'ACTIVE' | 'PAID' | 'CANCELLED';
 export type DebtSourceType = 'MANUAL' | 'INSTALLMENT_EXPENSE';
 export type DebtPaymentType = 'INSTALLMENT' | 'CAPITAL_PAYMENT';

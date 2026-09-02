@@ -26,6 +26,7 @@ export interface ExpenseFilters {
   paymentState: ExpensePaymentState | null;
   expenseType: ExpenseType | null;
   status: ExpenseStatus;
+  debtPaymentOrigin: boolean | null;
   page: number;
   size: number;
   sort: string;
@@ -48,6 +49,7 @@ const DEFAULT_FILTERS: ExpenseFilters = {
   paymentState: null,
   expenseType: null,
   status: 'ACTIVE',
+  debtPaymentOrigin: null,
   page: 0,
   size: 20,
   sort: 'expenseDate,desc'
@@ -223,6 +225,7 @@ function normalizeExpenseFilters(filters: Partial<ExpenseFilters>): ExpenseFilte
     paymentState: PAYMENT_STATES.includes(filters.paymentState ?? null) ? filters.paymentState ?? null : null,
     expenseType: EXPENSE_TYPES.includes(filters.expenseType ?? null) ? filters.expenseType ?? null : null,
     status: EXPENSE_STATUSES.includes(filters.status as ExpenseStatus) ? (filters.status as ExpenseStatus) : 'ACTIVE',
+    debtPaymentOrigin: typeof filters.debtPaymentOrigin === 'boolean' ? filters.debtPaymentOrigin : null,
     page: numberOrDefault(filters.page, 0),
     size: numberOrDefault(filters.size, 20),
     sort: typeof filters.sort === 'string' && filters.sort ? filters.sort : 'expenseDate,desc'
@@ -239,6 +242,7 @@ function filtersForStorage(filters: ExpenseFilters): Omit<ExpenseFilters, 'page'
     participantId: filters.participantId,
     paymentState: filters.paymentState,
     expenseType: filters.expenseType,
+    debtPaymentOrigin: filters.debtPaymentOrigin,
     sort: filters.sort
   };
 }
