@@ -45,4 +45,22 @@ describe('AuthApiService', () => {
     expect(request.request.method).toBe('GET');
     request.flush(user);
   });
+
+  it('calls POST /auth/refresh with credentials', () => {
+    service.refresh().subscribe();
+
+    const request = httpTesting.expectOne('http://localhost:8080/api/v1/auth/refresh');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.withCredentials).toBeTrue();
+    request.flush({ accessToken: 'new-token', tokenType: 'Bearer', expiresIn: 3600, user });
+  });
+
+  it('calls POST /auth/logout with credentials', () => {
+    service.logout().subscribe();
+
+    const request = httpTesting.expectOne('http://localhost:8080/api/v1/auth/logout');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.withCredentials).toBeTrue();
+    request.flush(null);
+  });
 });

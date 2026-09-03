@@ -19,8 +19,8 @@ export class ApiClient {
     return this.http.get(this.url(path), { responseType: 'blob' });
   }
 
-  post<TResponse, TBody = unknown>(path: string, body: TBody): Observable<TResponse> {
-    return this.http.post<TResponse>(this.url(path), body);
+  post<TResponse, TBody = unknown>(path: string, body: TBody, options?: { withCredentials?: boolean }): Observable<TResponse> {
+    return this.http.post<TResponse>(this.url(path), body, options);
   }
 
   put<TResponse, TBody = unknown>(path: string, body: TBody): Observable<TResponse> {

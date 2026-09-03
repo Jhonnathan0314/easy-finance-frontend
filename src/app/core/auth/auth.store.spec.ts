@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { of, throwError } from 'rxjs';
+import { Subject, of, throwError } from 'rxjs';
 
 import { AuthTokenResponseDto } from '../../shared/models';
 import { AuthApiService } from './auth-api.service';
@@ -50,7 +50,9 @@ describe('AuthStore', () => {
             login: jasmine.createSpy('login').and.returnValue(of(session)),
             register: jasmine.createSpy('register').and.returnValue(of(session)),
             me: jasmine.createSpy('me').and.returnValue(of(session.user)),
-            updateProfile: jasmine.createSpy('updateProfile').and.returnValue(of({ ...session.user, fullName: 'Jane Smith' }))
+            updateProfile: jasmine.createSpy('updateProfile').and.returnValue(of({ ...session.user, fullName: 'Jane Smith' })),
+            refresh: jasmine.createSpy('refresh').and.returnValue(of(session)),
+            logout: jasmine.createSpy('logout').and.returnValue(of(undefined))
           }
         }
       ]
@@ -103,5 +105,45 @@ describe('AuthStore', () => {
         done();
       }
     });
+  });
+
+  it('refreshes the access token and updates the session', (done) => {
+    const refreshedSession: AuthTokenResponseDto = { ...session, accessToken: 'new-token-value' };
+    const api = TestBed.inject(AuthApiService) as unknown as { refresh: jasmine.Spy };
+    api.refresh.and.returnValue(of(refreshedSession));
+    store.setSession(session);
+
+    store.refreshAccessToken().subscribe((result) => {
+      expect(result.accessToken).toBe('new-token-value');
+      expect(store.token()).toBe('new-token-value');
+      expect(storage.read()?.accessToken).toBe('new-token-value');
+      done();
+    });
+  });
+
+  it('shares a single in-flight refresh call across concurrent callers', () => {
+    const pending = new Subject<AuthTokenResponseDto>();
+    const api = TestBed.inject(AuthApiService) as unknown as { refresh: jasmine.Spy };
+    api.refresh.and.returnValue(pending);
+    store.setSession(session);
+
+    store.refreshAccessToken().subscribe();
+    store.refreshAccessToken().subscribe();
+
+    expect(api.refresh).toHaveBeenCalledTimes(1);
+
+    pending.next({ ...session, accessToken: 'new-token-value' });
+    pending.complete();
+  });
+
+  it('calls the logout endpoint and clears the session', () => {
+    const api = TestBed.inject(AuthApiService) as unknown as { logout: jasmine.Spy };
+    store.setSession(session);
+
+    store.logout();
+
+    expect(api.logout).toHaveBeenCalled();
+    expect(store.isAuthenticated()).toBeFalse();
+    expect(storage.read()).toBeNull();
   });
 });

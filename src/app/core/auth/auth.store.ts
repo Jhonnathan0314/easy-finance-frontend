@@ -18,6 +18,7 @@ export class AuthStore {
   private readonly storage = inject(AuthStorageService);
   private readonly session = signal<AuthTokenResponseDto | null>(null);
   private bootstrapRequest: Observable<boolean> | null = null;
+  private refreshRequest: Observable<AuthTokenResponseDto> | null = null;
 
   readonly token = computed(() => this.session()?.accessToken ?? null);
   readonly user = computed<AuthenticatedUserDto | null>(() => this.session()?.user ?? null);
@@ -139,7 +140,24 @@ export class AuthStore {
     return this.bootstrapRequest;
   }
 
+  refreshAccessToken(): Observable<AuthTokenResponseDto> {
+    if (this.refreshRequest) {
+      return this.refreshRequest;
+    }
+
+    this.refreshRequest = this.authApi.refresh().pipe(
+      tap((session) => this.setSession(session)),
+      finalize(() => {
+        this.refreshRequest = null;
+      }),
+      shareReplay({ bufferSize: 1, refCount: false })
+    );
+
+    return this.refreshRequest;
+  }
+
   logout(): void {
+    this.authApi.logout().subscribe({ error: () => undefined });
     this.authError.set(null);
     this.clearSession();
   }

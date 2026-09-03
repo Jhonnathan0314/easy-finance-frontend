@@ -29,4 +29,12 @@ export class AuthApiService {
   updateProfile(request: UpdateProfileRequest): Observable<AuthenticatedUserDto> {
     return this.api.put<AuthenticatedUserDto, UpdateProfileRequest>('/auth/me', request);
   }
+
+  refresh(): Observable<AuthTokenResponseDto> {
+    return this.api.post<AuthTokenResponseDto, undefined>('/auth/refresh', undefined, { withCredentials: true });
+  }
+
+  logout(): Observable<void> {
+    return this.api.post<void, undefined>('/auth/logout', undefined, { withCredentials: true });
+  }
 }
