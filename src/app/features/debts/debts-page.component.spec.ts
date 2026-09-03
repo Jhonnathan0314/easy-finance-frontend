@@ -49,6 +49,8 @@ describe('DebtsPageComponent', () => {
     participantId: 7,
     paymentType: 'INSTALLMENT',
     amount: 100000,
+    capitalAmount: 100000,
+    interestAmount: 0,
     currency: 'COP',
     paymentDate: '2026-05-12',
     notes: null,
@@ -122,6 +124,7 @@ describe('DebtsPageComponent', () => {
       paymentMethods?: PaymentMethodResponseDto[];
       members?: AccountMemberResponseDto[];
       queryParams?: Record<string, string>;
+      payments?: DebtPaymentResponseDto[];
     } = {}
   ): ComponentFixture<DebtsPageComponent> {
     const account: AccountResponseDto = {
@@ -135,7 +138,7 @@ describe('DebtsPageComponent', () => {
     };
     const debts = options.debts ?? [debt];
     const selectedDebt = signal<DebtResponseDto | null>(options.selectedDebt ?? null);
-    const payments = signal<DebtPaymentResponseDto[]>([]);
+    const payments = signal<DebtPaymentResponseDto[]>(options.selectedDebt ? (options.payments ?? [payment]) : []);
 
     TestBed.configureTestingModule({
       imports: [DebtsPageComponent],
@@ -170,8 +173,9 @@ describe('DebtsPageComponent', () => {
             createManualDebt: jasmine.createSpy('createManualDebt').and.returnValue(of(debts)),
             cancelDebt: jasmine.createSpy('cancelDebt').and.returnValue(of([])),
             loadPayments: jasmine.createSpy('loadPayments').and.callFake(() => {
-              payments.set([payment]);
-              return of([payment]);
+              const currentPayments = options.payments ?? [payment];
+              payments.set(currentPayments);
+              return of(currentPayments);
             }),
             registerPayment: jasmine
               .createSpy('registerPayment')
@@ -309,10 +313,79 @@ describe('DebtsPageComponent', () => {
     const component = fixture.componentInstance;
 
     component.startPayment(debt);
-    component.paymentForm.patchValue({ amount: debt.remainingAmount + 1 });
+    component.paymentForm.patchValue({ capitalAmount: debt.remainingAmount + 1 });
     component.savePayment();
 
     expect(component.paymentFormError()).toContain('saldo pendiente');
+  });
+
+  it('hides the interest field for capital payments', () => {
+    const fixture = configure({ selectedDebt: debt });
+    const component = fixture.componentInstance;
+
+    component.startPayment(debt);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[formcontrolname="interestAmount"]')).not.toBeNull();
+
+    component.paymentForm.patchValue({ paymentType: 'CAPITAL_PAYMENT' });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[formcontrolname="interestAmount"]')).toBeNull();
+  });
+
+  it('sends capital and interest amounts when registering an installment payment with interest', () => {
+    const fixture = configure({ selectedDebt: debt });
+    const component = fixture.componentInstance;
+    const store = TestBed.inject(DebtsStore) as jasmine.SpyObj<DebtsStore>;
+
+    component.startPayment(debt);
+    component.paymentForm.patchValue({ capitalAmount: 80000, interestAmount: 20000 });
+    component.savePayment();
+
+    expect(store.registerPayment).toHaveBeenCalledWith(
+      1,
+      1,
+      jasmine.objectContaining({
+        paymentType: 'INSTALLMENT',
+        capitalAmount: 80000,
+        interestAmount: 20000
+      })
+    );
+  });
+
+  it('forces interest to zero when registering a capital payment', () => {
+    const fixture = configure({ selectedDebt: debt });
+    const component = fixture.componentInstance;
+    const store = TestBed.inject(DebtsStore) as jasmine.SpyObj<DebtsStore>;
+
+    component.startPayment(debt);
+    component.paymentForm.patchValue({ paymentType: 'CAPITAL_PAYMENT', capitalAmount: 50000, interestAmount: 5000 });
+    component.savePayment();
+
+    expect(store.registerPayment).toHaveBeenCalledWith(
+      1,
+      1,
+      jasmine.objectContaining({
+        paymentType: 'CAPITAL_PAYMENT',
+        capitalAmount: 50000,
+        interestAmount: 0
+      })
+    );
+  });
+
+  it('shows a capital/interest breakdown in payment history when interest was paid', () => {
+    const paymentWithInterest: DebtPaymentResponseDto = { ...payment, capitalAmount: 80000, interestAmount: 20000, amount: 100000 };
+    const fixture = configure({ selectedDebt: debt, payments: [paymentWithInterest] });
+
+    expect(fixture.nativeElement.textContent).toContain('Capital:');
+    expect(fixture.nativeElement.textContent).toContain('Interes:');
+  });
+
+  it('does not show a capital/interest breakdown when no interest was paid', () => {
+    const fixture = configure({ selectedDebt: debt, payments: [payment] });
+
+    expect(fixture.nativeElement.querySelector('.payment-breakdown')).toBeNull();
   });
 
   it('shows debt capital and scheduled total in list and detail', () => {
@@ -346,7 +419,7 @@ describe('DebtsPageComponent', () => {
     const store = TestBed.inject(DebtsStore) as jasmine.SpyObj<DebtsStore>;
 
     component.startPayment(debt);
-    component.paymentForm.patchValue({ amount: 100000 });
+    component.paymentForm.patchValue({ capitalAmount: 100000 });
     component.savePayment();
 
     expect(store.registerPayment).toHaveBeenCalledWith(
@@ -354,7 +427,8 @@ describe('DebtsPageComponent', () => {
       1,
       jasmine.objectContaining({
         paymentType: 'INSTALLMENT',
-        amount: 100000,
+        capitalAmount: 100000,
+        interestAmount: 0,
         createExpense: false
       })
     );
@@ -385,7 +459,7 @@ describe('DebtsPageComponent', () => {
     const component = fixture.componentInstance;
 
     component.startPayment(debt);
-    component.paymentForm.patchValue({ amount: 100000, createExpense: true });
+    component.paymentForm.patchValue({ capitalAmount: 100000, createExpense: true });
 
     expect(component.paymentForm.hasError('associatedExpenseRequired')).toBeTrue();
     expect(component.paymentForm.valid).toBeFalse();
@@ -398,7 +472,7 @@ describe('DebtsPageComponent', () => {
 
     component.startPayment(debt);
     component.paymentForm.patchValue({
-      amount: 100000,
+      capitalAmount: 100000,
       createExpense: true,
       categoryId: 3,
       paymentMethodId: 4,
@@ -424,7 +498,7 @@ describe('DebtsPageComponent', () => {
 
     component.startPayment(debt);
     component.paymentForm.patchValue({
-      amount: 100000,
+      capitalAmount: 100000,
       createExpense: true,
       categoryId: 3,
       paymentMethodId: 4,

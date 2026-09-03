@@ -268,9 +268,15 @@ import { enumLabel } from '../../shared/ui/enum-labels';
                   </select>
                 </label>
                 <label class="field">
-                  <span>Monto que reduce capital pendiente</span>
-                  <input type="number" min="0.01" step="0.01" formControlName="amount">
+                  <span>Capital</span>
+                  <input type="number" min="0.01" step="0.01" formControlName="capitalAmount">
                 </label>
+                @if (paymentForm.controls.paymentType.value === 'INSTALLMENT') {
+                  <label class="field">
+                    <span>Interes (opcional)</span>
+                    <input type="number" min="0" step="0.01" formControlName="interestAmount">
+                  </label>
+                }
                 <label class="field">
                   <span>Fecha pago</span>
                   <input type="date" formControlName="paymentDate">
@@ -279,14 +285,17 @@ import { enumLabel } from '../../shared/ui/enum-labels';
                   <span>Notas</span>
                   <textarea rows="3" formControlName="notes"></textarea>
                 </label>
-                <p class="hint wide">Los pagos se validan contra el capital pendiente y lo reducen al registrarse.</p>
+                <p class="hint wide">
+                  El capital se valida contra el saldo pendiente y lo reduce al registrarse. El interes (solo para
+                  pagos de cuota) se guarda unicamente para consulta y no afecta el capital pendiente.
+                </p>
                 <label class="checkbox-field wide">
                   <input type="checkbox" formControlName="createExpense">
                   <span>Crear gasto asociado</span>
                 </label>
                 @if (paymentForm.controls.createExpense.value) {
                   <div class="associated-expense-fields wide">
-                    <p class="hint">El gasto asociado usara el mismo monto y fecha del pago.</p>
+                    <p class="hint">El gasto asociado usara el monto total pagado (capital + interes) y la misma fecha del pago.</p>
                     <label class="field">
                       <span>Categoria del gasto</span>
                       <select formControlName="categoryId">
@@ -367,6 +376,12 @@ import { enumLabel } from '../../shared/ui/enum-labels';
                     <div>
                       <strong>{{ payment.paymentDate }}</strong>
                       <span>{{ enumLabel(payment.paymentType) }} - {{ enumLabel(payment.status) }}</span>
+                      @if (payment.interestAmount > 0) {
+                        <span class="payment-breakdown">
+                          Capital: {{ payment.capitalAmount | currency: 'COP':'symbol-narrow':'1.0-0' }} ·
+                          Interes: {{ payment.interestAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}
+                        </span>
+                      }
                     </div>
                     <span>{{ payment.amount | currency: 'COP':'symbol-narrow':'1.0-0' }}</span>
                   </article>
@@ -448,7 +463,8 @@ export class DebtsPageComponent implements OnInit {
   readonly paymentForm = this.fb.group(
     {
       paymentType: ['INSTALLMENT' as DebtPaymentType, [Validators.required]],
-      amount: [0, [Validators.required, Validators.min(0.01)]],
+      capitalAmount: [0, [Validators.required, Validators.min(0.01)]],
+      interestAmount: [0, [Validators.min(0)]],
       paymentDate: [today(), [Validators.required]],
       notes: ['', [Validators.maxLength(1000)]],
       createExpense: [false],
@@ -586,7 +602,8 @@ export class DebtsPageComponent implements OnInit {
     this.paymentFormError.set(null);
     this.paymentForm.reset({
       paymentType: 'INSTALLMENT',
-      amount: 0,
+      capitalAmount: 0,
+      interestAmount: 0,
       paymentDate: today(),
       notes: '',
       createExpense: false,
@@ -606,15 +623,17 @@ export class DebtsPageComponent implements OnInit {
     }
 
     const raw = this.paymentForm.getRawValue();
+    const interestAmount = raw.paymentType === 'CAPITAL_PAYMENT' ? 0 : raw.interestAmount;
 
-    if (toCents(raw.amount) > toCents(debt.remainingAmount)) {
+    if (toCents(raw.capitalAmount) > toCents(debt.remainingAmount)) {
       this.paymentFormError.set('El pago no puede superar el saldo pendiente.');
       return;
     }
 
     const request: RegisterDebtPaymentRequest = {
       paymentType: raw.paymentType,
-      amount: raw.amount,
+      capitalAmount: raw.capitalAmount,
+      interestAmount,
       paymentDate: raw.paymentDate,
       notes: raw.notes || null,
       createExpense: raw.createExpense

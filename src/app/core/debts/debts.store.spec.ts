@@ -36,6 +36,8 @@ describe('DebtsStore', () => {
     participantId: 7,
     paymentType: 'INSTALLMENT',
     amount: 100000,
+    capitalAmount: 100000,
+    interestAmount: 0,
     currency: 'COP',
     paymentDate: '2026-05-12',
     notes: null,
@@ -107,11 +109,11 @@ describe('DebtsStore', () => {
     store.debts.set([debt]);
 
     store
-      .registerPayment(10, 1, { paymentType: 'INSTALLMENT', amount: 100000, paymentDate: '2026-05-12' })
+      .registerPayment(10, 1, { paymentType: 'INSTALLMENT', capitalAmount: 100000, paymentDate: '2026-05-12' })
       .subscribe((response) => {
         expect(service.registerPayment).toHaveBeenCalledWith(10, 1, {
           paymentType: 'INSTALLMENT',
-          amount: 100000,
+          capitalAmount: 100000,
           paymentDate: '2026-05-12'
         });
         expect(service.listPayments).toHaveBeenCalledWith(10, 1, jasmine.objectContaining({ status: 'ACTIVE' }));

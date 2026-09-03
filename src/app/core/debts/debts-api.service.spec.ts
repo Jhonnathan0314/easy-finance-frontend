@@ -73,7 +73,7 @@ describe('DebtsApiService', () => {
     service
       .registerPayment(5, 8, {
         paymentType: 'CAPITAL_PAYMENT',
-        amount: 50000,
+        capitalAmount: 50000,
         paymentDate: '2026-05-12',
         createExpense: true,
         categoryId: 3,
@@ -93,7 +93,7 @@ describe('DebtsApiService', () => {
     expect(registerRequest.request.method).toBe('POST');
     expect(registerRequest.request.body).toEqual({
       paymentType: 'CAPITAL_PAYMENT',
-      amount: 50000,
+      capitalAmount: 50000,
       paymentDate: '2026-05-12',
       createExpense: true,
       categoryId: 3,

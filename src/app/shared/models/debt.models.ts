@@ -15,7 +15,8 @@ export interface CreateManualDebtRequest {
 
 export interface RegisterDebtPaymentRequest {
   paymentType: DebtPaymentType;
-  amount: number;
+  capitalAmount: number;
+  interestAmount?: number | null;
   paymentDate: string;
   notes?: string | null;
   createExpense?: boolean | null;
@@ -57,6 +58,8 @@ export interface DebtPaymentResponse {
   participantId: number;
   paymentType: DebtPaymentType;
   amount: number;
+  capitalAmount: number;
+  interestAmount: number;
   currency: CurrencyCode;
   paymentDate: string;
   notes?: string | null;
