@@ -8,6 +8,7 @@ import { AuthStore } from './core/auth/auth.store';
 import { authInterceptor } from './core/http/auth.interceptor';
 import { correlationIdInterceptor } from './core/http/correlation-id.interceptor';
 import { errorInterceptor } from './core/http/error.interceptor';
+import { ThemeService } from './core/theme/theme.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -17,6 +18,9 @@ export const appConfig: ApplicationConfig = {
       withInMemoryScrolling({ scrollPositionRestoration: 'enabled' })
     ),
     provideHttpClient(withInterceptors([correlationIdInterceptor, authInterceptor, errorInterceptor])),
+    provideAppInitializer(() => {
+      inject(ThemeService);
+    }),
     provideAppInitializer(() => firstValueFrom(inject(AuthStore).bootstrapSession()))
   ]
 };

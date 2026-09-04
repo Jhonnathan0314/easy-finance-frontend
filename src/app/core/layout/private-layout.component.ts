@@ -7,6 +7,7 @@ import { AuthStore } from '../auth/auth.store';
 import { enumLabel } from '../../shared/ui/enum-labels';
 import { AccountStore } from '../state/account.store';
 import { GlobalErrorStore } from '../state/global-error.store';
+import { ThemeService } from '../theme/theme.service';
 
 interface NavigationItem {
   label: string;
@@ -57,6 +58,9 @@ interface NavigationItem {
           <div class="user-context">
             <span>{{ authStore.user()?.fullName ?? authStore.user()?.email }}</span>
             <a routerLink="/app/profile">Mi perfil</a>
+            <button type="button" (click)="themeService.toggle()">
+              {{ themeService.theme() === 'dark' ? 'Modo claro' : 'Modo oscuro' }}
+            </button>
             <button type="button" (click)="logout()">Salir</button>
           </div>
         </header>
@@ -95,6 +99,7 @@ export class PrivateLayoutComponent implements OnInit {
   protected readonly authStore = inject(AuthStore);
   protected readonly accountStore = inject(AccountStore);
   protected readonly errorStore = inject(GlobalErrorStore);
+  protected readonly themeService = inject(ThemeService);
   protected readonly enumLabel = enumLabel;
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);

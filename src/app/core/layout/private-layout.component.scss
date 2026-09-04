@@ -8,8 +8,8 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  border-right: 1px solid #dbe3ee;
-  background: #ffffff;
+  border-right: 1px solid var(--color-border);
+  background: var(--color-bg-panel);
   padding: 1rem;
 }
 
@@ -17,7 +17,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.65rem;
-  color: #111827;
+  color: var(--color-text);
   font-weight: 800;
   text-decoration: none;
 }
@@ -40,19 +40,20 @@
 
 .nav a {
   border-radius: 6px;
-  color: #40506a;
+  color: var(--color-text-secondary);
   padding: 0.7rem 0.8rem;
   text-decoration: none;
 }
 
 .nav a.disabled {
-  color: #9aa7b8;
+  color: var(--color-text-secondary);
+  opacity: 0.6;
 }
 
 .nav a.active,
 .nav a:hover {
-  background: #eaf2ff;
-  color: #174ea6;
+  background: var(--color-info-bg);
+  color: var(--color-info-text);
 }
 
 .content {
@@ -66,8 +67,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  border-bottom: 1px solid #dbe3ee;
-  background: #ffffff;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-panel);
   padding: 0.9rem 1.25rem;
 }
 
@@ -79,27 +80,28 @@
 }
 
 .account-context span {
-  color: #65738a;
+  color: var(--color-text-secondary);
   font-size: 0.85rem;
 }
 
 .account-name {
-  color: #111827;
+  color: var(--color-text);
 }
 
 .account-role {
   border-radius: 999px;
-  background: #eef6ff;
-  color: #174ea6;
+  background: var(--color-info-bg);
+  color: var(--color-info-text);
   padding: 0.25rem 0.5rem;
 }
 
 .secondary-action,
 .user-context button,
 .error-banner button {
-  border: 1px solid #c9d2df;
+  border: 1px solid var(--color-border-strong);
   border-radius: 6px;
-  background: #ffffff;
+  background: var(--color-bg-panel);
+  color: var(--color-text);
   padding: 0.45rem 0.7rem;
   cursor: pointer;
 }
@@ -108,27 +110,27 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  border-bottom: 1px solid #fecaca;
-  background: #fff1f2;
-  color: #991b1b;
+  border-bottom: 1px solid var(--color-error-border);
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
   padding: 0.75rem 1.25rem;
 }
 
 .account-banner {
-  border-bottom: 1px solid #bae6fd;
-  background: #eff6ff;
-  color: #1e3a8a;
+  border-bottom: 1px solid var(--color-info-text);
+  background: var(--color-info-bg);
+  color: var(--color-info-text);
   padding: 0.75rem 1.25rem;
 }
 
 .account-banner.archived {
-  border-bottom-color: #fde68a;
-  background: #fffbeb;
-  color: #92400e;
+  border-bottom-color: var(--color-warning-border);
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
 }
 
 .error-banner small {
-  color: #7f1d1d;
+  color: var(--color-error-text);
 }
 
 .main {
@@ -143,7 +145,7 @@
 
   .sidebar {
     border-right: 0;
-    border-bottom: 1px solid #dbe3ee;
+    border-bottom: 1px solid var(--color-border);
   }
 
   .nav {

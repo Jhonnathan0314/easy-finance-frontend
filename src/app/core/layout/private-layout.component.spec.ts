@@ -25,6 +25,7 @@ describe('PrivateLayoutComponent', () => {
   let router: Router;
 
   beforeEach(async () => {
+    localStorage.removeItem('easyFinance.theme');
     const selectedAccount = {
       id: 1,
       name: 'Casa',
@@ -127,5 +128,27 @@ describe('PrivateLayoutComponent', () => {
     expect(accountStore.selectAccount).not.toHaveBeenCalled();
     expect(accountStore.clearSelectedAccount).not.toHaveBeenCalled();
     expect(router.navigate).toHaveBeenCalledWith(['/app/accounts']);
+  });
+
+  it('shows a theme toggle button next to the user context', () => {
+    const buttons = Array.from(fixture.nativeElement.querySelectorAll('.user-context button')) as HTMLButtonElement[];
+    const themeButton = buttons.find((button) => button.textContent?.includes('Modo'));
+
+    expect(themeButton).toBeDefined();
+  });
+
+  it('toggles the theme and updates the document attribute when clicking the button', () => {
+    const findThemeButton = () =>
+      (Array.from(fixture.nativeElement.querySelectorAll('.user-context button')) as HTMLButtonElement[]).find((button) =>
+        button.textContent?.includes('Modo')
+      );
+
+    const initialLabel = findThemeButton()?.textContent?.trim();
+
+    findThemeButton()?.click();
+    fixture.detectChanges();
+
+    expect(document.documentElement.getAttribute('data-theme')).toBe(initialLabel === 'Modo oscuro' ? 'dark' : 'light');
+    expect(findThemeButton()?.textContent?.trim()).not.toBe(initialLabel);
   });
 });
