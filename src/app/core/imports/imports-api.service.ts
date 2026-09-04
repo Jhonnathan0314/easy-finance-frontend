@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import {
   AnnualBudgetImportResponseDto,
   CategoryImportResponseDto,
+  DebtImportResponseDto,
   ExpenseImportBatchResponseDto,
   IncomeImportResponseDto,
   PaymentMethodImportResponseDto
@@ -118,5 +119,23 @@ export class ImportsApiService {
     formData.append('file', file);
 
     return this.api.post<AnnualBudgetImportResponseDto, FormData>(`/accounts/${accountId}/imports/budgets/annual`, formData);
+  }
+
+  previewDebtImport(accountId: number, file: File): Observable<DebtImportResponseDto> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    return this.api.post<DebtImportResponseDto, FormData>(`/accounts/${accountId}/imports/debts/preview`, formData);
+  }
+
+  downloadDebtImportTemplate(accountId: number): Observable<Blob> {
+    return this.api.getBlob(`/accounts/${accountId}/imports/debts/template`);
+  }
+
+  importDebts(accountId: number, file: File): Observable<DebtImportResponseDto> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    return this.api.post<DebtImportResponseDto, FormData>(`/accounts/${accountId}/imports/debts`, formData);
   }
 }

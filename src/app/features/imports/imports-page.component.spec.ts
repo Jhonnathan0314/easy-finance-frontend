@@ -10,6 +10,7 @@ import {
   AnnualBudgetImportResponseDto,
   ApiErrorResponse,
   CategoryImportResponseDto,
+  DebtImportResponseDto,
   ExpenseImportBatchResponseDto,
   IncomeImportResponseDto,
   PaymentMethodImportResponseDto
@@ -17,6 +18,7 @@ import {
 import {
   ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME,
   CATEGORY_IMPORT_TEMPLATE_FILENAME,
+  DEBT_IMPORT_TEMPLATE_FILENAME,
   EXPENSE_IMPORT_TEMPLATE_FILENAME,
   INCOME_IMPORT_TEMPLATE_FILENAME,
   PAYMENT_METHOD_IMPORT_TEMPLATE_FILENAME,
@@ -130,6 +132,8 @@ describe('ImportsPageComponent', () => {
       selectedCategoryFile?: File | null;
       selectedPaymentMethodFile?: File | null;
       selectedAnnualBudgetFile?: File | null;
+      selectedDebtFile?: File | null;
+      debtTemplateDownloadError?: string | null;
       incomeResult?: {
         accountId: number;
         participantId: number;
@@ -153,10 +157,12 @@ describe('ImportsPageComponent', () => {
       categoryPreview?: CategoryImportResponseDto | null;
       paymentMethodPreview?: PaymentMethodImportResponseDto | null;
       annualBudgetPreview?: AnnualBudgetImportResponseDto | null;
+      debtPreview?: DebtImportResponseDto | null;
       importingIncome?: boolean;
       importingCategory?: boolean;
       importingPaymentMethod?: boolean;
       importingAnnualBudget?: boolean;
+      importingDebt?: boolean;
     } = {}
   ): ComponentFixture<ImportsPageComponent> {
     const currentBatch = signal<ExpenseImportBatchResponseDto | null>(
@@ -185,6 +191,9 @@ describe('ImportsPageComponent', () => {
         ? options.selectedAnnualBudgetFile ?? null
         : new File(['excel'], 'annual-budgets.xlsx')
     );
+    const selectedDebtFile = signal<File | null>(
+      Object.prototype.hasOwnProperty.call(options, 'selectedDebtFile') ? options.selectedDebtFile ?? null : new File(['excel'], 'debts.xlsx')
+    );
     const incomeImportResult = signal(
       Object.prototype.hasOwnProperty.call(options, 'incomeResult') ? options.incomeResult ?? null : null
     );
@@ -200,16 +209,22 @@ describe('ImportsPageComponent', () => {
     const annualBudgetImportPreview = signal<AnnualBudgetImportResponseDto | null>(
       Object.prototype.hasOwnProperty.call(options, 'annualBudgetPreview') ? options.annualBudgetPreview ?? null : null
     );
+    const debtImportPreview = signal<DebtImportResponseDto | null>(
+      Object.prototype.hasOwnProperty.call(options, 'debtPreview') ? options.debtPreview ?? null : null
+    );
     const paymentMethodImportResult = signal(null);
     const annualBudgetImportResult = signal(null);
+    const debtImportResult = signal(null);
     const accountState = { ...account, status: options.archived ? 'ARCHIVED' : 'ACTIVE' };
     const storeError = signal<ApiErrorResponse | null>(null);
     const incomeStoreError = signal<ApiErrorResponse | null>(null);
+    const debtStoreError = signal<ApiErrorResponse | null>(null);
     const templateDownloadError = signal(options.templateDownloadError ?? null);
     const incomeTemplateDownloadError = signal(options.incomeTemplateDownloadError ?? null);
     const categoryTemplateDownloadError = signal(options.categoryTemplateDownloadError ?? null);
     const paymentMethodTemplateDownloadError = signal(options.paymentMethodTemplateDownloadError ?? null);
     const annualBudgetTemplateDownloadError = signal(options.annualBudgetTemplateDownloadError ?? null);
+    const debtTemplateDownloadError = signal(options.debtTemplateDownloadError ?? null);
 
     if (options.validRows !== undefined && currentBatch()) {
       currentBatch.set({ ...currentBatch()!, validRows: options.validRows });
@@ -239,33 +254,40 @@ describe('ImportsPageComponent', () => {
             isImportingCategory: signal(options.importingCategory ?? false),
             isImportingPaymentMethod: signal(options.importingPaymentMethod ?? false),
             isImportingAnnualBudget: signal(options.importingAnnualBudget ?? false),
+            isImportingDebt: signal(options.importingDebt ?? false),
             isPreviewingIncome: signal(false),
             isPreviewingCategory: signal(false),
             isPreviewingPaymentMethod: signal(false),
             isPreviewingAnnualBudget: signal(false),
+            isPreviewingDebt: signal(false),
             error: storeError,
             incomeError: incomeStoreError,
             categoryError: signal<ApiErrorResponse | null>(null),
             paymentMethodError: signal<ApiErrorResponse | null>(null),
             annualBudgetError: signal<ApiErrorResponse | null>(null),
+            debtError: debtStoreError,
             templateDownloadError,
             incomeTemplateDownloadError,
             categoryTemplateDownloadError,
             paymentMethodTemplateDownloadError,
             annualBudgetTemplateDownloadError,
+            debtTemplateDownloadError,
             selectedFile,
             selectedIncomeFile,
             selectedCategoryFile,
             selectedPaymentMethodFile,
             selectedAnnualBudgetFile,
+            selectedDebtFile,
             currentIncomeImportPreview: incomeImportPreview,
             currentCategoryImportPreview: categoryImportPreview,
             currentPaymentMethodImportPreview: paymentMethodImportPreview,
             currentAnnualBudgetImportPreview: annualBudgetImportPreview,
+            currentDebtImportPreview: debtImportPreview,
             currentIncomeImportResult: incomeImportResult,
             currentCategoryImportResult: signal(null),
             currentPaymentMethodImportResult: paymentMethodImportResult,
             currentAnnualBudgetImportResult: annualBudgetImportResult,
+            currentDebtImportResult: debtImportResult,
             selectFile: jasmine.createSpy('selectFile').and.callFake((file: File) => selectedFile.set(file)),
             clearFile: jasmine.createSpy('clearFile').and.callFake(() => selectedFile.set(null)),
             selectIncomeFile: jasmine.createSpy('selectIncomeFile').and.callFake((file: File) => selectedIncomeFile.set(file)),
@@ -280,6 +302,8 @@ describe('ImportsPageComponent', () => {
               .createSpy('selectAnnualBudgetFile')
               .and.callFake((file: File) => selectedAnnualBudgetFile.set(file)),
             clearAnnualBudgetFile: jasmine.createSpy('clearAnnualBudgetFile').and.callFake(() => selectedAnnualBudgetFile.set(null)),
+            selectDebtFile: jasmine.createSpy('selectDebtFile').and.callFake((file: File) => selectedDebtFile.set(file)),
+            clearDebtFile: jasmine.createSpy('clearDebtFile').and.callFake(() => selectedDebtFile.set(null)),
             preview: jasmine.createSpy('preview').and.returnValue(of(currentBatch())),
             confirm: jasmine.createSpy('confirm').and.returnValue(of({ ...previewBatch, status: 'CONFIRMED' })),
             downloadTemplate: jasmine.createSpy('downloadTemplate').and.returnValue(of(new Blob(['template']))),
@@ -385,6 +409,29 @@ describe('ImportsPageComponent', () => {
                 rows: [{ rowNumber: 2, year: 2026, month: 'Todos', appliedMonths: [1, 2], plannedAmount: 100000, valid: true, errors: [] }]
               })
             ),
+            downloadDebtTemplate: jasmine.createSpy('downloadDebtTemplate').and.returnValue(of(new Blob(['template']))),
+            importDebtFile: jasmine.createSpy('importDebtFile').and.returnValue(
+              of({
+                accountId: 1,
+                participantId: 7,
+                originalFilename: 'debts.xlsx',
+                totalRows: 1,
+                createdCount: 1,
+                invalidRows: 0,
+                rows: [{ rowNumber: 2, name: 'Prestamo carro', totalAmount: 5000000, valid: true, errors: [], createdDebtId: 9 }]
+              })
+            ),
+            previewDebtFile: jasmine.createSpy('previewDebtFile').and.returnValue(
+              of({
+                accountId: 1,
+                participantId: 7,
+                originalFilename: 'debts.xlsx',
+                totalRows: 1,
+                createdCount: 0,
+                invalidRows: 0,
+                rows: [{ rowNumber: 2, name: 'Prestamo carro', totalAmount: 5000000, valid: true, errors: [], createdDebtId: null }]
+              })
+            ),
             getBatch: jasmine.createSpy('getBatch').and.returnValue(of(currentBatch())),
             clear: jasmine.createSpy('clear').and.callFake(() => {
               currentBatch.set(null);
@@ -415,6 +462,13 @@ describe('ImportsPageComponent', () => {
               annualBudgetImportPreview.set(null);
               annualBudgetImportResult.set(null);
               annualBudgetTemplateDownloadError.set(null);
+            }),
+            clearDebtImportState: jasmine.createSpy('clearDebtImportState').and.callFake(() => {
+              selectedDebtFile.set(null);
+              debtImportPreview.set(null);
+              debtImportResult.set(null);
+              debtStoreError.set(null);
+              debtTemplateDownloadError.set(null);
             })
           }
         }
@@ -1006,5 +1060,122 @@ describe('ImportsPageComponent', () => {
     expect(text).toContain('Presupuesto familiar');
     expect(text).toContain('1, 2, 3');
     expect(text).toContain('Ya existe presupuesto para ese año.');
+  });
+
+  it('shows a debts tab', () => {
+    const fixture = configure();
+    const text = fixture.nativeElement.textContent;
+
+    expect(text).toContain('Deudas');
+  });
+
+  it('switches to debts mode and shows direct import action', () => {
+    const fixture = configure();
+    fixture.componentInstance.activeMode.set('debts');
+    fixture.detectChanges();
+
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Importar deudas desde Excel');
+    expect(text).toContain('Importar deudas');
+  });
+
+  it('downloads debt template using a temporary object url', () => {
+    const fixture = configure();
+    const store = TestBed.inject(ImportsStore) as jasmine.SpyObj<ImportsStore>;
+    fixture.componentInstance.activeMode.set('debts');
+    fixture.detectChanges();
+    spyOn(URL, 'createObjectURL').and.returnValue('blob:debt-template');
+    spyOn(URL, 'revokeObjectURL');
+    const clickSpy = spyOn(HTMLAnchorElement.prototype, 'click').and.callFake(function (this: HTMLAnchorElement) {
+      expect(this.download).toBe(DEBT_IMPORT_TEMPLATE_FILENAME);
+    });
+
+    fixture.componentInstance.downloadDebtTemplate();
+
+    expect(store.downloadDebtTemplate).toHaveBeenCalledWith(1);
+    expect(URL.createObjectURL).toHaveBeenCalled();
+    expect(clickSpy).toHaveBeenCalled();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:debt-template');
+  });
+
+  it('imports debts directly and shows created count', () => {
+    const fixture = configure();
+    const store = TestBed.inject(ImportsStore) as jasmine.SpyObj<ImportsStore>;
+    fixture.componentInstance.activeMode.set('debts');
+    fixture.detectChanges();
+
+    fixture.componentInstance.importDebtsAction();
+
+    expect(store.importDebtFile).toHaveBeenCalledWith(1);
+    expect(fixture.componentInstance.debtSuccessMessage()).toContain('Se importaron');
+  });
+
+  it('previews debts and renders remaining balance, installments and row errors without importing', () => {
+    const fixture = configure({
+      debtPreview: {
+        accountId: 1,
+        participantId: 7,
+        originalFilename: 'debts-preview.xlsx',
+        totalRows: 2,
+        createdCount: 0,
+        invalidRows: 1,
+        rows: [
+          {
+            rowNumber: 2,
+            name: 'Prestamo carro',
+            totalAmount: 5000000,
+            remainingBalance: 3000000,
+            installmentCount: 12,
+            installmentAmount: 450000,
+            startDate: '2026-05-01',
+            participantId: 8,
+            participantLabel: 'Empleado principal',
+            valid: true,
+            errors: []
+          },
+          {
+            rowNumber: 3,
+            name: 'Fila mala',
+            totalAmount: null,
+            valid: false,
+            errors: ['Capital debe ser mayor a 0', 'FechaInicio requerida']
+          }
+        ]
+      }
+    });
+    const store = TestBed.inject(ImportsStore) as jasmine.SpyObj<ImportsStore>;
+    fixture.componentInstance.activeMode.set('debts');
+    fixture.detectChanges();
+    const text = fixture.nativeElement.textContent;
+
+    expect(text).toContain('Preview stateless de deudas');
+    expect(text).toContain('Prestamo carro');
+    expect(text).toContain('Fila mala');
+    expect(text).toContain('Empleado principal');
+    expect(text).toContain('Capital debe ser mayor a 0');
+    expect(text).toContain('FechaInicio requerida');
+    expect(store.importDebtFile).not.toHaveBeenCalled();
+  });
+
+  it('clears debt import state when loading another file', () => {
+    const fixture = configure({
+      debtPreview: {
+        accountId: 1,
+        participantId: 7,
+        originalFilename: 'debts-preview.xlsx',
+        totalRows: 1,
+        createdCount: 0,
+        invalidRows: 0,
+        rows: [{ rowNumber: 2, name: 'Prestamo carro', totalAmount: 5000000, valid: true, errors: [] }]
+      }
+    });
+    const store = TestBed.inject(ImportsStore) as jasmine.SpyObj<ImportsStore>;
+    fixture.componentInstance.activeMode.set('debts');
+    fixture.detectChanges();
+
+    fixture.componentInstance.clearDebtImport();
+
+    expect(store.clearDebtImportState).toHaveBeenCalled();
+    expect(fixture.componentInstance.debtFileError()).toBeNull();
   });
 });

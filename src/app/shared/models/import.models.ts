@@ -160,3 +160,36 @@ export interface AnnualBudgetImportResponse {
 }
 
 export type AnnualBudgetImportResponseDto = AnnualBudgetImportResponse;
+
+export interface DebtImportRowResponse {
+  rowNumber: number;
+  name?: string | null;
+  description?: string | null;
+  totalAmount?: number | null;
+  remainingBalance?: number | null;
+  installmentCount?: number | null;
+  installmentAmount?: number | null;
+  startDate?: string | null;
+  dueDate?: string | null;
+  participantId?: number | null;
+  participantLabel?: string | null;
+  participantName?: string | null;
+  notes?: string | null;
+  valid: boolean;
+  errors: ImportRowErrorDto[];
+  createdDebtId?: number | null;
+}
+
+export type DebtImportRowResponseDto = DebtImportRowResponse;
+
+export interface DebtImportResponse {
+  accountId: number;
+  participantId: number;
+  originalFilename: string;
+  totalRows: number;
+  createdCount: number;
+  invalidRows: number;
+  rows: DebtImportRowResponse[];
+}
+
+export type DebtImportResponseDto = DebtImportResponse;

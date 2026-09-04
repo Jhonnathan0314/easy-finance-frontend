@@ -9,6 +9,7 @@ import {
   AnnualBudgetImportResponseDto,
   ApiErrorResponse,
   CategoryImportResponseDto,
+  DebtImportResponseDto,
   ExpenseImportRowResponseDto,
   ImportRowErrorDto,
   IncomeImportResponseDto,
@@ -17,13 +18,14 @@ import {
 import { enumLabel } from '../../shared/ui/enum-labels';
 
 type RowFilter = 'all' | 'valid' | 'invalid';
-type ImportMode = 'expenses' | 'incomes' | 'categories' | 'paymentMethods' | 'budgets';
+type ImportMode = 'expenses' | 'incomes' | 'categories' | 'paymentMethods' | 'budgets' | 'debts';
 type NormalizedImportRowError = { column: string; code: string; message: string };
 type StatelessImportResult =
   | IncomeImportResponseDto
   | CategoryImportResponseDto
   | PaymentMethodImportResponseDto
-  | AnnualBudgetImportResponseDto;
+  | AnnualBudgetImportResponseDto
+  | DebtImportResponseDto;
 
 export const MAX_IMPORT_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 export const EXPENSE_IMPORT_TEMPLATE_FILENAME = 'easy-finance-expense-import-template.xlsx';
@@ -31,6 +33,7 @@ export const INCOME_IMPORT_TEMPLATE_FILENAME = 'easy-finance-income-import-templ
 export const CATEGORY_IMPORT_TEMPLATE_FILENAME = 'easy-finance-category-import-template.xlsx';
 export const PAYMENT_METHOD_IMPORT_TEMPLATE_FILENAME = 'easy-finance-payment-method-import-template.xlsx';
 export const ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME = 'easy-finance-annual-budget-import-template.xlsx';
+export const DEBT_IMPORT_TEMPLATE_FILENAME = 'easy-finance-debt-import-template.xlsx';
 
 @Component({
   selector: 'ef-imports-page',
@@ -54,6 +57,7 @@ export const ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME = 'easy-finance-annual-budge
           Medios de pago
         </button>
         <button type="button" [class.active]="activeMode() === 'budgets'" (click)="activeMode.set('budgets')">Presupuestos</button>
+        <button type="button" [class.active]="activeMode() === 'debts'" (click)="activeMode.set('debts')">Deudas</button>
       </div>
 
       @if (accountStore.selectedAccountArchived()) {
@@ -1254,6 +1258,253 @@ export const ANNUAL_BUDGET_IMPORT_TEMPLATE_FILENAME = 'easy-finance-annual-budge
           <p>Sube un Excel, genera un preview y luego importa el presupuesto anual.</p>
         </div>
       }
+      } @else if (activeMode() === 'debts') {
+      <section class="panel instructions">
+        <div>
+          <h2>Importar deudas desde Excel</h2>
+          <p>Usa un archivo .xlsx con estas cabeceras exactas:</p>
+          <div class="headers-list">
+            @for (header of debtRequiredHeaders; track header) {
+              <span>{{ header }}</span>
+            }
+          </div>
+        </div>
+        <div class="template-download">
+          <p>La plantilla incluye los participantes activos de esta cuenta como lista desplegable.</p>
+          <button type="button" (click)="downloadDebtTemplate()" [disabled]="importsStore.isDownloadingTemplate()">
+            {{ importsStore.isDownloadingTemplate() ? 'Descargando...' : 'Descargar plantilla de deudas' }}
+          </button>
+        </div>
+        @if (importsStore.debtTemplateDownloadError(); as templateError) {
+          <p class="form-error" role="alert">{{ templateError }}</p>
+        }
+        <ul>
+          <li>Solo .xlsx, maximo 5MB y maximo 1000 filas.</li>
+          <li>Columnas requeridas: Nombre, Capital, FechaInicio. El resto son opcionales.</li>
+          <li>NumeroCuotas y ValorCuota deben completarse juntos, o ambos vacios.</li>
+          <li>SaldoPendiente es opcional: representa cuanto queda pendiente hoy, util al migrar una deuda que ya se viene pagando. Si se deja vacio, la deuda inicia con el capital completo pendiente.</li>
+          <li>Solo crea deudas manuales. Las deudas derivadas de gastos en cuotas no se pueden importar.</li>
+          <li>Si alguna fila es invalida, no se crea ninguna deuda.</li>
+        </ul>
+      </section>
+
+      <section class="panel upload-panel">
+        <label class="file-field">
+          <span>Archivo Excel</span>
+          <input #debtFileInput type="file" accept=".xlsx" (change)="onDebtFileSelected($event)" [disabled]="!canWrite()">
+        </label>
+
+        @if (importsStore.selectedDebtFile(); as file) {
+          <div class="selected-file">
+            <strong>{{ file.name }}</strong>
+            <span>{{ fileSizeLabel(file.size) }}</span>
+            <button type="button" (click)="clearDebtFile(debtFileInput)">Quitar</button>
+          </div>
+        } @else {
+          <p class="muted">Selecciona un archivo .xlsx para generar el preview.</p>
+        }
+
+        @if (debtFileError(); as error) {
+          <p class="form-error" role="alert">{{ error }}</p>
+        }
+
+        <div class="actions">
+          @if (!importsStore.currentDebtImportPreview()) {
+            <button class="button" type="button" (click)="previewDebts()" [disabled]="!canPreviewDebts()">
+              {{ importsStore.isPreviewingDebt() ? 'Generando preview...' : 'Preview' }}
+            </button>
+          }
+          @if (hasDebtImportState()) {
+            <button type="button" (click)="clearDebtImport(debtFileInput)">Cargar otro archivo</button>
+          }
+        </div>
+      </section>
+
+      @if (importsStore.debtError(); as error) {
+        <div class="panel error-panel" role="alert">
+          <strong>{{ error.code }}</strong>
+          <span>{{ friendlyDebtError(error) }}</span>
+        </div>
+      }
+
+      @if (debtSuccessMessage(); as message) {
+        <div class="panel success-panel">{{ message }}</div>
+      }
+
+      @if (debtPreviewView(); as view) {
+        <section class="panel batch-summary">
+          <div class="summary-heading">
+            <div>
+              <h2>{{ view.result.originalFilename || 'Preview de deudas' }}</h2>
+              <p>Preview stateless de deudas. No crea datos en backend.</p>
+            </div>
+            <span class="badge">Preview</span>
+          </div>
+          <dl class="summary-grid">
+            <div>
+              <dt>Total filas</dt>
+              <dd>{{ totalRows(view.result) }}</dd>
+            </div>
+            <div>
+              <dt>Validas</dt>
+              <dd>{{ validRows(view.result) }}</dd>
+            </div>
+            <div>
+              <dt>Invalidas</dt>
+              <dd>{{ invalidRows(view.result) }}</dd>
+            </div>
+          </dl>
+          <div class="confirm-row">
+            <button class="button" type="button" (click)="importDebtsAction()" [disabled]="!canImportDebts()">
+              {{ importsStore.isImportingDebt() ? 'Confirmando...' : 'Confirmar importacion' }}
+            </button>
+          </div>
+        </section>
+
+        <section class="panel rows-panel">
+          <h2>Filas del preview</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fila</th>
+                  <th>Nombre</th>
+                  <th>Capital</th>
+                  <th>Saldo pendiente</th>
+                  <th>Cuotas</th>
+                  <th>Fecha inicio</th>
+                  <th>Participante</th>
+                  <th>Valid</th>
+                  <th>Errores</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of view.result.rows; track row.rowNumber) {
+                  <tr [class.invalid]="!row.valid">
+                    <td>{{ row.rowNumber }}</td>
+                    <td>{{ displayValue(row, ['name', 'Nombre', 'nombre']) }}</td>
+                    <td>{{ amountLabel(row, ['totalAmount', 'Capital', 'capital']) }}</td>
+                    <td>{{ amountLabel(row, ['remainingBalance', 'SaldoPendiente', 'saldoPendiente']) }}</td>
+                    <td>{{ displayValue(row, ['installmentCount', 'NumeroCuotas', 'numeroCuotas']) }}</td>
+                    <td>{{ displayValue(row, ['startDate', 'FechaInicio', 'fechaInicio']) }}</td>
+                    <td>{{ participantLabel(row, view.result.participantId) }}</td>
+                    <td>
+                      <span class="badge" [class.success]="row.valid" [class.danger]="!row.valid">
+                        {{ row.valid ? 'VALID' : 'INVALID' }}
+                      </span>
+                    </td>
+                    <td>
+                      @if (rowErrors(row).length) {
+                        <ul class="row-errors">
+                          @for (error of rowErrors(row); track error.column + error.code + error.message) {
+                            <li><strong>{{ error.column }}</strong>: {{ error.message }}</li>
+                          }
+                        </ul>
+                      } @else {
+                        -
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      }
+
+      @if (debtResultView(); as view) {
+        <section class="panel batch-summary">
+          <div class="summary-heading">
+            <div>
+              <h2>{{ view.result.originalFilename || 'Importacion de deudas' }}</h2>
+              <p>Resultado de importacion de deudas</p>
+            </div>
+          </div>
+          <dl class="summary-grid">
+            <div>
+              <dt>Total filas</dt>
+              <dd>{{ totalRows(view.result) }}</dd>
+            </div>
+            <div>
+              <dt>Creadas</dt>
+              <dd>{{ createdCount(view.result) }}</dd>
+            </div>
+            <div>
+              <dt>Invalidas</dt>
+              <dd>{{ invalidRows(view.result) }}</dd>
+            </div>
+          </dl>
+
+          @if (invalidRows(view.result) > 0) {
+            <div class="panel warning-panel">
+              No se creo ninguna deuda. Corrige el archivo y vuelve a cargarlo.
+            </div>
+          }
+        </section>
+
+        <section class="panel rows-panel">
+          <h2>Filas procesadas</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fila</th>
+                  <th>Nombre</th>
+                  <th>Capital</th>
+                  <th>Saldo pendiente</th>
+                  <th>Cuotas</th>
+                  <th>Fecha inicio</th>
+                  <th>Participante</th>
+                  <th>Resultado</th>
+                  <th>Valid</th>
+                  <th>Errores</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of view.result.rows; track row.rowNumber) {
+                  <tr [class.invalid]="!row.valid">
+                    <td>{{ row.rowNumber }}</td>
+                    <td>{{ displayValue(row, ['name', 'Nombre', 'nombre']) }}</td>
+                    <td>{{ amountLabel(row, ['totalAmount', 'Capital', 'capital']) }}</td>
+                    <td>{{ amountLabel(row, ['remainingBalance', 'SaldoPendiente', 'saldoPendiente']) }}</td>
+                    <td>{{ displayValue(row, ['installmentCount', 'NumeroCuotas', 'numeroCuotas']) }}</td>
+                    <td>{{ displayValue(row, ['startDate', 'FechaInicio', 'fechaInicio']) }}</td>
+                    <td>{{ participantLabel(row, view.result.participantId) }}</td>
+                    <td>
+                      @if (row.createdDebtId) {
+                        <span class="badge success">Deuda #{{ row.createdDebtId }}</span>
+                      } @else {
+                        -
+                      }
+                    </td>
+                    <td>
+                      <span class="badge" [class.success]="row.valid" [class.danger]="!row.valid">
+                        {{ row.valid ? 'VALID' : 'INVALID' }}
+                      </span>
+                    </td>
+                    <td>
+                      @if (rowErrors(row).length) {
+                        <ul class="row-errors">
+                          @for (error of rowErrors(row); track error.column + error.code + error.message) {
+                            <li><strong>{{ error.column }}</strong>: {{ error.message }}</li>
+                          }
+                        </ul>
+                      } @else {
+                        -
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      } @else if (!importsStore.isImportingDebt() && !importsStore.isPreviewingDebt()) {
+        <div class="panel empty-state">
+          <h2>Sin importacion de deudas</h2>
+          <p>Sube un Excel, genera un preview y luego importa las deudas.</p>
+        </div>
+      }
       }
     </section>
   `
@@ -1270,11 +1521,13 @@ export class ImportsPageComponent {
   readonly categoryFileError = signal<string | null>(null);
   readonly paymentMethodFileError = signal<string | null>(null);
   readonly annualBudgetFileError = signal<string | null>(null);
+  readonly debtFileError = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
   readonly incomeSuccessMessage = signal<string | null>(null);
   readonly categorySuccessMessage = signal<string | null>(null);
   readonly paymentMethodSuccessMessage = signal<string | null>(null);
   readonly annualBudgetSuccessMessage = signal<string | null>(null);
+  readonly debtSuccessMessage = signal<string | null>(null);
   readonly accountId = computed(() => this.accountStore.selectedAccountId() ?? 0);
   readonly canWrite = computed(() => this.accountStore.selectedAccount()?.status === 'ACTIVE');
   readonly incomePreviewView = computed(() =>
@@ -1297,6 +1550,10 @@ export class ImportsPageComponent {
       : this.statelessView(this.importsStore.currentAnnualBudgetImportPreview(), false)
   );
   readonly annualBudgetResultView = computed(() => this.statelessView(this.importsStore.currentAnnualBudgetImportResult(), true));
+  readonly debtPreviewView = computed(() =>
+    this.importsStore.currentDebtImportResult() ? null : this.statelessView(this.importsStore.currentDebtImportPreview(), false)
+  );
+  readonly debtResultView = computed(() => this.statelessView(this.importsStore.currentDebtImportResult(), true));
   readonly hasImportState = computed(
     () =>
       Boolean(this.importsStore.selectedFile()) ||
@@ -1346,6 +1603,16 @@ export class ImportsPageComponent {
       Boolean(this.annualBudgetFileError()) ||
       Boolean(this.annualBudgetSuccessMessage())
   );
+  readonly hasDebtImportState = computed(
+    () =>
+      Boolean(this.importsStore.selectedDebtFile()) ||
+      Boolean(this.importsStore.currentDebtImportPreview()) ||
+      Boolean(this.importsStore.currentDebtImportResult()) ||
+      Boolean(this.importsStore.debtError()) ||
+      Boolean(this.importsStore.debtTemplateDownloadError()) ||
+      Boolean(this.debtFileError()) ||
+      Boolean(this.debtSuccessMessage())
+  );
   readonly filteredRows = computed(() => {
     const rows = this.importsStore.currentBatch()?.rows ?? [];
 
@@ -1364,6 +1631,7 @@ export class ImportsPageComponent {
   readonly categoryRequiredHeaders = ['Nombre', 'Tipo'];
   readonly paymentMethodRequiredHeaders = ['Nombre', 'Tipo'];
   readonly annualBudgetRequiredHeaders = ['Año', 'Mes', 'NombrePresupuesto', 'Categoria', 'NombreSubpresupuesto', 'Valor'];
+  readonly debtRequiredHeaders = ['Nombre', 'Capital', 'FechaInicio'];
 
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -1490,6 +1758,31 @@ export class ImportsPageComponent {
     this.importsStore.selectAnnualBudgetFile(file);
   }
 
+  onDebtFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+
+    this.debtFileError.set(null);
+    this.debtSuccessMessage.set(null);
+
+    if (!file) {
+      this.importsStore.clearDebtFile();
+      this.debtFileError.set('Selecciona un archivo .xlsx.');
+      return;
+    }
+
+    const validationError = validateImportFile(file);
+
+    if (validationError) {
+      this.importsStore.clearDebtFile();
+      this.debtFileError.set(validationError);
+      input.value = '';
+      return;
+    }
+
+    this.importsStore.selectDebtFile(file);
+  }
+
   clearFile(fileInput?: HTMLInputElement): void {
     this.importsStore.clearFile();
     this.fileError.set(null);
@@ -1580,6 +1873,25 @@ export class ImportsPageComponent {
     this.importsStore.clearAnnualBudgetImportState();
     this.annualBudgetFileError.set(null);
     this.annualBudgetSuccessMessage.set(null);
+
+    if (fileInput) {
+      fileInput.value = '';
+    }
+  }
+
+  clearDebtFile(fileInput?: HTMLInputElement): void {
+    this.importsStore.clearDebtFile();
+    this.debtFileError.set(null);
+
+    if (fileInput) {
+      fileInput.value = '';
+    }
+  }
+
+  clearDebtImport(fileInput?: HTMLInputElement): void {
+    this.importsStore.clearDebtImportState();
+    this.debtFileError.set(null);
+    this.debtSuccessMessage.set(null);
 
     if (fileInput) {
       fileInput.value = '';
@@ -1857,6 +2169,63 @@ export class ImportsPageComponent {
     });
   }
 
+  downloadDebtTemplate(): void {
+    this.importsStore.downloadDebtTemplate(this.accountId()).pipe(take(1)).subscribe({
+      next: (blob) => this.saveTemplateBlob(blob, DEBT_IMPORT_TEMPLATE_FILENAME),
+      error: () => undefined
+    });
+  }
+
+  previewDebts(): void {
+    this.debtSuccessMessage.set(null);
+    this.debtFileError.set(null);
+
+    if (!this.canWrite()) {
+      this.debtFileError.set('La cuenta archivada no permite preview de deudas.');
+      return;
+    }
+
+    const file = this.importsStore.selectedDebtFile();
+    const validationError = file ? validateImportFile(file) : 'Selecciona un archivo .xlsx.';
+
+    if (validationError) {
+      this.debtFileError.set(validationError);
+      return;
+    }
+
+    this.importsStore.previewDebtFile(this.accountId()).pipe(take(1)).subscribe({ error: () => undefined });
+  }
+
+  importDebtsAction(): void {
+    this.debtSuccessMessage.set(null);
+    this.debtFileError.set(null);
+
+    if (!this.canWrite()) {
+      this.debtFileError.set('La cuenta archivada no permite importar deudas.');
+      return;
+    }
+
+    const file = this.importsStore.selectedDebtFile();
+    const validationError = file ? validateImportFile(file) : 'Selecciona un archivo .xlsx.';
+
+    if (validationError) {
+      this.debtFileError.set(validationError);
+      return;
+    }
+
+    this.importsStore.importDebtFile(this.accountId()).pipe(take(1)).subscribe({
+      next: (result) => {
+        if (result.invalidRows > 0) {
+          this.debtSuccessMessage.set('No se creo ninguna deuda. Corrige el archivo y vuelve a cargarlo.');
+          return;
+        }
+
+        this.debtSuccessMessage.set(`Se importaron ${result.createdCount} deudas.`);
+      },
+      error: () => undefined
+    });
+  }
+
   canPreview(): boolean {
     return this.canWrite() && Boolean(this.importsStore.selectedFile()) && !this.importsStore.isPreviewing();
   }
@@ -1917,6 +2286,14 @@ export class ImportsPageComponent {
     );
   }
 
+  canImportDebts(): boolean {
+    return this.canWrite() && Boolean(this.importsStore.selectedDebtFile()) && !this.importsStore.isImportingDebt();
+  }
+
+  canPreviewDebts(): boolean {
+    return this.canWrite() && Boolean(this.importsStore.selectedDebtFile()) && !this.importsStore.isPreviewingDebt();
+  }
+
   hasCatalogErrors(): boolean {
     const rows = this.importsStore.currentBatch()?.rows ?? [];
 
@@ -1972,7 +2349,7 @@ export class ImportsPageComponent {
     return result.invalidRows ?? result.rows.filter((row) => !row.valid).length;
   }
 
-  createdCount(result: IncomeImportResponseDto | CategoryImportResponseDto | PaymentMethodImportResponseDto): number {
+  createdCount(result: IncomeImportResponseDto | CategoryImportResponseDto | PaymentMethodImportResponseDto | DebtImportResponseDto): number {
     return result.createdCount ?? 0;
   }
 
@@ -2119,6 +2496,18 @@ export class ImportsPageComponent {
       IMPORT_TEMPLATE_INVALID: 'La plantilla no tiene las cabeceras esperadas.',
       IMPORT_ROW_LIMIT_EXCEEDED: 'El archivo supera el limite de filas.',
       ANNUAL_BUDGET_MONTH_ALREADY_EXISTS: 'Ya existe al menos un presupuesto para ese año.'
+    };
+
+    return messages[error.code] ?? error.message;
+  }
+
+  friendlyDebtError(error: ApiErrorResponse): string {
+    const messages: Record<string, string> = {
+      IMPORT_FILE_REQUIRED: 'Selecciona un archivo para importar.',
+      IMPORT_FILE_INVALID_TYPE: 'El archivo debe ser .xlsx.',
+      IMPORT_FILE_TOO_LARGE: 'El archivo supera el tamano maximo permitido.',
+      IMPORT_TEMPLATE_INVALID: 'La plantilla no tiene las cabeceras esperadas.',
+      IMPORT_ROW_LIMIT_EXCEEDED: 'El archivo supera el limite de filas.'
     };
 
     return messages[error.code] ?? error.message;

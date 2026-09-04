@@ -5,6 +5,7 @@ import {
   AnnualBudgetImportResponseDto,
   ApiErrorResponse,
   CategoryImportResponseDto,
+  DebtImportResponseDto,
   ExpenseImportBatchResponseDto,
   IncomeImportResponseDto,
   PaymentMethodImportResponseDto
@@ -21,10 +22,12 @@ export class ImportsStore {
   readonly currentCategoryImportPreview = signal<CategoryImportResponseDto | null>(null);
   readonly currentPaymentMethodImportPreview = signal<PaymentMethodImportResponseDto | null>(null);
   readonly currentAnnualBudgetImportPreview = signal<AnnualBudgetImportResponseDto | null>(null);
+  readonly currentDebtImportPreview = signal<DebtImportResponseDto | null>(null);
   readonly currentIncomeImportResult = signal<IncomeImportResponseDto | null>(null);
   readonly currentCategoryImportResult = signal<CategoryImportResponseDto | null>(null);
   readonly currentPaymentMethodImportResult = signal<PaymentMethodImportResponseDto | null>(null);
   readonly currentAnnualBudgetImportResult = signal<AnnualBudgetImportResponseDto | null>(null);
+  readonly currentDebtImportResult = signal<DebtImportResponseDto | null>(null);
   readonly isPreviewing = signal(false);
   readonly isConfirming = signal(false);
   readonly isLoading = signal(false);
@@ -33,10 +36,12 @@ export class ImportsStore {
   readonly isImportingCategory = signal(false);
   readonly isImportingPaymentMethod = signal(false);
   readonly isImportingAnnualBudget = signal(false);
+  readonly isImportingDebt = signal(false);
   readonly isPreviewingIncome = signal(false);
   readonly isPreviewingCategory = signal(false);
   readonly isPreviewingPaymentMethod = signal(false);
   readonly isPreviewingAnnualBudget = signal(false);
+  readonly isPreviewingDebt = signal(false);
   readonly error = signal<ApiErrorResponse | null>(null);
   readonly templateDownloadError = signal<string | null>(null);
   readonly selectedFile = signal<File | null>(null);
@@ -44,14 +49,17 @@ export class ImportsStore {
   readonly selectedCategoryFile = signal<File | null>(null);
   readonly selectedPaymentMethodFile = signal<File | null>(null);
   readonly selectedAnnualBudgetFile = signal<File | null>(null);
+  readonly selectedDebtFile = signal<File | null>(null);
   readonly incomeError = signal<ApiErrorResponse | null>(null);
   readonly categoryError = signal<ApiErrorResponse | null>(null);
   readonly paymentMethodError = signal<ApiErrorResponse | null>(null);
   readonly annualBudgetError = signal<ApiErrorResponse | null>(null);
+  readonly debtError = signal<ApiErrorResponse | null>(null);
   readonly incomeTemplateDownloadError = signal<string | null>(null);
   readonly categoryTemplateDownloadError = signal<string | null>(null);
   readonly paymentMethodTemplateDownloadError = signal<string | null>(null);
   readonly annualBudgetTemplateDownloadError = signal<string | null>(null);
+  readonly debtTemplateDownloadError = signal<string | null>(null);
 
   selectFile(file: File): void {
     this.selectedFile.set(file);
@@ -104,6 +112,17 @@ export class ImportsStore {
 
   clearAnnualBudgetFile(): void {
     this.selectedAnnualBudgetFile.set(null);
+  }
+
+  selectDebtFile(file: File): void {
+    this.selectedDebtFile.set(file);
+    this.currentDebtImportPreview.set(null);
+    this.currentDebtImportResult.set(null);
+    this.debtError.set(null);
+  }
+
+  clearDebtFile(): void {
+    this.selectedDebtFile.set(null);
   }
 
   preview(accountId: number): Observable<ExpenseImportBatchResponseDto> {
@@ -396,6 +415,60 @@ export class ImportsStore {
     );
   }
 
+  downloadDebtTemplate(accountId: number): Observable<Blob> {
+    this.ensureAccount(accountId);
+    this.isDownloadingTemplate.set(true);
+    this.debtTemplateDownloadError.set(null);
+
+    return this.importsApi.downloadDebtImportTemplate(accountId).pipe(
+      catchError((error: unknown) => {
+        this.debtTemplateDownloadError.set('No se pudo descargar la plantilla de deudas. Intenta nuevamente.');
+        return throwError(() => error);
+      }),
+      finalize(() => this.isDownloadingTemplate.set(false))
+    );
+  }
+
+  previewDebtFile(accountId: number): Observable<DebtImportResponseDto> {
+    this.ensureAccount(accountId);
+    const file = this.selectedDebtFile();
+
+    if (!file) {
+      const error = createLocalError('IMPORT_FILE_REQUIRED', 'Selecciona un archivo .xlsx para continuar.');
+      this.debtError.set(error);
+      return throwError(() => error);
+    }
+
+    this.isPreviewingDebt.set(true);
+    this.debtError.set(null);
+
+    return this.importsApi.previewDebtImport(accountId, file).pipe(
+      tap((result) => this.currentDebtImportPreview.set(result)),
+      catchError((error: unknown) => this.handleDebtError(error)),
+      finalize(() => this.isPreviewingDebt.set(false))
+    );
+  }
+
+  importDebtFile(accountId: number): Observable<DebtImportResponseDto> {
+    this.ensureAccount(accountId);
+    const file = this.selectedDebtFile();
+
+    if (!file) {
+      const error = createLocalError('IMPORT_FILE_REQUIRED', 'Selecciona un archivo .xlsx para continuar.');
+      this.debtError.set(error);
+      return throwError(() => error);
+    }
+
+    this.isImportingDebt.set(true);
+    this.debtError.set(null);
+
+    return this.importsApi.importDebts(accountId, file).pipe(
+      tap((result) => this.currentDebtImportResult.set(result)),
+      catchError((error: unknown) => this.handleDebtError(error)),
+      finalize(() => this.isImportingDebt.set(false))
+    );
+  }
+
   clear(): void {
     this.currentAccountId.set(null);
     this.currentBatch.set(null);
@@ -403,15 +476,18 @@ export class ImportsStore {
     this.currentCategoryImportPreview.set(null);
     this.currentPaymentMethodImportPreview.set(null);
     this.currentAnnualBudgetImportPreview.set(null);
+    this.currentDebtImportPreview.set(null);
     this.currentIncomeImportResult.set(null);
     this.currentCategoryImportResult.set(null);
     this.currentPaymentMethodImportResult.set(null);
     this.currentAnnualBudgetImportResult.set(null);
+    this.currentDebtImportResult.set(null);
     this.selectedFile.set(null);
     this.selectedIncomeFile.set(null);
     this.selectedCategoryFile.set(null);
     this.selectedPaymentMethodFile.set(null);
     this.selectedAnnualBudgetFile.set(null);
+    this.selectedDebtFile.set(null);
     this.isPreviewing.set(false);
     this.isConfirming.set(false);
     this.isLoading.set(false);
@@ -419,20 +495,24 @@ export class ImportsStore {
     this.isImportingCategory.set(false);
     this.isImportingPaymentMethod.set(false);
     this.isImportingAnnualBudget.set(false);
+    this.isImportingDebt.set(false);
     this.isPreviewingIncome.set(false);
     this.isPreviewingCategory.set(false);
     this.isPreviewingPaymentMethod.set(false);
     this.isPreviewingAnnualBudget.set(false);
+    this.isPreviewingDebt.set(false);
     this.error.set(null);
     this.incomeError.set(null);
     this.categoryError.set(null);
     this.paymentMethodError.set(null);
     this.annualBudgetError.set(null);
+    this.debtError.set(null);
     this.templateDownloadError.set(null);
     this.incomeTemplateDownloadError.set(null);
     this.categoryTemplateDownloadError.set(null);
     this.paymentMethodTemplateDownloadError.set(null);
     this.annualBudgetTemplateDownloadError.set(null);
+    this.debtTemplateDownloadError.set(null);
   }
 
   clearIncomeImportState(): void {
@@ -475,6 +555,16 @@ export class ImportsStore {
     this.annualBudgetTemplateDownloadError.set(null);
   }
 
+  clearDebtImportState(): void {
+    this.currentDebtImportPreview.set(null);
+    this.currentDebtImportResult.set(null);
+    this.selectedDebtFile.set(null);
+    this.isPreviewingDebt.set(false);
+    this.isImportingDebt.set(false);
+    this.debtError.set(null);
+    this.debtTemplateDownloadError.set(null);
+  }
+
   private ensureAccount(accountId: number): void {
     if (this.currentAccountId() === accountId) {
       return;
@@ -491,25 +581,30 @@ export class ImportsStore {
     this.currentCategoryImportPreview.set(null);
     this.currentPaymentMethodImportPreview.set(null);
     this.currentAnnualBudgetImportPreview.set(null);
+    this.currentDebtImportPreview.set(null);
     this.currentIncomeImportResult.set(null);
     this.currentCategoryImportResult.set(null);
     this.currentPaymentMethodImportResult.set(null);
     this.currentAnnualBudgetImportResult.set(null);
+    this.currentDebtImportResult.set(null);
     this.selectedFile.set(null);
     this.selectedIncomeFile.set(null);
     this.selectedCategoryFile.set(null);
     this.selectedPaymentMethodFile.set(null);
     this.selectedAnnualBudgetFile.set(null);
+    this.selectedDebtFile.set(null);
     this.error.set(null);
     this.incomeError.set(null);
     this.categoryError.set(null);
     this.paymentMethodError.set(null);
     this.annualBudgetError.set(null);
+    this.debtError.set(null);
     this.templateDownloadError.set(null);
     this.incomeTemplateDownloadError.set(null);
     this.categoryTemplateDownloadError.set(null);
     this.paymentMethodTemplateDownloadError.set(null);
     this.annualBudgetTemplateDownloadError.set(null);
+    this.debtTemplateDownloadError.set(null);
   }
 
   private handleError(error: unknown): Observable<never> {
@@ -534,6 +629,11 @@ export class ImportsStore {
 
   private handleAnnualBudgetError(error: unknown): Observable<never> {
     this.annualBudgetError.set(toApiError(error));
+    return throwError(() => error);
+  }
+
+  private handleDebtError(error: unknown): Observable<never> {
+    this.debtError.set(toApiError(error));
     return throwError(() => error);
   }
 }
