@@ -16,10 +16,10 @@
 .section-header button,
 .account-edit-actions button,
 .member-actions button {
-  border: 1px solid #c9d2df;
+  border: 1px solid var(--color-border-strong);
   border-radius: 6px;
-  background: #ffffff;
-  color: #1d2433;
+  background: var(--color-bg-panel);
+  color: var(--color-text);
   padding: 0.6rem 0.75rem;
   text-decoration: none;
   cursor: pointer;
@@ -50,7 +50,7 @@ select:disabled {
 .member-main small,
 .compact-field span,
 .muted {
-  color: #65738a;
+  color: var(--color-text-secondary);
   font-size: 0.85rem;
 }
 
@@ -64,7 +64,7 @@ select:disabled {
 }
 
 .field small {
-  color: #b42318;
+  color: var(--color-error-text);
   font-size: 0.82rem;
 }
 
@@ -76,9 +76,9 @@ select:disabled {
   min-width: 0;
   max-width: 100%;
   box-sizing: border-box;
-  border: 1px solid #c9d2df;
+  border: 1px solid var(--color-border-strong);
   border-radius: 6px;
-  background: #ffffff;
+  background: var(--color-bg-panel);
   padding: 0.75rem 0.85rem;
 }
 
@@ -128,7 +128,7 @@ select:disabled {
   grid-template-columns: minmax(0, 1fr) auto minmax(15rem, auto);
   gap: 0.75rem;
   align-items: center;
-  border-top: 1px solid #edf1f6;
+  border-top: 1px solid var(--color-border);
   padding-top: 0.75rem;
 }
 
@@ -145,45 +145,45 @@ select:disabled {
   align-items: center;
   min-height: 1.6rem;
   border-radius: 999px;
-  background: #e7f6ef;
-  color: #166534;
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
   padding: 0.25rem 0.5rem;
   font-size: 0.78rem;
   font-weight: 700;
 }
 
 .badge.role {
-  background: #eef2ff;
-  color: #3730a3;
+  background: var(--color-info-bg);
+  color: var(--color-info-text);
 }
 
 .badge.inactive,
 .badge.archived {
-  background: #f3f4f6;
-  color: #4b5563;
+  background: var(--color-bg);
+  color: var(--color-text-secondary);
 }
 
 .warning-panel {
-  border-color: #fde68a;
-  background: #fffbeb;
-  color: #92400e;
+  border-color: var(--color-warning-border);
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
 }
 
 .readonly-panel {
-  background: #f8fafc;
-  color: #475569;
+  background: var(--color-bg);
+  color: var(--color-text-secondary);
 }
 
 .error-panel {
-  border-color: #fecaca;
-  background: #fff1f2;
-  color: #991b1b;
+  border-color: var(--color-error-border);
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
 }
 
 .success-panel {
-  border-color: #bbf7d0;
-  background: #f0fdf4;
-  color: #166534;
+  border-color: var(--color-success-border);
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
 }
 
 @media (max-width: 760px) {

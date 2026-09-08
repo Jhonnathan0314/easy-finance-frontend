@@ -21,14 +21,14 @@
 .section-heading span,
 .row-heading span,
 .timeline-detail {
-  color: #65738a;
+  color: var(--color-text-secondary);
 }
 
 .filters-panel {
   display: grid;
   gap: 1rem;
-  border-color: #d9e2ef;
-  background: #f8fafc;
+  border-color: var(--color-border);
+  background: var(--color-bg);
 }
 
 .filters,
@@ -45,7 +45,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
   gap: 0.75rem;
-  border-top: 1px solid #edf1f6;
+  border-top: 1px solid var(--color-border);
   padding-top: 1rem;
 }
 
@@ -64,25 +64,25 @@
   min-width: 0;
   max-width: 100%;
   box-sizing: border-box;
-  border: 1px solid #c9d2df;
+  border: 1px solid var(--color-border-strong);
   border-radius: 6px;
-  background: #ffffff;
+  background: var(--color-bg-panel);
   padding: 0.65rem 0.75rem;
 }
 
 .filters button,
 .dashboard-tabs button,
 .error-panel button {
-  border: 1px solid #c9d2df;
+  border: 1px solid var(--color-border-strong);
   border-radius: 6px;
-  background: #ffffff;
-  color: #1d2433;
+  background: var(--color-bg-panel);
+  color: var(--color-text);
   padding: 0.55rem 0.75rem;
   cursor: pointer;
 }
 
 .filters button[type='submit'] {
-  border-color: #2563eb;
+  border-color: var(--color-accent);
   background: #2563eb;
   color: #ffffff;
   font-weight: 700;
@@ -104,14 +104,14 @@
 .dashboard-tabs button {
   border-color: transparent;
   background: transparent;
-  color: #65738a;
+  color: var(--color-text-secondary);
   font-weight: 700;
 }
 
 .dashboard-tabs button.active {
-  border-color: #2563eb;
-  background: #eff6ff;
-  color: #1d4ed8;
+  border-color: var(--color-accent);
+  background: var(--color-info-bg);
+  color: var(--color-accent-hover);
   box-shadow: inset 0 0 0 1px #2563eb;
   font-weight: 700;
 }
@@ -119,13 +119,13 @@
 .error-panel {
   display: grid;
   gap: 0.4rem;
-  border-color: #fecaca;
-  background: #fff1f2;
-  color: #991b1b;
+  border-color: var(--color-error-border);
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
 }
 
 .empty-state p {
-  color: #65738a;
+  color: var(--color-text-secondary);
 }
 
 .skeleton-grid,
@@ -138,7 +138,7 @@
 .skeleton-card {
   min-height: 6.25rem;
   border-radius: 8px;
-  background: linear-gradient(90deg, #eef2f7 25%, #f8fafc 37%, #eef2f7 63%);
+  background: linear-gradient(90deg, #eef2f7 25%, var(--color-bg) 37%, #eef2f7 63%);
   background-size: 400% 100%;
   animation: shimmer 1.3s ease infinite;
 }
@@ -151,30 +151,30 @@
 .metric-card {
   display: grid;
   gap: 0.35rem;
-  border: 1px solid #dce2ea;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--color-bg-panel);
   padding: 1rem;
 }
 
 .metric-card span {
-  color: #65738a;
+  color: var(--color-text-secondary);
   font-size: 0.9rem;
 }
 
 .metric-card strong {
-  color: #1d2433;
+  color: var(--color-text);
   font-size: 1.25rem;
 }
 
 .metric-card.positive strong,
 .positive-text {
-  color: #166534;
+  color: var(--color-success-text);
 }
 
 .metric-card.negative strong,
 .negative-text {
-  color: #b42318;
+  color: var(--color-error-text);
 }
 
 .generated-at {
@@ -200,7 +200,7 @@
   grid-template-columns: minmax(9rem, 1.4fr) repeat(4, minmax(7.25rem, 1fr));
   gap: 0.75rem;
   align-items: center;
-  border-bottom: 1px solid #edf1f6;
+  border-bottom: 1px solid var(--color-border);
   padding: 0.65rem 0;
 }
 
@@ -223,7 +223,7 @@
   overflow: hidden;
   height: 0.6rem;
   border-radius: 999px;
-  background: #e5e7eb;
+  background: var(--color-border);
 }
 
 .bar-track span {
@@ -235,11 +235,11 @@
 
 .breakdown-row.income .bar-track span,
 .income-bar {
-  background: #16a34a;
+  background: var(--color-success-solid);
 }
 
 .breakdown-row.payment .bar-track span {
-  background: #0f766e;
+  background: var(--color-brand);
 }
 
 .breakdown-row.payment-type .bar-track span {
@@ -267,16 +267,16 @@
 
 .badge {
   border-radius: 999px;
-  background: #eef2ff;
-  color: #3730a3;
+  background: var(--color-info-bg);
+  color: var(--color-info-text);
   padding: 0.25rem 0.55rem;
   font-size: 0.8rem;
   font-weight: 700;
 }
 
 .muted-badge {
-  background: #f3f4f6;
-  color: #4b5563;
+  background: var(--color-bg);
+  color: var(--color-text-secondary);
 }
 
 button:disabled {

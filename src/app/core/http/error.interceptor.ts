@@ -1,4 +1,4 @@
-import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
+import { HttpErrorResponse, HttpInterceptorFn, HttpRequest } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { catchError, switchMap, throwError } from 'rxjs';
@@ -22,7 +22,7 @@ export const errorInterceptor: HttpInterceptorFn = (request, next) => {
 
       const apiError = normalizeApiError(error);
 
-      if (error.status === 401 && apiError.code === 'TOKEN_EXPIRED') {
+      if (error.status === 401 && canAttemptRefresh(request, authStore)) {
         return authStore.refreshAccessToken().pipe(
           switchMap((session) =>
             next(
@@ -32,7 +32,13 @@ export const errorInterceptor: HttpInterceptorFn = (request, next) => {
             )
           ),
           catchError((refreshError: unknown) => {
-            errorStore.set(apiError);
+            const refreshApiError = normalizeRefreshError(refreshError, apiError);
+            errorStore.set(refreshApiError);
+            authStore.authError.set({
+              ...refreshApiError,
+              code: refreshApiError.code === 'TOKEN_EXPIRED' ? 'TOKEN_EXPIRED' : 'INVALID_TOKEN',
+              message: 'Tu sesión expiró o dejó de ser válida. Inicia sesión nuevamente.'
+            });
             endSession(authStore, accountStore);
             void router.navigate(['/login']);
             return throwError(() => refreshError);
@@ -62,6 +68,20 @@ export const errorInterceptor: HttpInterceptorFn = (request, next) => {
 function endSession(authStore: AuthStore, accountStore: AccountStore): void {
   authStore.clearSession();
   accountStore.clear();
+}
+
+function canAttemptRefresh(request: HttpRequest<unknown>, authStore: AuthStore): boolean {
+  return Boolean(authStore.token())
+    && !request.url.includes('/auth/login')
+    && !request.url.includes('/auth/register')
+    && !request.url.includes('/auth/refresh');
+}
+
+function normalizeRefreshError(error: unknown, fallback: ApiErrorResponse): ApiErrorResponse {
+  if (error instanceof HttpErrorResponse) {
+    return normalizeApiError(error);
+  }
+  return fallback;
 }
 
 function normalizeApiError(error: HttpErrorResponse): ApiErrorResponse {

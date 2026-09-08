@@ -112,7 +112,8 @@ export class PrivateLayoutComponent implements OnInit {
     { label: 'Presupuestos', segment: 'budgets' },
     { label: 'Ingresos', segment: 'income' },
     { label: 'Catalogos', segment: 'catalogs' },
-    { label: 'Importaciones', segment: 'imports' }
+    { label: 'Importaciones', segment: 'imports' },
+    { label: 'Exportaciones', segment: 'exports' }
   ];
 
   ngOnInit(): void {

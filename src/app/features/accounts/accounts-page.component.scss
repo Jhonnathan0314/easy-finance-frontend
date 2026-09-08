@@ -10,7 +10,7 @@
 }
 
 .field small {
-  color: #b42318;
+  color: var(--color-error-text);
   font-size: 0.82rem;
 }
 
@@ -20,7 +20,7 @@
   max-width: 100%;
   box-sizing: border-box;
   resize: vertical;
-  border: 1px solid #c9d2df;
+  border: 1px solid var(--color-border-strong);
   border-radius: 6px;
   padding: 0.75rem 0.85rem;
 }
@@ -28,9 +28,9 @@
 .error-panel {
   display: grid;
   gap: 0.25rem;
-  border-color: #fecaca;
-  background: #fff1f2;
-  color: #991b1b;
+  border-color: var(--color-error-border);
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
 }
 
 .empty-state {
@@ -53,14 +53,14 @@
 .account-card {
   display: grid;
   gap: 0.85rem;
-  border: 1px solid #dce2ea;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--color-bg-panel);
   padding: 1rem;
 }
 
 .account-card.selected {
-  border-color: #0f766e;
+  border-color: var(--color-brand);
   box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.12);
 }
 
@@ -79,16 +79,16 @@
 .status,
 .meta span {
   border-radius: 999px;
-  background: #e7f6ef;
-  color: #166534;
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
   padding: 0.25rem 0.5rem;
   font-size: 0.78rem;
   font-weight: 700;
 }
 
 .status.archived {
-  background: #f3f4f6;
-  color: #4b5563;
+  background: var(--color-bg);
+  color: var(--color-text-secondary);
 }
 
 .meta {
@@ -105,10 +105,10 @@
 
 .actions button,
 .actions a {
-  border: 1px solid #c9d2df;
+  border: 1px solid var(--color-border-strong);
   border-radius: 6px;
-  background: #ffffff;
-  color: #1d2433;
+  background: var(--color-bg-panel);
+  color: var(--color-text);
   padding: 0.5rem 0.65rem;
   text-decoration: none;
   cursor: pointer;

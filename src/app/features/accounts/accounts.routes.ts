@@ -45,6 +45,11 @@ export const ACCOUNTS_ROUTES: Routes = [
     loadChildren: () => import('../imports/imports.routes').then((m) => m.IMPORTS_ROUTES)
   },
   {
+    path: ':accountId/exports',
+    canActivate: [accountRouteGuard],
+    loadChildren: () => import('../exports/exports.routes').then((m) => m.EXPORTS_ROUTES)
+  },
+  {
     path: ':accountId/catalogs',
     canActivate: [accountRouteGuard],
     loadChildren: () => import('../catalogs/catalogs.routes').then((m) => m.CATALOGS_ROUTES)

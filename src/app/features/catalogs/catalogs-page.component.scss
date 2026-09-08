@@ -19,29 +19,29 @@
 .permission-note,
 .badges span {
   border-radius: 999px;
-  background: #eef2ff;
-  color: #3730a3;
+  background: var(--color-info-bg);
+  color: var(--color-info-text);
   padding: 0.25rem 0.55rem;
   font-size: 0.8rem;
   font-weight: 700;
 }
 
 .warning-panel {
-  border-color: #fde68a;
-  background: #fffbeb;
-  color: #92400e;
+  border-color: var(--color-warning-border);
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
 }
 
 .error-panel {
   display: grid;
   gap: 0.25rem;
-  border-color: #fecaca;
-  background: #fff1f2;
-  color: #991b1b;
+  border-color: var(--color-error-border);
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
 }
 
 .tabs {
-  border-bottom: 1px solid #dbe3ee;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .tabs button,
@@ -49,22 +49,22 @@
 .filter-actions button,
 .actions button,
 .form-actions button {
-  border: 1px solid #c9d2df;
+  border: 1px solid var(--color-border-strong);
   border-radius: 6px;
-  background: #ffffff;
-  color: #1d2433;
+  background: var(--color-bg-panel);
+  color: var(--color-text);
   padding: 0.55rem 0.75rem;
   cursor: pointer;
 }
 
 .tabs button.active {
-  border-color: #0f766e;
-  background: #e7f6ef;
-  color: #0f5132;
+  border-color: var(--color-brand);
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
 }
 
 .filter-actions button[type='submit'] {
-  border-color: #2563eb;
+  border-color: var(--color-accent);
   background: #2563eb;
   color: #ffffff;
 }
@@ -107,9 +107,9 @@
   min-width: 0;
   max-width: 100%;
   box-sizing: border-box;
-  border: 1px solid #c9d2df;
+  border: 1px solid var(--color-border-strong);
   border-radius: 6px;
-  background: #ffffff;
+  background: var(--color-bg-panel);
   padding: 0.65rem 0.75rem;
 }
 
@@ -124,7 +124,7 @@
 }
 
 .field small {
-  color: #b42318;
+  color: var(--color-error-text);
   font-size: 0.82rem;
 }
 
@@ -141,9 +141,9 @@
 .catalog-card {
   display: grid;
   gap: 0.85rem;
-  border: 1px solid #dce2ea;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--color-bg-panel);
   padding: 1rem;
 }
 
@@ -153,8 +153,8 @@
 }
 
 .badges span.inactive {
-  background: #f3f4f6;
-  color: #4b5563;
+  background: var(--color-bg);
+  color: var(--color-text-secondary);
 }
 
 .actions {
@@ -168,7 +168,7 @@
 }
 
 .empty-state {
-  color: #65738a;
+  color: var(--color-text-secondary);
 }
 
 @media (max-width: 720px) {

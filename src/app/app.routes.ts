@@ -59,7 +59,7 @@ export const appRoutes: Routes = [
       {
         path: 'imports',
         redirectTo: 'accounts'
-      }
+      },
     ]
   },
   {
