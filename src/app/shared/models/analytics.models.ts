@@ -18,6 +18,15 @@ export interface MonthlySummaryResponse {
 export type MonthlySummaryResponseDto = MonthlySummaryResponse;
 
 export type CashflowGroupBy = 'DAY' | 'WEEK' | 'MONTH';
+export type DebtAnalyticsState = 'ACTIVE' | 'PAID' | 'CANCELLED' | 'ALL';
+export interface DebtAnalyticsResponse {
+  accountId: number; from: string; to: string; groupBy: CashflowGroupBy; state: DebtAnalyticsState;
+  summary: { originalAmount: number; remainingAmount: number; capitalPaid: number; interestPaid: number; totalPaid: number; activeDebtsCount: number; paidDebtsCount: number; cancelledDebtsCount: number; debtsCount: number };
+  periods: { period: string; capitalPaid: number; interestPaid: number; totalPaid: number }[];
+  debts: { debtId: number; name: string; state: string; originalAmount: number; capitalPaid: number; interestPaid: number; totalPaid: number; remainingAmount: number; paidPercentage: number; paymentsCount: number }[];
+  generatedAt: string;
+}
+export type DebtAnalyticsResponseDto = DebtAnalyticsResponse;
 
 export interface AnalyticsDashboardFilters {
   from: string;
@@ -31,6 +40,7 @@ export interface AnalyticsDashboardFilters {
   incomeStatus?: string | null;
   expenseType?: string | null;
   groupBy: CashflowGroupBy;
+  debtState?: DebtAnalyticsState;
 }
 
 export interface CashflowSummaryResponse {

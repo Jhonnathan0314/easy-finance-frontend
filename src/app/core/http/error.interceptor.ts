@@ -46,7 +46,11 @@ export const errorInterceptor: HttpInterceptorFn = (request, next) => {
         );
       }
 
-      errorStore.set(apiError);
+      // Debt analytics is an optional dashboard section. Its failure must not
+      // replace the whole dashboard error state when the other analytics load.
+      if (!request.url.includes('/analytics/debts')) {
+        errorStore.set(apiError);
+      }
 
       if (error.status === 401) {
         endSession(authStore, accountStore);

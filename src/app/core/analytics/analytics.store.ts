@@ -11,6 +11,8 @@ import {
   CashflowSummaryResponseDto,
   CategoryBreakdownResponseDto,
   ExpenseSummaryResponseDto,
+  DebtAnalyticsResponseDto,
+  DebtAnalyticsState,
   PaymentMethodBreakdownResponseDto,
   PaymentMethodTypeBreakdownResponseDto
 } from '../../shared/models';
@@ -31,6 +33,7 @@ export interface AdvancedDashboardResponse {
   expensesByPaymentMethodType: PaymentMethodTypeBreakdownResponseDto;
   incomesByCategory: CategoryBreakdownResponseDto;
   budgetVsExpensesByCategory: BudgetVsExpensesByCategoryResponseDto | null;
+  debts: DebtAnalyticsResponseDto | null;
 }
 
 const ANALYTICS_FILTERS_FEATURE = 'analytics';
@@ -55,6 +58,7 @@ export class AnalyticsStore {
   readonly expensesByPaymentMethodType = signal<PaymentMethodTypeBreakdownResponseDto | null>(null);
   readonly incomesByCategory = signal<CategoryBreakdownResponseDto | null>(null);
   readonly budgetVsExpensesByCategory = signal<BudgetVsExpensesByCategoryItemDto[] | null>(null);
+  readonly debtAnalytics = signal<DebtAnalyticsResponseDto | null>(null);
   readonly filters = signal<AnalyticsDashboardFilters>(this.defaultFilters());
   readonly loading = signal(false);
   readonly isLoading = this.loading;
@@ -68,7 +72,9 @@ export class AnalyticsStore {
       Boolean(this.expensesByPaymentMethod()?.items.length) ||
       Boolean(this.expensesByPaymentMethodType()?.items.length) ||
       Boolean(this.incomesByCategory()?.items.length) ||
-      Boolean(this.budgetVsExpensesByCategory()?.length);
+      Boolean(this.budgetVsExpensesByCategory()?.length) ||
+      Boolean(this.debtAnalytics()?.debts.length) ||
+      Boolean(this.debtAnalytics()?.periods.length);
 
     if (!cashflow || !expenses || !timeline) {
       return false;
@@ -81,6 +87,7 @@ export class AnalyticsStore {
       expenses.totalExpensesConceptual === 0 &&
       expenses.expensesCount === 0 &&
       timeline.items.length === 0 &&
+      !this.debtAnalytics()?.debts.length &&
       !hasBreakdowns
     );
   });
@@ -139,6 +146,9 @@ export class AnalyticsStore {
       budgetVsExpensesByCategory: monthlyPeriod
         ? this.analyticsApi.getBudgetVsExpensesByCategory(accountId, monthlyPeriod.year, monthlyPeriod.month)
         : of(null)
+      ,debts: this.analyticsApi
+        .getDebtAnalytics(accountId, normalized.from, normalized.to, normalized.groupBy, normalized)
+        .pipe(catchError(() => of(null)))
     }).pipe(
       tap((response) => this.setDashboard(response)),
       catchError((error: unknown) => this.handleError(error)),
@@ -245,6 +255,7 @@ export class AnalyticsStore {
     this.expensesByPaymentMethodType.set(response.expensesByPaymentMethodType);
     this.incomesByCategory.set(response.incomesByCategory);
     this.budgetVsExpensesByCategory.set(response.budgetVsExpensesByCategory?.items ?? null);
+    this.debtAnalytics.set(response.debts);
   }
 
   private clearDashboard(): void {
@@ -256,6 +267,7 @@ export class AnalyticsStore {
     this.expensesByPaymentMethodType.set(null);
     this.incomesByCategory.set(null);
     this.budgetVsExpensesByCategory.set(null);
+    this.debtAnalytics.set(null);
     this.loading.set(false);
     this.activeRequestKey.set(null);
     this.error.set(null);
@@ -265,6 +277,7 @@ export class AnalyticsStore {
     return {
       ...monthDateRange(this.today.getFullYear(), this.today.getMonth() + 1),
       groupBy: 'MONTH'
+      ,debtState: 'ACTIVE'
     };
   }
 
@@ -314,6 +327,7 @@ export function normalizeFilters(filters: AnalyticsDashboardFilters): AnalyticsD
     incomeStatus: filters.incomeStatus || null,
     expenseType: filters.expenseType || null,
     groupBy: filters.groupBy || 'MONTH'
+    ,debtState: filters.debtState || 'ACTIVE'
   };
 }
 
@@ -339,6 +353,7 @@ function normalizeSavedAnalyticsFilters(
     incomeStatus: STATUSES.includes(filters.incomeStatus ?? null) ? filters.incomeStatus ?? null : null,
     expenseType: EXPENSE_TYPES.includes(filters.expenseType ?? null) ? filters.expenseType ?? null : null,
     groupBy
+    ,debtState: ['ACTIVE', 'PAID', 'CANCELLED', 'ALL'].includes(filters.debtState as string) ? filters.debtState : 'ACTIVE'
   });
 }
 

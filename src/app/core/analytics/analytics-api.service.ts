@@ -10,6 +10,7 @@ import {
   CashflowSummaryResponseDto,
   CategoryBreakdownResponseDto,
   DebtSummaryResponseDto,
+  DebtAnalyticsResponseDto,
   ExpenseSummaryResponseDto,
   MonthlySummaryResponseDto,
   PaymentMethodBreakdownResponseDto,
@@ -129,6 +130,13 @@ export class AnalyticsApiService {
 
   getDebtSummary(accountId: number): Observable<DebtSummaryResponseDto> {
     return this.api.get<DebtSummaryResponseDto>(`/accounts/${accountId}/analytics/debt-summary`);
+  }
+
+  getDebtAnalytics(accountId: number, from: string, to: string, groupBy: CashflowGroupBy, filters: Partial<AnalyticsDashboardFilters> = {}): Observable<DebtAnalyticsResponseDto> {
+    return this.api.get<DebtAnalyticsResponseDto>(`/accounts/${accountId}/analytics/debts`, {
+      from, to, groupBy, state: filters.debtState ?? 'ACTIVE', participantId: filters.participantId,
+      categoryId: filters.expenseCategoryId, paymentMethodId: filters.paymentMethodId
+    });
   }
 
   getBudgetSummary(accountId: number, year: number, month: number): Observable<BudgetSummaryResponseDto> {

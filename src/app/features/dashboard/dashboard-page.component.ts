@@ -16,7 +16,7 @@ import {
 } from '../../shared/models';
 import { enumLabel } from '../../shared/ui/enum-labels';
 
-type DashboardTab = 'summary' | 'cashflow' | 'expenses' | 'budget';
+type DashboardTab = 'summary' | 'cashflow' | 'expenses' | 'debts' | 'budget';
 
 @Component({
   selector: 'ef-dashboard-page',
@@ -39,7 +39,7 @@ type DashboardTab = 'summary' | 'cashflow' | 'expenses' | 'budget';
         <div class="filters specific-month-filter" aria-label="Mes especifico">
           <label>
             <span>Anio</span>
-            <select formControlName="specificYear">
+            <select formControlName="specificYear" (change)="clearSpecificMonth()">
               <option value="">Seleccionar</option>
               @for (year of yearOptions; track year) {
                 <option [value]="year">{{ year }}</option>
@@ -55,7 +55,7 @@ type DashboardTab = 'summary' | 'cashflow' | 'expenses' | 'budget';
               }
             </select>
           </label>
-          <button type="button" (click)="applySpecificMonth()" [disabled]="analyticsStore.loading()">Aplicar mes</button>
+          <button type="button" (click)="applySpecificPeriod()" [disabled]="analyticsStore.loading()">Aplicar mes o año</button>
         </div>
 
         <div class="filters">
@@ -127,6 +127,7 @@ type DashboardTab = 'summary' | 'cashflow' | 'expenses' | 'budget';
                 <option value="INSTALLMENT">{{ enumLabel('INSTALLMENT') }}</option>
               </select>
             </label>
+            <label><span>Estado de deuda</span><select formControlName="debtState"><option value="ACTIVE">Activas</option><option value="PAID">Pagadas</option><option value="CANCELLED">Canceladas</option><option value="ALL">Todas</option></select></label>
             <label>
               <span>Agrupar cashflow</span>
               <select formControlName="groupBy">
@@ -396,6 +397,30 @@ type DashboardTab = 'summary' | 'cashflow' | 'expenses' | 'budget';
           </div>
         }
 
+        @case ('debts') {
+          @if (analyticsStore.debtAnalytics(); as debtData) {
+            <section class="dashboard-section" aria-label="Analisis de deudas">
+              <div class="section-heading"><div><h2>Analisis de deudas</h2><span>{{ debtData.from }} a {{ debtData.to }}</span></div><span class="badge">{{ debtData.state }}</span></div>
+              <div class="kpi-grid">
+                <article class="metric-card"><span>Valor original</span><strong>{{ debtData.summary.originalAmount | currency:'COP':'symbol-narrow':'1.0-0' }}</strong></article>
+                <article class="metric-card"><span>Saldo pendiente</span><strong>{{ debtData.summary.remainingAmount | currency:'COP':'symbol-narrow':'1.0-0' }}</strong></article>
+                <article class="metric-card"><span>Capital pagado</span><strong>{{ debtData.summary.capitalPaid | currency:'COP':'symbol-narrow':'1.0-0' }}</strong></article>
+                <article class="metric-card"><span>Intereses pagados</span><strong>{{ debtData.summary.interestPaid | currency:'COP':'symbol-narrow':'1.0-0' }}</strong></article>
+                <article class="metric-card"><span>Total pagado</span><strong>{{ debtData.summary.totalPaid | currency:'COP':'symbol-narrow':'1.0-0' }}</strong></article>
+                <article class="metric-card"><span>Deudas</span><strong>{{ debtData.summary.debtsCount }}</strong><small>Activas {{ debtData.summary.activeDebtsCount }} · Pagadas {{ debtData.summary.paidDebtsCount }} · Canceladas {{ debtData.summary.cancelledDebtsCount }}</small></article>
+              </div>
+            </section>
+            <div class="dashboard-grid">
+              <section class="panel breakdown-panel"><div class="section-heading"><h2>Pagos por período</h2><span>{{ debtData.groupBy }}</span></div>
+                @if (debtData.periods.length) { @for (period of debtData.periods; track period.period) { <article class="timeline-row"><div class="row-heading"><strong>{{ period.period }}</strong><span>{{ period.totalPaid | currency:'COP':'symbol-narrow':'1.0-0' }}</span></div><div class="timeline-detail"><span>Capital {{ period.capitalPaid | currency:'COP':'symbol-narrow':'1.0-0' }}</span><span>Intereses {{ period.interestPaid | currency:'COP':'symbol-narrow':'1.0-0' }}</span></div><div class="bar-track"><span [style.width.%]="debtPercent(period.totalPaid, debtData.periods)"></span></div></article> } } @else { <p class="muted">No hay pagos reales para graficar en este rango.</p> }
+              </section>
+              <section class="panel breakdown-panel"><div class="section-heading"><h2>Detalle por deuda</h2><span>{{ debtData.debts.length }} registros</span></div>
+                @if (debtData.debts.length) { @for (debt of debtData.debts; track debt.debtId) { <article class="breakdown-row"><div class="row-heading"><strong>{{ debt.name }}</strong><span>{{ debt.state }} · {{ debt.paymentsCount }} pagos</span></div><div class="timeline-detail"><span>Original {{ debt.originalAmount | currency:'COP':'symbol-narrow':'1.0-0' }}</span><span>Saldo {{ debt.remainingAmount | currency:'COP':'symbol-narrow':'1.0-0' }}</span></div><div class="timeline-detail"><span>Capital {{ debt.capitalPaid | currency:'COP':'symbol-narrow':'1.0-0' }}</span><span>Intereses {{ debt.interestPaid | currency:'COP':'symbol-narrow':'1.0-0' }}</span><span>{{ debt.paidPercentage | number:'1.0-2' }}%</span></div></article> } } @else { <p class="muted">No hay deudas para este filtro y rango.</p> }
+              </section>
+            </div>
+          } @else { <section class="panel empty-state"><p class="muted">No hay datos de deudas.</p></section> }
+        }
+
         @case ('budget') {
           <section class="panel budget-comparison-panel" aria-label="Presupuesto vs gastos por categoria">
             @if (monthlyBudgetComparisonPeriod(); as period) {
@@ -491,6 +516,7 @@ export class DashboardPageComponent implements OnInit {
     { id: 'summary', label: 'Resumen' },
     { id: 'cashflow', label: 'Cashflow' },
     { id: 'expenses', label: 'Gastos' },
+    { id: 'debts', label: 'Deudas' },
     { id: 'budget', label: 'Presupuesto' }
   ];
   readonly skeletonItems = Array.from({ length: 6 }, (_, index) => index);
@@ -512,7 +538,8 @@ export class DashboardPageComponent implements OnInit {
     expensePaymentState: [''],
     incomeStatus: [''],
     expenseType: [''],
-    groupBy: ['MONTH' as CashflowGroupBy, [Validators.required]]
+    groupBy: ['MONTH' as CashflowGroupBy, [Validators.required]],
+    debtState: ['ACTIVE']
   });
 
   ngOnInit(): void {
@@ -520,20 +547,31 @@ export class DashboardPageComponent implements OnInit {
     this.loadDashboard();
   }
 
-  applySpecificMonth(): void {
+  applySpecificPeriod(): void {
     const raw = this.filtersForm.getRawValue();
     const year = nullableNumber(raw.specificYear);
     const month = nullableNumber(raw.specificMonth);
 
-    if (!year || !month || year < 2000 || year > 2100 || month < 1 || month > 12) {
-      this.localError.set('Selecciona un anio y mes validos.');
+    if (!year || year < 2000 || year > 2100 || (month !== null && (month < 1 || month > 12))) {
+      this.localError.set('Selecciona un año válido. El mes es opcional.');
       return;
     }
 
-    const range = monthDateRange(year, month);
+    const range = month ? monthDateRange(year, month) : {
+      from: `${year}-01-01`,
+      to: `${year}-12-31`
+    };
     this.filtersForm.patchValue({ from: range.from, to: range.to });
     this.localError.set(null);
     this.loadDashboard();
+  }
+
+  applySpecificMonth(): void {
+    this.applySpecificPeriod();
+  }
+
+  clearSpecificMonth(): void {
+    this.filtersForm.patchValue({ specificMonth: '' }, { emitEvent: false });
   }
 
   loadDashboard(): void {
@@ -571,7 +609,8 @@ export class DashboardPageComponent implements OnInit {
       expensePaymentState: raw.expensePaymentState || null,
       incomeStatus: raw.incomeStatus || null,
       expenseType: raw.expenseType || null,
-      groupBy: raw.groupBy as CashflowGroupBy
+      groupBy: raw.groupBy as CashflowGroupBy,
+      debtState: raw.debtState as 'ACTIVE' | 'PAID' | 'CANCELLED' | 'ALL'
     };
   }
 
@@ -601,6 +640,7 @@ export class DashboardPageComponent implements OnInit {
       expensePaymentState: filters.expensePaymentState ?? '',
       incomeStatus: filters.incomeStatus ?? '',
       expenseType: filters.expenseType ?? '',
+      debtState: filters.debtState ?? 'ACTIVE',
       groupBy: filters.groupBy
     });
     this.syncSpecificMonthFromRange();
@@ -679,6 +719,11 @@ export class DashboardPageComponent implements OnInit {
     }
 
     return Math.max(0, Math.min(100, Math.round(item.executionPercentage)));
+  }
+
+  debtPercent(amount: number, periods: { totalPaid: number }[]): number {
+    const max = Math.max(...periods.map((item) => item.totalPaid), 0);
+    return max ? Math.round((amount / max) * 100) : 0;
   }
 
   friendlyError(code: string, fallback: string): string {
