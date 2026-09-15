@@ -390,6 +390,7 @@ type ExpenseOriginFilter = '' | 'DEBT_PAYMENT' | 'NOT_DEBT_PAYMENT';
             <button type="button" [disabled]="!canGoNextPage() || expensesStore.isLoading()" (click)="goToNextPage()">
               Siguiente
             </button>
+            <button type="button" (click)="openTotalModal()">Ver total</button>
           </div>
         </nav>
         <div class="expense-list">
@@ -435,6 +436,19 @@ type ExpenseOriginFilter = '' | 'DEBT_PAYMENT' | 'NOT_DEBT_PAYMENT';
           </div>
         </nav>
       }
+
+      @if (showTotalModal()) {
+        <div class="modal-backdrop" (click)="closeTotalModal()">
+          <div class="modal-panel" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+            <h2>Total de gastos mostrados</h2>
+            <p class="hint">Suma de los {{ expensesStore.expenses().length }} gastos visibles en esta página.</p>
+            <strong class="modal-total">{{ visiblePageTotal() | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
+            <div class="form-actions">
+              <button type="button" (click)="closeTotalModal()">Cerrar</button>
+            </div>
+          </div>
+        </div>
+      }
     </section>
   `
 })
@@ -458,6 +472,7 @@ export class ExpensesPageComponent implements OnInit {
   readonly showQuickForm = signal(false);
   readonly showForm = signal(false);
   readonly showDuplicateForm = signal(false);
+  readonly showTotalModal = signal(false);
   readonly formMode = signal<ExpenseFormMode>('simple');
   readonly editingExpense = signal<ExpenseResponseDto | null>(null);
   readonly duplicatingExpense = signal<ExpenseResponseDto | null>(null);
@@ -487,6 +502,9 @@ export class ExpensesPageComponent implements OnInit {
 
     return pagination.totalPages > 0 && pagination.page + 1 < pagination.totalPages;
   });
+  readonly visiblePageTotal = computed(() =>
+    this.expensesStore.expenses().reduce((sum, expense) => sum + expense.amount, 0)
+  );
   readonly formTitle = computed(() => {
     if (this.editingExpense()) {
       return 'Editar gasto simple';
@@ -823,6 +841,14 @@ export class ExpensesPageComponent implements OnInit {
         },
         error: () => undefined
       });
+  }
+
+  openTotalModal(): void {
+    this.showTotalModal.set(true);
+  }
+
+  closeTotalModal(): void {
+    this.showTotalModal.set(false);
   }
 
   cancelDuplicateForm(): void {
