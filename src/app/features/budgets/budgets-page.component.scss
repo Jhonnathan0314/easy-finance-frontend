@@ -232,6 +232,24 @@
   font-weight: 700;
 }
 
+.participant-filter-panel {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.participant-filter-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+
+.participant-filter-option {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--color-text-secondary);
+}
+
 .budget-list-panel,
 .detail-column,
 .detail-empty-state,

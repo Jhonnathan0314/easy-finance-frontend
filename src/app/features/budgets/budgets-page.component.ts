@@ -34,6 +34,11 @@ interface BudgetSubBudgetFilters {
   categoryId: number | null;
 }
 
+interface ParticipantFilterOption {
+  key: string;
+  label: string;
+}
+
 @Component({
   selector: 'ef-budgets-page',
   standalone: true,
@@ -334,6 +339,25 @@ interface BudgetSubBudgetFilters {
               </div>
             </section>
 
+            <section class="panel participant-filter-panel" aria-label="Filtro por persona">
+              <div class="section-heading">
+                <h2>Filtrar por persona</h2>
+                <button type="button" (click)="clearParticipantFilter()">Todos</button>
+              </div>
+              <div class="participant-filter-options">
+                @for (option of participantFilterOptions(); track option.key) {
+                  <label class="participant-filter-option">
+                    <input
+                      type="checkbox"
+                      [checked]="isParticipantSelected(option.key)"
+                      (change)="toggleParticipantFilter(option.key)"
+                    >
+                    <span>{{ option.label }}</span>
+                  </label>
+                }
+              </div>
+            </section>
+
             @if (selectedDetailTab() === 'categorySummary') {
               <section class="panel category-budget-section">
                 <div class="section-heading">
@@ -620,6 +644,7 @@ export class BudgetsPageComponent implements OnInit {
   readonly selectedDetailTab = signal<'categorySummary' | 'subBudgets'>('categorySummary');
   readonly expandedCategoryId = signal<number | null>(null);
   readonly subBudgetFilters = signal<BudgetSubBudgetFilters>({ search: '', categoryId: null });
+  readonly participantFilter = signal<Set<string>>(new Set());
   readonly successMessage = signal<string | null>(null);
   readonly duplicateBudgetError = signal<string | null>(null);
   readonly annualBudgetError = signal<string | null>(null);
@@ -665,12 +690,20 @@ export class BudgetsPageComponent implements OnInit {
 
     return totals.expected > 0 ? Math.min(100, Math.round((totals.paid / totals.expected) * 100)) : 0;
   });
+  readonly participantFilterOptions = computed<ParticipantFilterOption[]>(() => {
+    const members = this.accountMembers()
+      .filter((member) => member.status === 'ACTIVE')
+      .map((member) => ({ key: String(member.participantId), label: this.participantLabel(member) }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+
+    return [{ key: 'GLOBAL', label: 'Global' }, ...members];
+  });
   readonly budgetByCategory = computed<BudgetCategorySummary[]>(() => {
     const detail = this.budgetsStore.selectedBudgetDetail();
     const grouped = new Map<number, { totalPlannedAmount: number; subBudgetCount: number }>();
 
     for (const subBudget of detail?.subBudgets ?? []) {
-      if (subBudget.status !== 'ACTIVE' || subBudget.categoryId == null) {
+      if (subBudget.status !== 'ACTIVE' || subBudget.categoryId == null || !this.matchesParticipantFilter(subBudget.participantId)) {
         continue;
       }
 
@@ -714,8 +747,9 @@ export class BudgetsPageComponent implements OnInit {
     return (this.budgetsStore.selectedBudgetDetail()?.subBudgets ?? []).filter((subBudget) => {
       const matchesSearch = !normalizedSearch || subBudget.name.toLowerCase().includes(normalizedSearch);
       const matchesCategory = categoryId == null || subBudget.categoryId === categoryId;
+      const matchesParticipant = this.matchesParticipantFilter(subBudget.participantId);
 
-      return matchesSearch && matchesCategory;
+      return matchesSearch && matchesCategory && matchesParticipant;
     });
   });
   readonly currentPeriodSort = computed<BudgetPeriodSort>(() =>
@@ -1084,8 +1118,49 @@ export class BudgetsPageComponent implements OnInit {
 
   subBudgetsByCategory(categoryId: number): SubBudgetResponseDto[] {
     return (this.budgetsStore.selectedBudgetDetail()?.subBudgets ?? []).filter(
-      (subBudget) => subBudget.status === 'ACTIVE' && subBudget.categoryId === categoryId
+      (subBudget) =>
+        subBudget.status === 'ACTIVE' &&
+        subBudget.categoryId === categoryId &&
+        this.matchesParticipantFilter(subBudget.participantId)
     );
+  }
+
+  isParticipantSelected(key: string): boolean {
+    const selected = this.participantFilter();
+
+    return selected.size === 0 || selected.has(key);
+  }
+
+  toggleParticipantFilter(key: string): void {
+    const allKeys = this.participantFilterOptions().map((option) => option.key);
+
+    this.participantFilter.update((current) => {
+      const next = current.size === 0 ? new Set(allKeys) : new Set(current);
+
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+
+      return next.size === allKeys.length ? new Set() : next;
+    });
+  }
+
+  clearParticipantFilter(): void {
+    this.participantFilter.set(new Set());
+  }
+
+  matchesParticipantFilter(participantId?: number | null): boolean {
+    const selected = this.participantFilter();
+
+    if (selected.size === 0) {
+      return true;
+    }
+
+    const key = participantId == null ? 'GLOBAL' : String(participantId);
+
+    return selected.has(key);
   }
 
   setSubBudgetSearch(search: string): void {
