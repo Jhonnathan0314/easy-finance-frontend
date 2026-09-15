@@ -70,6 +70,19 @@ select {
   font: inherit;
 }
 
+input:not([type='checkbox']):not([type='radio']):not([type='file']),
+select {
+  height: 2.75rem;
+}
+
+textarea {
+  min-height: 2.75rem;
+}
+
+button {
+  min-height: 2.75rem;
+}
+
 a {
   color: inherit;
 }
