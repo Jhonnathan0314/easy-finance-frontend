@@ -17,6 +17,17 @@ import {
 import { enumLabel } from '../../shared/ui/enum-labels';
 
 type DashboardTab = 'summary' | 'cashflow' | 'expenses' | 'debts' | 'budget';
+type AdvancedFilter =
+  | 'participant'
+  | 'expenseCategory'
+  | 'incomeCategory'
+  | 'paymentMethod'
+  | 'expenseStatus'
+  | 'expensePaymentState'
+  | 'incomeStatus'
+  | 'expenseType'
+  | 'debtState'
+  | 'groupBy';
 
 @Component({
   selector: 'ef-dashboard-page',
@@ -78,31 +89,31 @@ type DashboardTab = 'summary' | 'cashflow' | 'expenses' | 'debts' | 'budget';
 
         @if (advancedOpen()) {
           <div class="advanced-filters">
-            <label>
+            @if (advancedFilterVisible('participant')) { <label>
               <span>Participante ID</span>
               <input type="number" min="1" formControlName="participantId">
-            </label>
-            <label>
+            </label> }
+            @if (advancedFilterVisible('expenseCategory')) { <label>
               <span>Categoria gasto ID</span>
               <input type="number" min="1" formControlName="expenseCategoryId">
-            </label>
-            <label>
+            </label> }
+            @if (advancedFilterVisible('incomeCategory')) { <label>
               <span>Categoria ingreso ID</span>
               <input type="number" min="1" formControlName="incomeCategoryId">
-            </label>
-            <label>
+            </label> }
+            @if (advancedFilterVisible('paymentMethod')) { <label>
               <span>Medio de pago ID</span>
               <input type="number" min="1" formControlName="paymentMethodId">
-            </label>
-            <label>
+            </label> }
+            @if (advancedFilterVisible('expenseStatus')) { <label>
               <span>Status gasto</span>
               <select formControlName="expenseStatus">
                 <option value="">Todos</option>
                 <option value="ACTIVE">{{ enumLabel('ACTIVE') }}</option>
                 <option value="CANCELLED">{{ enumLabel('CANCELLED') }}</option>
               </select>
-            </label>
-            <label>
+            </label> }
+            @if (advancedFilterVisible('expensePaymentState')) { <label>
               <span>Estado pago gasto</span>
               <select formControlName="expensePaymentState">
                 <option value="">Todos</option>
@@ -110,32 +121,32 @@ type DashboardTab = 'summary' | 'cashflow' | 'expenses' | 'debts' | 'budget';
                 <option value="PARTIAL">{{ enumLabel('PARTIAL') }}</option>
                 <option value="PAID">{{ enumLabel('PAID') }}</option>
               </select>
-            </label>
-            <label>
+            </label> }
+            @if (advancedFilterVisible('incomeStatus')) { <label>
               <span>Status ingreso</span>
               <select formControlName="incomeStatus">
                 <option value="">Todos</option>
                 <option value="ACTIVE">{{ enumLabel('ACTIVE') }}</option>
                 <option value="CANCELLED">{{ enumLabel('CANCELLED') }}</option>
               </select>
-            </label>
-            <label>
+            </label> }
+            @if (advancedFilterVisible('expenseType')) { <label>
               <span>Tipo gasto</span>
               <select formControlName="expenseType">
                 <option value="">Todos</option>
                 <option value="SIMPLE">{{ enumLabel('SIMPLE') }}</option>
                 <option value="INSTALLMENT">{{ enumLabel('INSTALLMENT') }}</option>
               </select>
-            </label>
-            <label><span>Estado de deuda</span><select formControlName="debtState"><option value="ACTIVE">Activas</option><option value="PAID">Pagadas</option><option value="CANCELLED">Canceladas</option><option value="ALL">Todas</option></select></label>
-            <label>
+            </label> }
+            @if (advancedFilterVisible('debtState')) { <label><span>Estado de deuda</span><select formControlName="debtState"><option value="ACTIVE">Activas</option><option value="PAID">Pagadas</option><option value="CANCELLED">Canceladas</option><option value="ALL">Todas</option></select></label> }
+            @if (advancedFilterVisible('groupBy')) { <label>
               <span>Agrupar cashflow</span>
               <select formControlName="groupBy">
                 @for (group of groupByOptions; track group) {
                   <option [value]="group">{{ enumLabel(group) }}</option>
                 }
               </select>
-            </label>
+            </label> }
           </div>
         }
       </form>
@@ -612,6 +623,18 @@ export class DashboardPageComponent implements OnInit {
       groupBy: raw.groupBy as CashflowGroupBy,
       debtState: raw.debtState as 'ACTIVE' | 'PAID' | 'CANCELLED' | 'ALL'
     };
+  }
+
+  advancedFilterVisible(filter: AdvancedFilter): boolean {
+    const visibleByTab: Record<DashboardTab, AdvancedFilter[]> = {
+      summary: ['participant', 'expenseCategory', 'incomeCategory', 'paymentMethod', 'expenseStatus', 'expensePaymentState', 'expenseType'],
+      cashflow: ['participant', 'groupBy'],
+      expenses: ['participant', 'expenseCategory', 'paymentMethod', 'expenseStatus', 'expensePaymentState', 'expenseType'],
+      debts: ['participant', 'expenseCategory', 'paymentMethod', 'debtState', 'groupBy'],
+      budget: []
+    };
+
+    return visibleByTab[this.activeDashboardTab()].includes(filter);
   }
 
   private loadDashboardWithoutPersisting(): void {
