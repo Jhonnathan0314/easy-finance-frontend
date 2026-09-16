@@ -88,3 +88,34 @@ export interface ExpenseListFilters {
 export function isDebtPaymentExpense(expense: Pick<ExpenseResponse, 'sourceType'>): boolean {
   return expense.sourceType === 'DEBT_PAYMENT';
 }
+
+export interface CreditCardClosingRequest {
+  paymentMethodId: number;
+  from: string;
+  to: string;
+}
+
+export interface CreditCardClosingCategoryItemDto {
+  categoryId: number;
+  categoryName: string;
+  amount: number;
+  count: number;
+}
+
+export interface CreditCardClosingPreviewResponseDto {
+  paymentMethodId: number;
+  from: string;
+  to: string;
+  totalAmount: number;
+  totalCount: number;
+  byCategory: CreditCardClosingCategoryItemDto[];
+  expenses: ExpenseResponseDto[];
+}
+
+export interface CreditCardClosingResultResponseDto {
+  paymentMethodId: number;
+  from: string;
+  to: string;
+  totalAmount: number;
+  updatedCount: number;
+}

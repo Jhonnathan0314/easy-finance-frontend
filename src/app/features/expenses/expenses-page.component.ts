@@ -38,8 +38,8 @@ type ExpenseOriginFilter = '' | 'DEBT_PAYMENT' | 'NOT_DEBT_PAYMENT';
           <h1 class="page-title">Gastos</h1>
           <p class="page-subtitle">Gastos de la cuenta {{ accountId() }}.</p>
         </div>
-        @if (canCreate()) {
-          <div class="header-actions">
+        <div class="header-actions">
+          @if (canCreate()) {
             <button class="button" type="button" [disabled]="!hasRequiredCatalogs()" (click)="startQuickExpense()">
               + Gasto rápido
             </button>
@@ -49,8 +49,11 @@ type ExpenseOriginFilter = '' | 'DEBT_PAYMENT' | 'NOT_DEBT_PAYMENT';
             <button class="button secondary" type="button" [disabled]="!hasRequiredCatalogs()" (click)="startCreateInstallment()">
               Gasto en cuotas
             </button>
-          </div>
-        }
+          }
+          @if (isAccountAdmin()) {
+            <button type="button" (click)="goToCreditCardClosing()">Cerrar tarjeta de crédito</button>
+          }
+        </div>
       </div>
 
       @if (accountStore.selectedAccountArchived()) {
@@ -482,6 +485,7 @@ export class ExpensesPageComponent implements OnInit {
   readonly accountId = computed(() => this.accountStore.selectedAccountId() ?? 0);
   readonly hasRequiredCatalogs = computed(() => this.expenseCategories().length > 0 && this.paymentMethods().length > 0);
   readonly canCreate = computed(() => this.accountStore.selectedAccount()?.status === 'ACTIVE');
+  readonly isAccountAdmin = computed(() => this.accountStore.selectedAccount()?.currentUserRole === 'ACCOUNT_ADMIN');
   readonly canUseQuickExpense = computed(() => this.canCreate() && this.hasRequiredCatalogs());
   readonly assignableParticipants = computed(() => {
     const activeMembers = this.accountMembers().filter((member) => member.status === 'ACTIVE');
@@ -954,6 +958,10 @@ export class ExpensesPageComponent implements OnInit {
 
     this.blockedActionMessage.set(null);
     this.expensesStore.cancelExpense(this.accountId(), expense.id).pipe(take(1)).subscribe({ error: () => undefined });
+  }
+
+  goToCreditCardClosing(): void {
+    this.router.navigate(['/app/accounts', this.accountId(), 'expenses', 'credit-card-closing']);
   }
 
   goToRelatedDebt(expense: ExpenseResponseDto): void {
