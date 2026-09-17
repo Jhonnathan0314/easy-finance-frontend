@@ -269,13 +269,16 @@ import { enumLabel } from '../../shared/ui/enum-labels';
                 </label>
                 <label class="field">
                   <span>Capital</span>
-                  <input type="number" min="0.01" step="0.01" formControlName="capitalAmount">
+                  <input type="number" min="0" step="0.01" formControlName="capitalAmount">
                 </label>
                 @if (paymentForm.controls.paymentType.value === 'INSTALLMENT') {
                   <label class="field">
                     <span>Interes (opcional)</span>
                     <input type="number" min="0" step="0.01" formControlName="interestAmount">
                   </label>
+                }
+                @if (paymentForm.hasError('paymentAmountRequired') && paymentForm.touched) {
+                  <p class="form-error wide">Registra un valor mayor a cero en capital o en interes.</p>
                 }
                 <label class="field">
                   <span>Fecha pago</span>
@@ -463,7 +466,7 @@ export class DebtsPageComponent implements OnInit {
   readonly paymentForm = this.fb.group(
     {
       paymentType: ['INSTALLMENT' as DebtPaymentType, [Validators.required]],
-      capitalAmount: [0, [Validators.required, Validators.min(0.01)]],
+      capitalAmount: [0, [Validators.required, Validators.min(0)]],
       interestAmount: [0, [Validators.min(0)]],
       paymentDate: [today(), [Validators.required]],
       notes: ['', [Validators.maxLength(1000)]],
@@ -472,7 +475,7 @@ export class DebtsPageComponent implements OnInit {
       paymentMethodId: [0],
       expenseDescription: ['', [Validators.maxLength(500)]]
     },
-    { validators: associatedExpenseValidator }
+    { validators: [associatedExpenseValidator, debtPaymentAmountValidator] }
   );
 
   ngOnInit(): void {
@@ -840,6 +843,14 @@ export function installmentPairValidator(control: AbstractControl): ValidationEr
   const hasAmount = installmentAmount !== null && installmentAmount !== undefined && installmentAmount !== '';
 
   return hasCount === hasAmount ? null : { installmentsPairRequired: true };
+}
+
+export function debtPaymentAmountValidator(control: AbstractControl): ValidationErrors | null {
+  const paymentType = control.get('paymentType')?.value;
+  const capitalAmount = Number(control.get('capitalAmount')?.value) || 0;
+  const interestAmount = paymentType === 'CAPITAL_PAYMENT' ? 0 : Number(control.get('interestAmount')?.value) || 0;
+
+  return capitalAmount + interestAmount > 0 ? null : { paymentAmountRequired: true };
 }
 
 export function associatedExpenseValidator(control: AbstractControl): ValidationErrors | null {

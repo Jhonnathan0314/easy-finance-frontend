@@ -374,6 +374,40 @@ describe('DebtsPageComponent', () => {
     );
   });
 
+  it('allows registering an interest-only payment when capital is zero', () => {
+    const fixture = configure({ selectedDebt: debt });
+    const component = fixture.componentInstance;
+    const store = TestBed.inject(DebtsStore) as jasmine.SpyObj<DebtsStore>;
+
+    component.startPayment(debt);
+    component.paymentForm.patchValue({ capitalAmount: 0, interestAmount: 15000 });
+
+    expect(component.paymentForm.valid).toBeTrue();
+
+    component.savePayment();
+
+    expect(store.registerPayment).toHaveBeenCalledWith(
+      1,
+      1,
+      jasmine.objectContaining({
+        paymentType: 'INSTALLMENT',
+        capitalAmount: 0,
+        interestAmount: 15000
+      })
+    );
+  });
+
+  it('disables saving when both capital and interest are zero', () => {
+    const fixture = configure({ selectedDebt: debt });
+    const component = fixture.componentInstance;
+
+    component.startPayment(debt);
+    component.paymentForm.patchValue({ capitalAmount: 0, interestAmount: 0 });
+
+    expect(component.paymentForm.hasError('paymentAmountRequired')).toBeTrue();
+    expect(component.paymentForm.invalid).toBeTrue();
+  });
+
   it('shows a capital/interest breakdown in payment history when interest was paid', () => {
     const paymentWithInterest: DebtPaymentResponseDto = { ...payment, capitalAmount: 80000, interestAmount: 20000, amount: 100000 };
     const fixture = configure({ selectedDebt: debt, payments: [paymentWithInterest] });
