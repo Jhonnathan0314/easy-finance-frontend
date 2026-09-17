@@ -19,7 +19,7 @@ export interface IncomeFilters {
   from: string | null;
   to: string | null;
   search: string | null;
-  categoryId: number | null;
+  categoryIds: number[] | null;
   participantId: number | null;
   status: IncomeStatus;
   page: number;
@@ -40,7 +40,7 @@ const DEFAULT_FILTERS: IncomeFilters = {
   from: null,
   to: null,
   search: null,
-  categoryId: null,
+  categoryIds: null,
   participantId: null,
   status: 'ACTIVE',
   page: 0,
@@ -207,7 +207,7 @@ function normalizeIncomeFilters(filters: Partial<IncomeFilters>): IncomeFilters 
     from: stringOrNull(filters.from),
     to: stringOrNull(filters.to),
     search: stringOrNull(filters.search),
-    categoryId: numberOrNull(filters.categoryId),
+    categoryIds: numberArrayOrNull(filters.categoryIds),
     participantId: numberOrNull(filters.participantId),
     status: INCOME_STATUSES.includes(filters.status as IncomeStatus) ? (filters.status as IncomeStatus) : 'ACTIVE',
     page: numberOrDefault(filters.page, 0),
@@ -223,7 +223,7 @@ function filtersForStorage(filters: IncomeFilters): Omit<IncomeFilters, 'page' |
     from: filters.from,
     to: filters.to,
     search: filters.search,
-    categoryId: filters.categoryId,
+    categoryIds: filters.categoryIds,
     sort: filters.sort
   };
 }
@@ -250,6 +250,16 @@ function monthOrNull(value: unknown): number | null {
 
   const numeric = Number(value);
   return Number.isInteger(numeric) && numeric >= 1 && numeric <= 12 ? numeric : null;
+}
+
+function numberArrayOrNull(value: unknown): number[] | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  const unique = Array.from(new Set(value.map((item) => Number(item)).filter((item) => Number.isFinite(item) && item > 0)));
+
+  return unique.length ? unique : null;
 }
 
 function numberOrDefault(value: unknown, fallback: number): number {

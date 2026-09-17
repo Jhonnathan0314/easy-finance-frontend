@@ -139,14 +139,14 @@ describe('IncomeStore', () => {
   it('loads persisted filters per account', () => {
     localStorage.setItem(
       'easyFinance.filters.income.10',
-      JSON.stringify({ from: '2026-05-01', search: 'salary', categoryId: 2, participantId: 7, status: 'CANCELLED', sort: 'incomeDate,asc' })
+      JSON.stringify({ from: '2026-05-01', search: 'salary', categoryIds: [2], participantId: 7, status: 'CANCELLED', sort: 'incomeDate,asc' })
     );
     localStorage.setItem('easyFinance.filters.income.11', JSON.stringify({ from: '2026-06-01', status: 'ACTIVE' }));
 
     expect(store.loadPersistedFilters(10)).toEqual(jasmine.objectContaining({
       from: '2026-05-01',
       search: 'salary',
-      categoryId: 2,
+      categoryIds: [2],
       participantId: null,
       status: 'ACTIVE',
       sort: 'incomeDate,asc'

@@ -40,14 +40,14 @@ export class IncomeApiService {
   }
 }
 
-function normalizeFilters(filters: IncomeListFilters): Record<string, string | number | null | undefined> {
+function normalizeFilters(filters: IncomeListFilters): Record<string, string | number | number[] | null | undefined> {
   return {
     year: filters.year,
     month: filters.month,
     from: filters.from,
     to: filters.to,
     search: optionalText(filters.search),
-    categoryId: filters.categoryId,
+    categoryIds: filters.categoryIds?.length ? filters.categoryIds : undefined,
     participantId: filters.participantId,
     status: filters.status ?? 'ACTIVE',
     page: filters.page ?? 0,

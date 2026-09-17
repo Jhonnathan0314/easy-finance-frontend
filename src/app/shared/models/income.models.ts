@@ -7,7 +7,7 @@ export interface IncomeListFilters {
   from?: string | null;
   to?: string | null;
   search?: string | null;
-  categoryId?: number | null;
+  categoryIds?: number[] | null;
   participantId?: number | null;
   status?: IncomeStatus | null;
   page?: number | null;

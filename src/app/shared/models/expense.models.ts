@@ -71,8 +71,8 @@ export interface ExpenseListFilters {
   from?: string | null;
   to?: string | null;
   search?: string | null;
-  categoryId?: number | null;
-  paymentMethodId?: number | null;
+  categoryIds?: number[] | null;
+  paymentMethodIds?: number[] | null;
   participantId?: number | null;
   paymentState?: ExpensePaymentState | null;
   expenseType?: ExpenseType | null;

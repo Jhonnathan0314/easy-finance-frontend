@@ -57,7 +57,7 @@ describe('IncomePageComponent', () => {
     from: null,
     to: null,
     search: null,
-    categoryId: null,
+    categoryIds: null,
     participantId: null,
     status: 'ACTIVE' as const,
     page: 0,
@@ -293,7 +293,7 @@ describe('IncomePageComponent', () => {
         search: 'salary',
         year: 2026,
         month: 5,
-        categoryId: 1,
+        categoryIds: [1],
         participantId: 7,
         status: 'CANCELLED'
       }
@@ -308,7 +308,7 @@ describe('IncomePageComponent', () => {
       month: '5',
       from: '2026-05-01',
       to: '2026-05-31',
-      categoryId: '1'
+      categoryIds: [1]
     });
   });
 
@@ -324,13 +324,13 @@ describe('IncomePageComponent', () => {
       month: '5',
       from: '2026-05-01',
       to: '2026-05-31',
-      categoryId: '1'
+      categoryIds: [1]
     });
     component.applyFilters();
 
     expect(store.loadIncomes).toHaveBeenCalledWith(
       1,
-      jasmine.objectContaining({ search: 'salary', year: 2026, month: 5, from: '2026-05-01', categoryId: 1, page: 0 }),
+      jasmine.objectContaining({ search: 'salary', year: 2026, month: 5, from: '2026-05-01', categoryIds: [1], page: 0 }),
       { persist: true }
     );
     const appliedFilters = store.loadIncomes.calls.mostRecent().args[1] as Record<string, unknown>;
@@ -347,7 +347,7 @@ describe('IncomePageComponent', () => {
       month: '',
       from: '',
       to: '',
-      categoryId: ''
+      categoryIds: []
     });
     expect(store.loadIncomes).toHaveBeenCalledWith(1, {
       year: null,
@@ -355,7 +355,7 @@ describe('IncomePageComponent', () => {
       search: null,
       from: null,
       to: null,
-      categoryId: null,
+      categoryIds: null,
       page: 0,
       sort: 'incomeDate,desc'
     });
@@ -407,7 +407,7 @@ describe('IncomePageComponent', () => {
     const store = TestBed.inject(IncomeStore) as jasmine.SpyObj<IncomeStore>;
 
     store.loadIncomes.calls.reset();
-    component.filterForm.patchValue({ year: '2026', month: '', search: '', from: '', to: '', categoryId: '' });
+    component.filterForm.patchValue({ year: '2026', month: '', search: '', from: '', to: '', categoryIds: [] });
     component.applyFilters();
 
     expect(component.filterValidationMessage()).toBeNull();
@@ -490,7 +490,7 @@ describe('IncomePageComponent', () => {
         from: '2026-05-01',
         to: '2026-05-31',
         search: 'salary',
-        categoryId: 1,
+        categoryIds: [1],
         page: 2,
         size: 20,
         sort: 'incomeDate,asc'
@@ -587,7 +587,7 @@ describe('IncomePageComponent', () => {
         ...defaultFilters,
         from: '2026-05-01',
         search: 'salary',
-        categoryId: 1,
+        categoryIds: [1],
         page: 2,
         sort: 'incomeDate,desc'
       }

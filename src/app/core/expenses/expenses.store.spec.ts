@@ -69,7 +69,7 @@ describe('ExpensesStore', () => {
         from: '2026-05-01',
         search: 'lunch',
         status: 'CANCELLED',
-        categoryId: 2,
+        categoryIds: [2],
         paymentState: 'PAID',
         expenseType: 'INSTALLMENT'
       })
@@ -80,7 +80,7 @@ describe('ExpensesStore', () => {
       from: '2026-05-01',
       search: 'lunch',
       status: 'ACTIVE',
-      categoryId: 2,
+      categoryIds: [2],
       paymentState: 'PAID',
       expenseType: 'INSTALLMENT'
     }));
@@ -96,7 +96,7 @@ describe('ExpensesStore', () => {
         from: '2026-05-01',
         search: '  lunch  ',
         status: 'ACTIVE',
-        paymentMethodId: 3,
+        paymentMethodIds: [3],
         expenseType: 'SIMPLE'
       }, { persist: true })
       .subscribe(() => {
@@ -104,7 +104,7 @@ describe('ExpensesStore', () => {
         expect(JSON.parse(localStorage.getItem('easyFinance.filters.expenses.10') ?? '{}')).toEqual(jasmine.objectContaining({
           from: '2026-05-01',
           search: 'lunch',
-          paymentMethodId: 3,
+          paymentMethodIds: [3],
           expenseType: 'SIMPLE'
         }));
         expect(JSON.parse(localStorage.getItem('easyFinance.filters.expenses.10') ?? '{}').status).toBeUndefined();

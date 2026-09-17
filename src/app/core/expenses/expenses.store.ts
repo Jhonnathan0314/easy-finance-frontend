@@ -20,8 +20,8 @@ export interface ExpenseFilters {
   from: string | null;
   to: string | null;
   search: string | null;
-  categoryId: number | null;
-  paymentMethodId: number | null;
+  categoryIds: number[] | null;
+  paymentMethodIds: number[] | null;
   participantId: number | null;
   paymentState: ExpensePaymentState | null;
   expenseType: ExpenseType | null;
@@ -43,8 +43,8 @@ const DEFAULT_FILTERS: ExpenseFilters = {
   from: null,
   to: null,
   search: null,
-  categoryId: null,
-  paymentMethodId: null,
+  categoryIds: null,
+  paymentMethodIds: null,
   participantId: null,
   paymentState: null,
   expenseType: null,
@@ -219,8 +219,8 @@ function normalizeExpenseFilters(filters: Partial<ExpenseFilters>): ExpenseFilte
     from: stringOrNull(filters.from),
     to: stringOrNull(filters.to),
     search: stringOrNull(filters.search),
-    categoryId: numberOrNull(filters.categoryId),
-    paymentMethodId: numberOrNull(filters.paymentMethodId),
+    categoryIds: numberArrayOrNull(filters.categoryIds),
+    paymentMethodIds: numberArrayOrNull(filters.paymentMethodIds),
     participantId: numberOrNull(filters.participantId),
     paymentState: PAYMENT_STATES.includes(filters.paymentState ?? null) ? filters.paymentState ?? null : null,
     expenseType: EXPENSE_TYPES.includes(filters.expenseType ?? null) ? filters.expenseType ?? null : null,
@@ -237,8 +237,8 @@ function filtersForStorage(filters: ExpenseFilters): Omit<ExpenseFilters, 'page'
     from: filters.from,
     to: filters.to,
     search: filters.search,
-    categoryId: filters.categoryId,
-    paymentMethodId: filters.paymentMethodId,
+    categoryIds: filters.categoryIds,
+    paymentMethodIds: filters.paymentMethodIds,
     participantId: filters.participantId,
     paymentState: filters.paymentState,
     expenseType: filters.expenseType,
@@ -265,6 +265,16 @@ function numberOrNull(value: unknown): number | null {
 function numberOrDefault(value: unknown, fallback: number): number {
   const numeric = Number(value);
   return Number.isInteger(numeric) && numeric >= 0 ? numeric : fallback;
+}
+
+function numberArrayOrNull(value: unknown): number[] | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  const unique = Array.from(new Set(value.map((item) => Number(item)).filter((item) => Number.isFinite(item) && item > 0)));
+
+  return unique.length ? unique : null;
 }
 
 function toApiError(error: unknown): ApiErrorResponse {

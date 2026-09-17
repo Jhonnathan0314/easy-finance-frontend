@@ -10,6 +10,7 @@ import { CatalogsApiService } from '../../core/catalogs/catalogs-api.service';
 import { IncomeFilters, IncomeStore } from '../../core/income/income.store';
 import { AccountStore } from '../../core/state/account.store';
 import { AccountMemberResponseDto, CategoryResponseDto, IncomeResponseDto } from '../../shared/models';
+import { MultiSelectDropdownComponent, MultiSelectOption } from '../../shared/ui/multi-select-dropdown.component';
 
 type IncomeDateSort = 'incomeDate,asc' | 'incomeDate,desc';
 type IncomeMonthOption = { value: number; label: string };
@@ -17,7 +18,7 @@ type IncomeMonthOption = { value: number; label: string };
 @Component({
   selector: 'ef-income-page',
   standalone: true,
-  imports: [CurrencyPipe, ReactiveFormsModule, RouterLink],
+  imports: [CurrencyPipe, ReactiveFormsModule, RouterLink, MultiSelectDropdownComponent],
   styleUrl: './income-page.component.scss',
   template: `
     <section class="page-shell">
@@ -90,12 +91,12 @@ type IncomeMonthOption = { value: number; label: string };
             </label>
             <label>
               <span>Categoria</span>
-              <select formControlName="categoryId">
-                <option value="">Todas</option>
-                @for (category of incomeCategories(); track category.id) {
-                  <option [value]="category.id">{{ category.name }}</option>
-                }
-              </select>
+              <ef-multi-select-dropdown
+                [options]="categoryFilterOptions()"
+                [selectedIds]="filterForm.controls.categoryIds.value"
+                placeholder="Todas"
+                (selectedIdsChange)="filterForm.controls.categoryIds.setValue($event)"
+              />
             </label>
           </div>
 
@@ -292,6 +293,9 @@ export class IncomePageComponent implements OnInit {
   readonly accountId = computed(() => this.accountStore.selectedAccountId() ?? 0);
   readonly canCreate = computed(() => this.accountStore.selectedAccount()?.status === 'ACTIVE');
   readonly hasRequiredCatalogs = computed(() => this.incomeCategories().length > 0);
+  readonly categoryFilterOptions = computed<MultiSelectOption[]>(() =>
+    this.incomeCategories().map((category) => ({ id: category.id, label: category.name }))
+  );
   readonly assignableParticipants = computed(() => {
     const activeMembers = this.accountMembers().filter((member) => member.status === 'ACTIVE');
     const account = this.accountStore.selectedAccount();
@@ -341,7 +345,7 @@ export class IncomePageComponent implements OnInit {
     month: [''],
     from: [''],
     to: [''],
-    categoryId: ['']
+    categoryIds: [[] as number[]]
   });
 
   readonly incomeForm = this.fb.group({
@@ -382,7 +386,7 @@ export class IncomePageComponent implements OnInit {
         month,
         from: raw.from || null,
         to: raw.to || null,
-        categoryId: toNumberOrNull(raw.categoryId),
+        categoryIds: raw.categoryIds.length ? raw.categoryIds : null,
         page: 0
       },
       { persist: true })
@@ -636,7 +640,7 @@ export class IncomePageComponent implements OnInit {
       month: filters.month?.toString() ?? '',
       from: filters.from ?? '',
       to: filters.to ?? '',
-      categoryId: filters.categoryId?.toString() ?? ''
+      categoryIds: filters.categoryIds ?? []
     });
   }
 
@@ -696,7 +700,7 @@ function visibleFilterRequest(filters: IncomeFilters): Partial<IncomeFilters> {
     search: filters.search,
     from: filters.from,
     to: filters.to,
-    categoryId: filters.categoryId,
+    categoryIds: filters.categoryIds,
     page: 0,
     sort: filters.sort
   };

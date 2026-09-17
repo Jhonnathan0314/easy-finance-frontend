@@ -21,6 +21,7 @@ import {
   isDebtPaymentExpense
 } from '../../shared/models';
 import { enumLabel } from '../../shared/ui/enum-labels';
+import { MultiSelectDropdownComponent, MultiSelectOption } from '../../shared/ui/multi-select-dropdown.component';
 
 type ExpenseFormMode = 'simple' | 'installment';
 type ExpenseDateSort = 'expenseDate,asc' | 'expenseDate,desc';
@@ -29,7 +30,7 @@ type ExpenseOriginFilter = '' | 'DEBT_PAYMENT' | 'NOT_DEBT_PAYMENT';
 @Component({
   selector: 'ef-expenses-page',
   standalone: true,
-  imports: [CurrencyPipe, ReactiveFormsModule, RouterLink],
+  imports: [CurrencyPipe, ReactiveFormsModule, RouterLink, MultiSelectDropdownComponent],
   styleUrl: './expenses-page.component.scss',
   template: `
     <section class="page-shell">
@@ -97,21 +98,21 @@ type ExpenseOriginFilter = '' | 'DEBT_PAYMENT' | 'NOT_DEBT_PAYMENT';
         </label>
         <label>
           <span>Categoria</span>
-          <select formControlName="categoryId">
-            <option value="">Todas</option>
-            @for (category of expenseCategories(); track category.id) {
-              <option [value]="category.id">{{ category.name }}</option>
-            }
-          </select>
+          <ef-multi-select-dropdown
+            [options]="categoryFilterOptions()"
+            [selectedIds]="filterForm.controls.categoryIds.value"
+            placeholder="Todas"
+            (selectedIdsChange)="filterForm.controls.categoryIds.setValue($event)"
+          />
         </label>
         <label>
           <span>Medio</span>
-          <select formControlName="paymentMethodId">
-            <option value="">Todos</option>
-            @for (method of paymentMethods(); track method.id) {
-              <option [value]="method.id">{{ method.name }}</option>
-            }
-          </select>
+          <ef-multi-select-dropdown
+            [options]="paymentMethodFilterOptions()"
+            [selectedIds]="filterForm.controls.paymentMethodIds.value"
+            placeholder="Todos"
+            (selectedIdsChange)="filterForm.controls.paymentMethodIds.setValue($event)"
+          />
         </label>
         <label>
           <span>Pago</span>
@@ -484,6 +485,12 @@ export class ExpensesPageComponent implements OnInit {
   readonly blockedActionMessage = signal<string | null>(null);
   readonly accountId = computed(() => this.accountStore.selectedAccountId() ?? 0);
   readonly hasRequiredCatalogs = computed(() => this.expenseCategories().length > 0 && this.paymentMethods().length > 0);
+  readonly categoryFilterOptions = computed<MultiSelectOption[]>(() =>
+    this.expenseCategories().map((category) => ({ id: category.id, label: category.name }))
+  );
+  readonly paymentMethodFilterOptions = computed<MultiSelectOption[]>(() =>
+    this.paymentMethods().map((method) => ({ id: method.id, label: method.name }))
+  );
   readonly canCreate = computed(() => this.accountStore.selectedAccount()?.status === 'ACTIVE');
   readonly isAccountAdmin = computed(() => this.accountStore.selectedAccount()?.currentUserRole === 'ACCOUNT_ADMIN');
   readonly canUseQuickExpense = computed(() => this.canCreate() && this.hasRequiredCatalogs());
@@ -532,8 +539,8 @@ export class ExpensesPageComponent implements OnInit {
     search: [''],
     from: [''],
     to: [''],
-    categoryId: [''],
-    paymentMethodId: [''],
+    categoryIds: [[] as number[]],
+    paymentMethodIds: [[] as number[]],
     paymentState: [''],
     expenseType: [''],
     origin: ['' as ExpenseOriginFilter]
@@ -602,8 +609,8 @@ export class ExpensesPageComponent implements OnInit {
         search: raw.search.trim() || null,
         from: raw.from || null,
         to: raw.to || null,
-        categoryId: toNumberOrNull(raw.categoryId),
-        paymentMethodId: toNumberOrNull(raw.paymentMethodId),
+        categoryIds: raw.categoryIds.length ? raw.categoryIds : null,
+        paymentMethodIds: raw.paymentMethodIds.length ? raw.paymentMethodIds : null,
         paymentState: raw.paymentState ? (raw.paymentState as ExpensePaymentState) : null,
         expenseType: raw.expenseType ? (raw.expenseType as ExpenseType) : null,
         debtPaymentOrigin: originFilterToBoolean(raw.origin),
@@ -1103,8 +1110,8 @@ export class ExpensesPageComponent implements OnInit {
     from: string | null;
     to: string | null;
     search: string | null;
-    categoryId: number | null;
-    paymentMethodId: number | null;
+    categoryIds: number[] | null;
+    paymentMethodIds: number[] | null;
     paymentState: ExpensePaymentState | null;
     expenseType: ExpenseType | null;
     status: ExpenseStatus;
@@ -1114,8 +1121,8 @@ export class ExpensesPageComponent implements OnInit {
       search: filters.search ?? '',
       from: filters.from ?? '',
       to: filters.to ?? '',
-      categoryId: filters.categoryId ? String(filters.categoryId) : '',
-      paymentMethodId: filters.paymentMethodId ? String(filters.paymentMethodId) : '',
+      categoryIds: filters.categoryIds ?? [],
+      paymentMethodIds: filters.paymentMethodIds ?? [],
       paymentState: filters.paymentState ?? '',
       expenseType: filters.expenseType ?? '',
       origin: booleanToOriginFilter(filters.debtPaymentOrigin)

@@ -4,7 +4,8 @@ import { Observable } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
 
-type QueryParams = Record<string, string | number | boolean | null | undefined>;
+type QueryParamValue = string | number | boolean | null | undefined;
+type QueryParams = Record<string, QueryParamValue | QueryParamValue[]>;
 
 @Injectable({ providedIn: 'root' })
 export class ApiClient {
@@ -41,11 +42,19 @@ export class ApiClient {
 
   private toHttpParams(params?: QueryParams): HttpParams {
     return Object.entries(params ?? {}).reduce((httpParams, [key, value]) => {
-      if (value === null || value === undefined || value === '') {
-        return httpParams;
+      if (Array.isArray(value)) {
+        return value.reduce((withArrayValues, item) => this.appendParam(withArrayValues, key, item), httpParams);
       }
 
-      return httpParams.set(key, String(value));
+      return this.appendParam(httpParams, key, value);
     }, new HttpParams());
+  }
+
+  private appendParam(httpParams: HttpParams, key: string, value: QueryParamValue): HttpParams {
+    if (value === null || value === undefined || value === '') {
+      return httpParams;
+    }
+
+    return httpParams.append(key, String(value));
   }
 }

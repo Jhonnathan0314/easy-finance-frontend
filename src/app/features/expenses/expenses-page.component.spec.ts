@@ -81,8 +81,8 @@ describe('ExpensesPageComponent', () => {
       from: null,
       to: null,
       search: null,
-      categoryId: null,
-      paymentMethodId: null,
+      categoryIds: null,
+      paymentMethodIds: null,
       participantId: null,
       paymentState: null,
       expenseType: null,
@@ -322,8 +322,8 @@ describe('ExpensesPageComponent', () => {
         from: '2026-05-01',
         to: '2026-05-31',
         search: 'lunch',
-        categoryId: 1,
-        paymentMethodId: 2,
+        categoryIds: [1],
+        paymentMethodIds: [2],
         participantId: null,
         paymentState: 'PAID',
         status: 'CANCELLED',
@@ -338,8 +338,8 @@ describe('ExpensesPageComponent', () => {
     expect(raw.from).toBe('2026-05-01');
     expect(raw.to).toBe('2026-05-31');
     expect(raw.search).toBe('lunch');
-    expect(raw.categoryId).toBe('1');
-    expect(raw.paymentMethodId).toBe('2');
+    expect(raw.categoryIds).toEqual([1]);
+    expect(raw.paymentMethodIds).toEqual([2]);
     expect(raw.paymentState).toBe('PAID');
     expect(raw.expenseType).toBe('INSTALLMENT');
   });
@@ -994,8 +994,8 @@ describe('ExpensesPageComponent', () => {
           from: null,
           to: null,
           search: null,
-          categoryId: null,
-          paymentMethodId: null,
+          categoryIds: null,
+          paymentMethodIds: null,
           participantId: null,
           paymentState: null,
           status: 'ACTIVE',

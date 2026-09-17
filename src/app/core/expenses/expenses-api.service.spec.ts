@@ -26,8 +26,8 @@ describe('ExpensesApiService', () => {
         from: '2026-05-01',
         to: '2026-05-31',
         search: '  lunch  ',
-        categoryId: 1,
-        paymentMethodId: 2,
+        categoryIds: [1, 4],
+        paymentMethodIds: [2],
         paymentState: 'PAID',
         expenseType: 'SIMPLE',
         status: 'ACTIVE',
@@ -38,7 +38,7 @@ describe('ExpensesApiService', () => {
       .subscribe();
 
     const request = httpTesting.expectOne(
-      'http://localhost:8080/api/v1/accounts/3/expenses?from=2026-05-01&to=2026-05-31&search=lunch&categoryId=1&paymentMethodId=2&paymentState=PAID&expenseType=SIMPLE&status=ACTIVE&page=1&size=10&sort=expenseDate,desc'
+      'http://localhost:8080/api/v1/accounts/3/expenses?from=2026-05-01&to=2026-05-31&search=lunch&categoryIds=1&categoryIds=4&paymentMethodIds=2&paymentState=PAID&expenseType=SIMPLE&status=ACTIVE&page=1&size=10&sort=expenseDate,desc'
     );
     expect(request.request.method).toBe('GET');
     request.flush({ content: [], page: 1, size: 10, totalElements: 0, totalPages: 0 });

@@ -26,7 +26,7 @@ describe('IncomeApiService', () => {
         from: '2026-05-01',
         to: '2026-05-31',
         search: '  salary  ',
-        categoryId: 1,
+        categoryIds: [1, 5],
         participantId: 7,
         status: 'ACTIVE',
         page: 1,
@@ -36,7 +36,7 @@ describe('IncomeApiService', () => {
       .subscribe();
 
     const request = httpTesting.expectOne(
-      'http://localhost:8080/api/v1/accounts/3/incomes?from=2026-05-01&to=2026-05-31&search=salary&categoryId=1&participantId=7&status=ACTIVE&page=1&size=10&sort=incomeDate,desc'
+      'http://localhost:8080/api/v1/accounts/3/incomes?from=2026-05-01&to=2026-05-31&search=salary&categoryIds=1&categoryIds=5&participantId=7&status=ACTIVE&page=1&size=10&sort=incomeDate,desc'
     );
     expect(request.request.method).toBe('GET');
     request.flush({ content: [], page: 1, size: 10, totalElements: 0, totalPages: 0 });

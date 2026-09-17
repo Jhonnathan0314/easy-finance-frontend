@@ -48,13 +48,13 @@ export class ExpensesApiService {
   }
 }
 
-function normalizeFilters(filters: ExpenseListFilters): Record<string, string | number | boolean | null | undefined> {
+function normalizeFilters(filters: ExpenseListFilters): Record<string, string | number | boolean | number[] | null | undefined> {
   return {
     from: filters.from,
     to: filters.to,
     search: optionalText(filters.search),
-    categoryId: filters.categoryId,
-    paymentMethodId: filters.paymentMethodId,
+    categoryIds: filters.categoryIds?.length ? filters.categoryIds : undefined,
+    paymentMethodIds: filters.paymentMethodIds?.length ? filters.paymentMethodIds : undefined,
     participantId: filters.participantId,
     paymentState: filters.paymentState,
     expenseType: filters.expenseType,
