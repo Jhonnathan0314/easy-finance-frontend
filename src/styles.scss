@@ -81,6 +81,16 @@ textarea {
 
 button {
   min-height: 2.75rem;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+button:not(.button):not(:disabled):hover {
+  border-color: var(--color-accent);
+  background: var(--color-info-bg);
 }
 
 a {
@@ -167,4 +177,8 @@ input:-webkit-autofill:focus {
   background: var(--color-border-strong);
   color: var(--color-text-secondary);
   opacity: 1;
+}
+
+.button:not(:disabled):hover {
+  background: var(--color-accent-hover);
 }
