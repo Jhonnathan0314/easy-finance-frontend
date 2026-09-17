@@ -210,28 +210,6 @@
   align-items: start;
 }
 
-.detail-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.detail-tabs button {
-  border: 1px solid var(--color-border-strong);
-  border-radius: 6px;
-  background: var(--color-bg-panel);
-  color: var(--color-text);
-  padding: 0.5rem 0.75rem;
-  cursor: pointer;
-}
-
-.detail-tabs button.active {
-  border-color: var(--color-accent);
-  background: var(--color-info-bg);
-  color: var(--color-accent-hover);
-  font-weight: 700;
-}
-
 .participant-filter-panel {
   display: grid;
   gap: 0.65rem;
@@ -255,8 +233,6 @@
 .detail-empty-state,
 .budget-list,
 .detail-panel,
-.category-budget-section,
-.category-budget-list,
 .subbudget-section,
 .subbudget-list,
 .impacts-section,
@@ -342,13 +318,13 @@
 
 .budget-card.selected {
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 1px #2563eb;
+  box-shadow: 0 0 0 1px var(--color-accent);
 }
 
 .subbudget-card.selected {
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 1px #2563eb;
-  background: #f8fbff;
+  box-shadow: 0 0 0 1px var(--color-accent);
+  background: var(--color-info-bg);
 }
 
 .budget-card h3,
@@ -445,27 +421,6 @@
   align-self: center;
 }
 
-.category-actions {
-  grid-column: auto;
-  justify-content: center;
-  align-self: center;
-}
-
-.category-subbudgets {
-  grid-column: 1 / -1;
-  display: grid;
-  gap: 0.5rem;
-}
-
-.category-summary-info {
-  display: grid;
-  gap: 0.35rem;
-}
-
-.category-summary-info .amount-block {
-  justify-items: start;
-}
-
 .amount-block {
   display: grid;
   gap: 0.2rem;
@@ -537,13 +492,32 @@ button:disabled {
     justify-content: center;
   }
 
-  .category-actions {
-    grid-column: 1 / -1;
-  }
-
   .subbudget-card.compact-row .actions {
     grid-area: auto;
     flex-direction: column;
     align-items: center;
   }
+}
+
+.forward-plan-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+}
+
+.forward-plan-table th,
+.forward-plan-table td {
+  border: 1px solid var(--color-border-strong);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.forward-plan-table th {
+  background: var(--color-bg-panel);
+}
+
+.forward-plan-table tr.diverges td {
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
 }

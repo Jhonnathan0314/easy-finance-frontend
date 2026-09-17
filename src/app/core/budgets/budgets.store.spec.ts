@@ -1,7 +1,14 @@
 import { TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 
-import { BudgetDetailResponseDto, BudgetResponseDto, BudgetSummaryResponseDto, SubBudgetResponseDto } from '../../shared/models';
+import {
+  BudgetDetailResponseDto,
+  BudgetResponseDto,
+  BudgetSummaryResponseDto,
+  SubBudgetForwardApplyResponseDto,
+  SubBudgetForwardPlanResponseDto,
+  SubBudgetResponseDto
+} from '../../shared/models';
 import { AnalyticsApiService } from '../analytics/analytics-api.service';
 import { BudgetsApiService } from './budgets-api.service';
 import { BudgetsStore } from './budgets.store';
@@ -66,7 +73,9 @@ describe('BudgetsStore', () => {
       'getBudgetDetail',
       'createSubBudget',
       'updateSubBudget',
-      'deactivateSubBudget'
+      'deactivateSubBudget',
+      'previewSubBudgetForward',
+      'applySubBudgetForward'
     ]);
     service.listBudgets.and.returnValue(of({ content: [budget], page: 0, size: 20, totalElements: 1, totalPages: 1 }));
     service.upsertBudget.and.returnValue(of(budget));
@@ -76,6 +85,8 @@ describe('BudgetsStore', () => {
     service.createSubBudget.and.returnValue(of(subBudget));
     service.updateSubBudget.and.returnValue(of(subBudget));
     service.deactivateSubBudget.and.returnValue(of(undefined));
+    service.previewSubBudgetForward.and.returnValue(of({ months: [] }));
+    service.applySubBudgetForward.and.returnValue(of({ months: [] }));
     analyticsApi = jasmine.createSpyObj<AnalyticsApiService>('AnalyticsApiService', ['getBudgetSummary']);
     analyticsApi.getBudgetSummary.and.returnValue(of(summary));
 
@@ -191,6 +202,46 @@ describe('BudgetsStore', () => {
         expect(service.getBudgetDetail).toHaveBeenCalledWith(10, 2026, 5);
         done();
       });
+    });
+  });
+
+  it('previews a forward change without mutating selected detail', (done) => {
+    const plan: SubBudgetForwardPlanResponseDto = { months: [{ year: 2026, month: 5, status: 'WILL_UPDATE' }] };
+    service.previewSubBudgetForward.and.returnValue(of(plan));
+
+    store.getBudgetDetail(10, 2026, 5).subscribe(() => {
+      store
+        .previewSubBudgetForward(10, 1, { action: 'UPDATE', subBudgetId: 2, name: 'Mercado', plannedAmount: 600000, categoryId: 3 })
+        .subscribe((response) => {
+          expect(service.previewSubBudgetForward).toHaveBeenCalledWith(10, 1, {
+            action: 'UPDATE',
+            subBudgetId: 2,
+            name: 'Mercado',
+            plannedAmount: 600000,
+            categoryId: 3
+          });
+          expect(response).toEqual(plan);
+          expect(service.getBudgetDetail).toHaveBeenCalledTimes(1);
+          done();
+        });
+    });
+  });
+
+  it('applies a forward change and refreshes the selected detail', (done) => {
+    const applyResponse: SubBudgetForwardApplyResponseDto = { months: [{ year: 2026, month: 5, outcome: 'APPLIED' }] };
+    service.applySubBudgetForward.and.returnValue(of(applyResponse));
+
+    store.getBudgetDetail(10, 2026, 5).subscribe(() => {
+      service.getBudgetDetail.calls.reset();
+
+      store
+        .applySubBudgetForward(10, 1, { action: 'DELETE', subBudgetId: 2, months: [6, 7] })
+        .subscribe((response) => {
+          expect(service.applySubBudgetForward).toHaveBeenCalledWith(10, 1, { action: 'DELETE', subBudgetId: 2, months: [6, 7] });
+          expect(response).toEqual(applyResponse);
+          expect(service.getBudgetDetail).toHaveBeenCalledWith(10, 2026, 5);
+          done();
+        });
     });
   });
 

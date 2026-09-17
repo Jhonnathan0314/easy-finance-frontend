@@ -102,4 +102,19 @@ describe('BudgetsApiService', () => {
     requests[0].flush({});
     requests[1].flush({});
   });
+
+  it('builds sub budget forward preview and apply endpoints', () => {
+    service.previewSubBudgetForward(5, 9, { action: 'UPDATE', subBudgetId: 12, name: 'Mercado', plannedAmount: 600000, categoryId: 2 }).subscribe();
+    service.applySubBudgetForward(5, 9, { action: 'UPDATE', subBudgetId: 12, name: 'Mercado', plannedAmount: 600000, categoryId: 2, months: [6, 7] }).subscribe();
+
+    const previewRequest = httpTesting.expectOne('http://localhost:8080/api/v1/accounts/5/budgets/9/sub-budgets/forward-preview');
+    expect(previewRequest.request.method).toBe('POST');
+    expect(previewRequest.request.body).toEqual({ action: 'UPDATE', subBudgetId: 12, name: 'Mercado', plannedAmount: 600000, categoryId: 2 });
+    previewRequest.flush({ months: [] });
+
+    const applyRequest = httpTesting.expectOne('http://localhost:8080/api/v1/accounts/5/budgets/9/sub-budgets/forward-apply');
+    expect(applyRequest.request.method).toBe('POST');
+    expect(applyRequest.request.body).toEqual({ action: 'UPDATE', subBudgetId: 12, name: 'Mercado', plannedAmount: 600000, categoryId: 2, months: [6, 7] });
+    applyRequest.flush({ months: [] });
+  });
 });

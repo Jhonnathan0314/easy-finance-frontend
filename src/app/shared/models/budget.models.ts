@@ -116,3 +116,62 @@ export interface BudgetDetailResponse {
 }
 
 export type BudgetDetailResponseDto = BudgetDetailResponse;
+
+export type SubBudgetForwardAction = 'CREATE' | 'UPDATE' | 'DELETE';
+
+export type SubBudgetForwardMonthStatus =
+  | 'WILL_CREATE'
+  | 'WILL_UPDATE'
+  | 'WILL_DEACTIVATE'
+  | 'DIVERGES'
+  | 'NO_CHANGE'
+  | 'SKIPPED_CLOSED'
+  | 'SKIPPED_NO_BUDGET';
+
+export interface SubBudgetForwardRequest {
+  action: SubBudgetForwardAction;
+  subBudgetId?: number | null;
+  categoryId?: number | null;
+  participantId?: number | null;
+  name?: string | null;
+  plannedAmount?: number | null;
+}
+
+export interface SubBudgetForwardApplyRequest extends SubBudgetForwardRequest {
+  months: number[];
+}
+
+export interface SubBudgetForwardMonthPlanResponse {
+  year: number;
+  month: number;
+  budgetId?: number | null;
+  status: SubBudgetForwardMonthStatus;
+  currentSubBudgetId?: number | null;
+  currentName?: string | null;
+  currentCategoryId?: number | null;
+  currentParticipantId?: number | null;
+  currentPlannedAmount?: number | null;
+  proposedName?: string | null;
+  proposedCategoryId?: number | null;
+  proposedParticipantId?: number | null;
+  proposedPlannedAmount?: number | null;
+}
+
+export interface SubBudgetForwardPlanResponse {
+  months: SubBudgetForwardMonthPlanResponse[];
+}
+
+export type SubBudgetForwardPlanResponseDto = SubBudgetForwardPlanResponse;
+
+export interface SubBudgetForwardMonthResultResponse {
+  year: number;
+  month: number;
+  outcome: 'APPLIED' | 'SKIPPED';
+  reason?: string | null;
+}
+
+export interface SubBudgetForwardApplyResponse {
+  months: SubBudgetForwardMonthResultResponse[];
+}
+
+export type SubBudgetForwardApplyResponseDto = SubBudgetForwardApplyResponse;

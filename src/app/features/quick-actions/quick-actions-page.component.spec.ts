@@ -5,6 +5,7 @@ import { of } from 'rxjs';
 
 import { AccountsApiService } from '../../core/accounts/accounts-api.service';
 import { AuthStore } from '../../core/auth/auth.store';
+import { BudgetsApiService } from '../../core/budgets/budgets-api.service';
 import { CatalogsApiService } from '../../core/catalogs/catalogs-api.service';
 import { ExpensesStore } from '../../core/expenses/expenses.store';
 import { IncomeStore } from '../../core/income/income.store';
@@ -133,6 +134,14 @@ describe('QuickActionsPageComponent', () => {
             isSaving: signal(false),
             error: signal(null),
             createIncome
+          }
+        },
+        {
+          provide: BudgetsApiService,
+          useValue: {
+            getBudgetDetail: jasmine
+              .createSpy('getBudgetDetail')
+              .and.returnValue(of({ budget: { id: 1, accountId: 1, year: 2026, month: 5, status: 'ACTIVE', createdAt: '', updatedAt: '' }, subBudgets: [], impacts: [] }))
           }
         }
       ]
@@ -277,5 +286,24 @@ describe('QuickActionsPageComponent', () => {
 
     expect(component.activeAction()).toBe('none');
     expect(createSimpleExpense).not.toHaveBeenCalled();
+  });
+
+  it('toggles the current month budget consolidated view', () => {
+    const { fixture } = configure();
+    const component = fixture.componentInstance;
+
+    expect(fixture.nativeElement.querySelector('.monthly-consolidated-panel')).toBeNull();
+
+    findButton(fixture, 'Ver presupuesto mes actual')?.click();
+    fixture.detectChanges();
+
+    expect(component.showCurrentMonthBudget()).toBeTrue();
+    expect(fixture.nativeElement.querySelector('.monthly-consolidated-panel')).not.toBeNull();
+
+    findButton(fixture, 'Ver presupuesto mes actual')?.click();
+    fixture.detectChanges();
+
+    expect(component.showCurrentMonthBudget()).toBeFalse();
+    expect(fixture.nativeElement.querySelector('.monthly-consolidated-panel')).toBeNull();
   });
 });

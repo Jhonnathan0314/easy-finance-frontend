@@ -1,0 +1,41 @@
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.section-heading span {
+  color: var(--color-text-secondary);
+}
+
+.muted {
+  color: var(--color-text-secondary);
+}
+
+.monthly-consolidated-panel {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.consolidated-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 0.75rem;
+}
+
+.consolidated-table th,
+.consolidated-table td {
+  border: 1px solid var(--color-border-strong);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.consolidated-table th {
+  background: var(--color-bg-panel);
+}
+
+.consolidated-table tr.consolidated-total-row td {
+  font-weight: 700;
+  background: var(--color-info-bg);
+}

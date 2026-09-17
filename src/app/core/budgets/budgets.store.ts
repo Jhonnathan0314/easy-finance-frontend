@@ -11,6 +11,10 @@ import {
   CreateAnnualBudgetRequest,
   CreateSubBudgetRequest,
   DuplicateBudgetRequest,
+  SubBudgetForwardApplyRequest,
+  SubBudgetForwardApplyResponseDto,
+  SubBudgetForwardPlanResponseDto,
+  SubBudgetForwardRequest,
   UpdateSubBudgetRequest,
   UpsertBudgetRequest
 } from '../../shared/models';
@@ -234,6 +238,35 @@ export class BudgetsStore {
 
     return this.budgetsApi.deactivateSubBudget(accountId, budgetId, subBudgetId).pipe(
       switchMap(() => this.refreshSelectedDetail(accountId)),
+      catchError((error: unknown) => this.handleError(error)),
+      finalize(() => this.isSaving.set(false))
+    );
+  }
+
+  previewSubBudgetForward(
+    accountId: number,
+    budgetId: number,
+    request: SubBudgetForwardRequest
+  ): Observable<SubBudgetForwardPlanResponseDto> {
+    this.ensureAccount(accountId);
+    this.error.set(null);
+
+    return this.budgetsApi.previewSubBudgetForward(accountId, budgetId, request).pipe(
+      catchError((error: unknown) => this.handleError(error))
+    );
+  }
+
+  applySubBudgetForward(
+    accountId: number,
+    budgetId: number,
+    request: SubBudgetForwardApplyRequest
+  ): Observable<SubBudgetForwardApplyResponseDto> {
+    this.ensureAccount(accountId);
+    this.isSaving.set(true);
+    this.error.set(null);
+
+    return this.budgetsApi.applySubBudgetForward(accountId, budgetId, request).pipe(
+      switchMap((response) => this.refreshSelectedDetail(accountId).pipe(map(() => response))),
       catchError((error: unknown) => this.handleError(error)),
       finalize(() => this.isSaving.set(false))
     );

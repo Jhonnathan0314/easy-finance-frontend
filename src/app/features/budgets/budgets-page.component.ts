@@ -16,18 +16,18 @@ import {
   BudgetStatus,
   CategoryResponseDto,
   CreateAnnualBudgetRequest,
+  SubBudgetForwardAction,
+  SubBudgetForwardApplyRequest,
+  SubBudgetForwardApplyResponseDto,
+  SubBudgetForwardMonthPlanResponse,
+  SubBudgetForwardPlanResponseDto,
+  SubBudgetForwardRequest,
   SubBudgetResponseDto
 } from '../../shared/models';
 import { enumLabel } from '../../shared/ui/enum-labels';
+import { MonthlyBudgetConsolidatedComponent } from './monthly-budget-consolidated.component';
 
 type BudgetPeriodSort = 'month,desc' | 'month,asc';
-
-interface BudgetCategorySummary {
-  categoryId: number;
-  categoryName: string;
-  totalPlannedAmount: number;
-  subBudgetCount: number;
-}
 
 interface BudgetSubBudgetFilters {
   search: string;
@@ -42,7 +42,7 @@ interface ParticipantFilterOption {
 @Component({
   selector: 'ef-budgets-page',
   standalone: true,
-  imports: [CurrencyPipe, ReactiveFormsModule, RouterLink],
+  imports: [CurrencyPipe, ReactiveFormsModule, RouterLink, MonthlyBudgetConsolidatedComponent],
   styleUrl: './budgets-page.component.scss',
   template: `
     <section class="page-shell">
@@ -318,26 +318,6 @@ interface ParticipantFilterOption {
                 <div class="progress-track"><span [style.width.%]="impactProgress()"></span></div>
               </div>
             </div>
-            <section class="panel detail-tabs-panel">
-              <div class="detail-tabs" role="tablist" aria-label="Detalle de presupuesto mensual">
-                <button
-                  type="button"
-                  role="tab"
-                  [class.active]="selectedDetailTab() === 'categorySummary'"
-                  [attr.aria-selected]="selectedDetailTab() === 'categorySummary'"
-                  (click)="changeDetailTab('categorySummary')">
-                  Presupuesto por categoria
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  [class.active]="selectedDetailTab() === 'subBudgets'"
-                  [attr.aria-selected]="selectedDetailTab() === 'subBudgets'"
-                  (click)="changeDetailTab('subBudgets')">
-                  Subpresupuestos
-                </button>
-              </div>
-            </section>
 
             <section class="panel participant-filter-panel" aria-label="Filtro por persona">
               <div class="section-heading">
@@ -358,77 +338,25 @@ interface ParticipantFilterOption {
               </div>
             </section>
 
-            @if (selectedDetailTab() === 'categorySummary') {
-              <section class="panel category-budget-section">
-                <div class="section-heading">
-                  <h2>Presupuesto por categoria</h2>
-                  <span>{{ budgetByCategory().length }} categorias</span>
-                </div>
+            @if (showMonthlyConsolidated()) {
+              <ef-monthly-budget-consolidated
+                [year]="detail.budget.year"
+                [month]="detail.budget.month"
+                (close)="closeMonthlyConsolidated()"
+              />
+            }
 
-                @if (!budgetByCategory().length) {
-                  <p class="muted">No hay categorias con presupuesto para este mes.</p>
-                } @else {
-                  <div class="category-budget-list compact-grid">
-                    @for (item of budgetByCategory(); track item.categoryId) {
-                      <article
-                        class="budget-card compact-row"
-                        [class.selected]="expandedCategoryId() === item.categoryId">
-                        <div class="category-summary-info">
-                          <strong>{{ item.categoryName }}</strong>
-                          <span>{{ item.subBudgetCount }} {{ item.subBudgetCount === 1 ? 'subpresupuesto' : 'subpresupuestos' }}</span>
-                          <div class="amount-block">
-                            <span>Total presupuestado</span>
-                            <strong>{{ item.totalPlannedAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
-                          </div>
-                        </div>
-                        <div class="actions category-actions">
-                          <button type="button" (click)="toggleCategorySubBudgets(item.categoryId)">
-                            {{ expandedCategoryId() === item.categoryId ? 'Ocultar subpresupuestos' : 'Ver subpresupuestos' }}
-                          </button>
-                        </div>
-                        @if (expandedCategoryId() === item.categoryId) {
-                          <div class="category-subbudgets">
-                            @for (subBudget of subBudgetsByCategory(item.categoryId); track subBudget.id) {
-                              <article class="subbudget-card compact-row">
-                                <div>
-                                  <h3>{{ subBudget.name }}</h3>
-                                  <p>{{ categoryName(subBudget.categoryId) }}</p>
-                                  <p>{{ subBudgetParticipantLabel(subBudget.participantId) }}</p>
-                                </div>
-                                <div class="amount-block">
-                                  <span>Presupuestado</span>
-                                  <strong>{{ subBudget.plannedAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
-                                </div>
-                                @if (canMutateSubBudget(subBudget)) {
-                                  <div class="actions">
-                                    <button type="button" (click)="startEditSubBudget(subBudget)">Editar</button>
-                                    <button
-                                      type="button"
-                                      [disabled]="subBudget.status === 'INACTIVE'"
-                                      (click)="deactivateSubBudget(subBudget)"
-                                    >
-                                      Desactivar
-                                    </button>
-                                  </div>
-                                }
-                              </article>
-                            }
-                          </div>
-                        }
-                      </article>
-                    }
-                  </div>
-                }
-              </section>
-            } @else {
               <section class="panel subbudget-section">
                 <div class="section-heading">
                   <h2>Subpresupuestos</h2>
-                  @if (canWrite()) {
-                    <button class="button" type="button" (click)="startCreateSubBudget()" [disabled]="!expenseCategories().length">
-                      Nuevo subpresupuesto
-                    </button>
-                  }
+                  <div class="actions">
+                    <button type="button" (click)="openMonthlyConsolidated()">Consolidado mensual</button>
+                    @if (canWrite()) {
+                      <button class="button" type="button" (click)="startCreateSubBudget()" [disabled]="!expenseCategories().length">
+                        Nuevo subpresupuesto
+                      </button>
+                    }
+                  </div>
                 </div>
 
                 <div class="subbudget-filters">
@@ -521,11 +449,77 @@ interface ParticipantFilterOption {
                         }
                       </select>
                     </label>
+                    <label class="checkbox-field wide">
+                      <input type="checkbox" formControlName="applyForward">
+                      <span>Aplicar desde {{ monthLabel(detail.budget.month) }} hasta diciembre {{ detail.budget.year }}</span>
+                    </label>
                     <div class="form-actions">
                       <button class="button" type="submit" [disabled]="subBudgetForm.invalid || budgetsStore.isSaving()">Guardar</button>
                       <button type="button" (click)="cancelSubBudgetForm()">Cancelar</button>
                     </div>
                   </form>
+                }
+
+                @if (forwardPlan(); as plan) {
+                  <section class="panel forward-plan-panel">
+                    <h3>Confirmar aplicacion hacia adelante</h3>
+                    <table class="forward-plan-table">
+                      <thead>
+                        <tr>
+                          <th>Mes</th>
+                          <th>Actual</th>
+                          <th>Propuesto</th>
+                          <th>Aplicar</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (item of plan.months; track item.month; let isFirst = $first) {
+                          <tr [class.diverges]="item.status === 'DIVERGES'">
+                            <td>
+                              {{ monthLabel(item.month) }} {{ item.year }}
+                              @if (isFirst) { <em>(este mes)</em> }
+                            </td>
+                            <td>
+                              @if (item.currentPlannedAmount != null) {
+                                {{ item.currentName }} · {{ item.currentPlannedAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}
+                              } @else {
+                                —
+                              }
+                            </td>
+                            <td>
+                              @if (item.proposedPlannedAmount != null) {
+                                {{ item.proposedName }} · {{ item.proposedPlannedAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}
+                              } @else if (forwardAction() === 'DELETE') {
+                                Desactivar
+                              } @else {
+                                —
+                              }
+                            </td>
+                            <td>
+                              @if (isFirst) {
+                                <span>Siempre</span>
+                              } @else if (forwardIsSkippable(item.status)) {
+                                <span>{{ forwardStatusLabel(item.status) }}</span>
+                              } @else {
+                                <label class="checkbox-field">
+                                  <input
+                                    type="checkbox"
+                                    [checked]="forwardSelectedMonths().has(item.month)"
+                                    (change)="toggleForwardMonth(item.month)"
+                                  >
+                                  <span>{{ forwardStatusLabel(item.status) }}</span>
+                                </label>
+                              }
+                            </td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                    <div class="form-actions">
+                      <button class="button" type="button" [disabled]="forwardBusy()" (click)="confirmForwardApply()">Confirmar</button>
+                      <button type="button" (click)="cancelForwardPreview()">Cancelar</button>
+                    </div>
+                  </section>
                 }
 
                 @if (!filteredSubBudgets().length) {
@@ -554,6 +548,13 @@ interface ParticipantFilterOption {
                               (click)="deactivateSubBudget(subBudget)"
                             >
                               Desactivar
+                            </button>
+                            <button
+                              type="button"
+                              [disabled]="subBudget.status === 'INACTIVE'"
+                              (click)="startDeleteForward(subBudget)"
+                            >
+                              Eliminar desde este mes
                             </button>
                           </div>
                         }
@@ -601,7 +602,6 @@ interface ParticipantFilterOption {
                   </div>
                 }
               </section>
-            }
           } @else {
             <div class="detail-empty-state">
               <div class="section-heading detail-empty-heading">
@@ -641,13 +641,18 @@ export class BudgetsPageComponent implements OnInit {
   readonly editingSubBudget = signal<SubBudgetResponseDto | null>(null);
   readonly editingBudgetId = signal<number | null>(null);
   readonly viewMode = signal<'annualList' | 'monthlyDetail'>('annualList');
-  readonly selectedDetailTab = signal<'categorySummary' | 'subBudgets'>('categorySummary');
-  readonly expandedCategoryId = signal<number | null>(null);
+  readonly showMonthlyConsolidated = signal(false);
   readonly subBudgetFilters = signal<BudgetSubBudgetFilters>({ search: '', categoryId: null });
   readonly participantFilter = signal<Set<string>>(new Set());
   readonly successMessage = signal<string | null>(null);
   readonly duplicateBudgetError = signal<string | null>(null);
   readonly annualBudgetError = signal<string | null>(null);
+  readonly forwardAction = signal<SubBudgetForwardAction | null>(null);
+  readonly forwardPlan = signal<SubBudgetForwardPlanResponseDto | null>(null);
+  readonly forwardSelectedMonths = signal<Set<number>>(new Set());
+  readonly forwardBusy = signal(false);
+  private pendingForwardRequest: SubBudgetForwardRequest | null = null;
+  private pendingForwardBudgetId: number | null = null;
   readonly accountId = computed(() => this.accountStore.selectedAccountId() ?? 0);
   readonly canWrite = computed(
     () => this.accountStore.selectedAccount()?.currentUserRole === 'ACCOUNT_ADMIN' && !this.accountStore.selectedAccountArchived()
@@ -697,32 +702,6 @@ export class BudgetsPageComponent implements OnInit {
       .sort((a, b) => a.label.localeCompare(b.label));
 
     return [{ key: 'GLOBAL', label: 'Global' }, ...members];
-  });
-  readonly budgetByCategory = computed<BudgetCategorySummary[]>(() => {
-    const detail = this.budgetsStore.selectedBudgetDetail();
-    const grouped = new Map<number, { totalPlannedAmount: number; subBudgetCount: number }>();
-
-    for (const subBudget of detail?.subBudgets ?? []) {
-      if (subBudget.status !== 'ACTIVE' || subBudget.categoryId == null || !this.matchesParticipantFilter(subBudget.participantId)) {
-        continue;
-      }
-
-      const current = grouped.get(subBudget.categoryId) ?? { totalPlannedAmount: 0, subBudgetCount: 0 };
-
-      grouped.set(subBudget.categoryId, {
-        totalPlannedAmount: current.totalPlannedAmount + subBudget.plannedAmount,
-        subBudgetCount: current.subBudgetCount + 1
-      });
-    }
-
-    return Array.from(grouped.entries())
-      .map(([categoryId, value]) => ({
-        categoryId,
-        categoryName: this.categoryName(categoryId),
-        totalPlannedAmount: value.totalPlannedAmount,
-        subBudgetCount: value.subBudgetCount
-      }))
-      .sort((a, b) => a.categoryName.localeCompare(b.categoryName));
   });
   readonly subBudgetCategories = computed(() => {
     const categories = new Map<number, CategoryResponseDto>();
@@ -799,7 +778,8 @@ export class BudgetsPageComponent implements OnInit {
     categoryId: [null as number | null],
     name: ['', [Validators.required, Validators.maxLength(150)]],
     plannedAmount: [0, [Validators.required, Validators.min(0)]],
-    participantId: ['']
+    participantId: [''],
+    applyForward: [false]
   });
   readonly annualBudgetForm = this.fb.group({
     year: [this.currentDate.getFullYear(), [Validators.required, Validators.min(2000), Validators.max(2100)]],
@@ -859,10 +839,7 @@ export class BudgetsPageComponent implements OnInit {
       .getBudgetDetail(this.accountId(), raw.year, raw.month, { persist: true })
       .pipe(take(1))
       .subscribe({
-        next: () => {
-          this.selectedDetailTab.set('categorySummary');
-          this.viewMode.set('monthlyDetail');
-        },
+        next: () => this.viewMode.set('monthlyDetail'),
         error: () => undefined
       });
   }
@@ -873,24 +850,21 @@ export class BudgetsPageComponent implements OnInit {
       .getBudgetDetail(this.accountId(), budget.year, budget.month, { persist: true })
       .pipe(take(1))
       .subscribe({
-        next: () => {
-          this.selectedDetailTab.set('categorySummary');
-          this.viewMode.set('monthlyDetail');
-        },
+        next: () => this.viewMode.set('monthlyDetail'),
         error: () => undefined
       });
   }
 
   backToAnnualList(): void {
     this.viewMode.set('annualList');
-    this.expandedCategoryId.set(null);
   }
 
-  changeDetailTab(tab: 'categorySummary' | 'subBudgets'): void {
-    this.selectedDetailTab.set(tab);
-    if (tab === 'subBudgets') {
-      this.expandedCategoryId.set(null);
-    }
+  openMonthlyConsolidated(): void {
+    this.showMonthlyConsolidated.set(true);
+  }
+
+  closeMonthlyConsolidated(): void {
+    this.showMonthlyConsolidated.set(false);
   }
 
   clearFilters(): void {
@@ -1107,22 +1081,10 @@ export class BudgetsPageComponent implements OnInit {
       categoryId: null,
       name: '',
       plannedAmount: 0,
-      participantId: this.canAssignGlobalSubBudget() ? '' : this.currentParticipantIdValue()
+      participantId: this.canAssignGlobalSubBudget() ? '' : this.currentParticipantIdValue(),
+      applyForward: false
     });
     this.showSubBudgetForm.set(true);
-  }
-
-  toggleCategorySubBudgets(categoryId: number): void {
-    this.expandedCategoryId.set(this.expandedCategoryId() === categoryId ? null : categoryId);
-  }
-
-  subBudgetsByCategory(categoryId: number): SubBudgetResponseDto[] {
-    return (this.budgetsStore.selectedBudgetDetail()?.subBudgets ?? []).filter(
-      (subBudget) =>
-        subBudget.status === 'ACTIVE' &&
-        subBudget.categoryId === categoryId &&
-        this.matchesParticipantFilter(subBudget.participantId)
-    );
   }
 
   isParticipantSelected(key: string): boolean {
@@ -1186,7 +1148,8 @@ export class BudgetsPageComponent implements OnInit {
       categoryId: subBudget.categoryId ?? null,
       name: subBudget.name,
       plannedAmount: subBudget.plannedAmount,
-      participantId: subBudget.participantId?.toString() ?? ''
+      participantId: subBudget.participantId?.toString() ?? '',
+      applyForward: false
     });
     this.showSubBudgetForm.set(true);
   }
@@ -1208,6 +1171,12 @@ export class BudgetsPageComponent implements OnInit {
       plannedAmount: raw.plannedAmount,
       participantId: this.selectedParticipantId(raw.participantId)
     };
+
+    if (raw.applyForward) {
+      this.startForwardPreview(detail.budget.id, editing ? 'UPDATE' : 'CREATE', editing?.id ?? null, request);
+      return;
+    }
+
     const request$ = editing
       ? this.budgetsStore.updateSubBudget(this.accountId(), detail.budget.id, editing.id, request)
       : this.budgetsStore.createSubBudget(this.accountId(), detail.budget.id, request);
@@ -1237,9 +1206,130 @@ export class BudgetsPageComponent implements OnInit {
       });
   }
 
+  startDeleteForward(subBudget: SubBudgetResponseDto): void {
+    const detail = this.budgetsStore.selectedBudgetDetail();
+
+    if (!detail || !this.canMutateSubBudget(subBudget)) {
+      return;
+    }
+
+    this.successMessage.set(null);
+    this.startForwardPreview(detail.budget.id, 'DELETE', subBudget.id, null);
+  }
+
   cancelSubBudgetForm(): void {
     this.showSubBudgetForm.set(false);
     this.editingSubBudget.set(null);
+  }
+
+  toggleForwardMonth(month: number): void {
+    this.forwardSelectedMonths.update((current) => {
+      const next = new Set(current);
+
+      if (next.has(month)) {
+        next.delete(month);
+      } else {
+        next.add(month);
+      }
+
+      return next;
+    });
+  }
+
+  forwardIsSkippable(status: SubBudgetForwardMonthPlanResponse['status']): boolean {
+    return status === 'SKIPPED_CLOSED' || status === 'SKIPPED_NO_BUDGET' || status === 'NO_CHANGE';
+  }
+
+  forwardStatusLabel(status: SubBudgetForwardMonthPlanResponse['status']): string {
+    const labels: Record<SubBudgetForwardMonthPlanResponse['status'], string> = {
+      WILL_CREATE: 'Se creara',
+      WILL_UPDATE: 'Se actualizara',
+      WILL_DEACTIVATE: 'Se desactivara',
+      DIVERGES: 'Difiere del valor propuesto',
+      NO_CHANGE: 'Sin cambios',
+      SKIPPED_CLOSED: 'Omitido (mes cerrado)',
+      SKIPPED_NO_BUDGET: 'Omitido (sin presupuesto)'
+    };
+
+    return labels[status];
+  }
+
+  confirmForwardApply(): void {
+    const request = this.pendingForwardRequest;
+    const budgetId = this.pendingForwardBudgetId;
+
+    if (!request || budgetId == null) {
+      return;
+    }
+
+    this.forwardBusy.set(true);
+    const applyRequest: SubBudgetForwardApplyRequest = {
+      ...request,
+      months: Array.from(this.forwardSelectedMonths())
+    };
+
+    this.budgetsStore
+      .applySubBudgetForward(this.accountId(), budgetId, applyRequest)
+      .pipe(take(1))
+      .subscribe({
+        next: (response) => {
+          this.forwardBusy.set(false);
+          this.successMessage.set(this.forwardSummaryMessage(response));
+          this.cancelForwardPreview();
+          this.cancelSubBudgetForm();
+        },
+        error: () => this.forwardBusy.set(false)
+      });
+  }
+
+  cancelForwardPreview(): void {
+    this.forwardPlan.set(null);
+    this.forwardAction.set(null);
+    this.forwardSelectedMonths.set(new Set());
+    this.pendingForwardRequest = null;
+    this.pendingForwardBudgetId = null;
+  }
+
+  private startForwardPreview(
+    budgetId: number,
+    action: SubBudgetForwardAction,
+    subBudgetId: number | null,
+    request: { categoryId: number | null; name: string; plannedAmount: number; participantId: number | null } | null
+  ): void {
+    const forwardRequest: SubBudgetForwardRequest = {
+      action,
+      subBudgetId,
+      categoryId: request?.categoryId ?? null,
+      participantId: request?.participantId ?? null,
+      name: request?.name ?? null,
+      plannedAmount: request?.plannedAmount ?? null
+    };
+
+    this.budgetsStore
+      .previewSubBudgetForward(this.accountId(), budgetId, forwardRequest)
+      .pipe(take(1))
+      .subscribe({
+        next: (plan) => {
+          this.pendingForwardRequest = forwardRequest;
+          this.pendingForwardBudgetId = budgetId;
+          this.forwardAction.set(action);
+          this.forwardPlan.set(plan);
+          this.forwardSelectedMonths.set(new Set(
+            plan.months
+              .slice(1)
+              .filter((month) => !this.forwardIsSkippable(month.status))
+              .map((month) => month.month)
+          ));
+        },
+        error: () => undefined
+      });
+  }
+
+  private forwardSummaryMessage(response: SubBudgetForwardApplyResponseDto): string {
+    const applied = response.months.filter((month) => month.outcome === 'APPLIED').length;
+    const skipped = response.months.length - applied;
+
+    return skipped > 0 ? `Aplicado a ${applied} meses. ${skipped} meses omitidos.` : `Aplicado a ${applied} meses.`;
   }
 
   canMutateSubBudget(subBudget: SubBudgetResponseDto): boolean {
@@ -1305,6 +1395,8 @@ export class BudgetsPageComponent implements OnInit {
       ANNUAL_BUDGET_MONTH_ALREADY_EXISTS: 'Ya existe al menos un presupuesto para este año.',
       SUB_BUDGET_NOT_FOUND: 'El subpresupuesto no existe.',
       SUB_BUDGET_DERIVED_NOT_EDITABLE: 'Los subpresupuestos derivados no se editan manualmente.',
+      SUB_BUDGET_SOURCE_NOT_EDITABLE: 'Los subpresupuestos derivados no se editan manualmente.',
+      BUDGET_NOT_ACTIVE: 'El presupuesto de ese mes no esta activo.',
       ACCOUNT_ADMIN_REQUIRED: 'Necesitas rol administrador para esta accion.',
       VALIDATION_ERROR: 'Revisa los datos del formulario.'
     };

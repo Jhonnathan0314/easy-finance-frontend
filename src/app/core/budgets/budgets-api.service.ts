@@ -10,6 +10,10 @@ import {
   CreateSubBudgetRequest,
   DuplicateBudgetRequest,
   PageResponseDto,
+  SubBudgetForwardApplyRequest,
+  SubBudgetForwardApplyResponseDto,
+  SubBudgetForwardPlanResponseDto,
+  SubBudgetForwardRequest,
   SubBudgetResponseDto,
   UpdateSubBudgetRequest,
   UpsertBudgetRequest
@@ -78,6 +82,28 @@ export class BudgetsApiService {
 
   deactivateSubBudget(accountId: number, budgetId: number, subBudgetId: number): Observable<void> {
     return this.api.delete<void>(`/accounts/${accountId}/budgets/${budgetId}/sub-budgets/${subBudgetId}`);
+  }
+
+  previewSubBudgetForward(
+    accountId: number,
+    budgetId: number,
+    request: SubBudgetForwardRequest
+  ): Observable<SubBudgetForwardPlanResponseDto> {
+    return this.api.post<SubBudgetForwardPlanResponseDto, SubBudgetForwardRequest>(
+      `/accounts/${accountId}/budgets/${budgetId}/sub-budgets/forward-preview`,
+      request
+    );
+  }
+
+  applySubBudgetForward(
+    accountId: number,
+    budgetId: number,
+    request: SubBudgetForwardApplyRequest
+  ): Observable<SubBudgetForwardApplyResponseDto> {
+    return this.api.post<SubBudgetForwardApplyResponseDto, SubBudgetForwardApplyRequest>(
+      `/accounts/${accountId}/budgets/${budgetId}/sub-budgets/forward-apply`,
+      request
+    );
   }
 }
 

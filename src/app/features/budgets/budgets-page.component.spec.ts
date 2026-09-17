@@ -4,6 +4,7 @@ import { of } from 'rxjs';
 
 import { AccountsApiService } from '../../core/accounts/accounts-api.service';
 import { AuthStore } from '../../core/auth/auth.store';
+import { BudgetsApiService } from '../../core/budgets/budgets-api.service';
 import { BudgetPersistedFilters, BudgetsStore } from '../../core/budgets/budgets.store';
 import { CatalogsApiService } from '../../core/catalogs/catalogs-api.service';
 import { AccountStore } from '../../core/state/account.store';
@@ -14,6 +15,8 @@ import {
   BudgetResponseDto,
   BudgetSummaryResponseDto,
   CategoryResponseDto,
+  SubBudgetForwardApplyResponseDto,
+  SubBudgetForwardPlanResponseDto,
   SubBudgetResponseDto
 } from '../../shared/models';
 import { BudgetsPageComponent } from './budgets-page.component';
@@ -147,6 +150,9 @@ describe('BudgetsPageComponent', () => {
       persistedFilters?: BudgetPersistedFilters;
       budgetSummary?: BudgetSummaryResponseDto | null;
       members?: AccountMemberResponseDto[];
+      forwardPlan?: SubBudgetForwardPlanResponseDto;
+      forwardApplyResponse?: SubBudgetForwardApplyResponseDto;
+      consolidatedDetail?: BudgetDetailResponseDto;
     } = {}
   ): ComponentFixture<BudgetsPageComponent> {
     const account = {
@@ -190,7 +196,13 @@ describe('BudgetsPageComponent', () => {
             duplicateBudget: jasmine.createSpy('duplicateBudget').and.callFake(() => of(selectedBudgetDetail() ?? detail)),
             createSubBudget: jasmine.createSpy('createSubBudget').and.callFake(() => of(selectedBudgetDetail())),
             updateSubBudget: jasmine.createSpy('updateSubBudget').and.callFake(() => of(selectedBudgetDetail())),
-            deactivateSubBudget: jasmine.createSpy('deactivateSubBudget').and.callFake(() => of(selectedBudgetDetail()))
+            deactivateSubBudget: jasmine.createSpy('deactivateSubBudget').and.callFake(() => of(selectedBudgetDetail())),
+            previewSubBudgetForward: jasmine
+              .createSpy('previewSubBudgetForward')
+              .and.returnValue(of(options.forwardPlan ?? { months: [] })),
+            applySubBudgetForward: jasmine
+              .createSpy('applySubBudgetForward')
+              .and.returnValue(of(options.forwardApplyResponse ?? { months: [] }))
           }
         },
         {
@@ -205,6 +217,12 @@ describe('BudgetsPageComponent', () => {
             listCategories: jasmine
               .createSpy('listCategories')
               .and.returnValue(of({ content: options.categories ?? [category], page: 0, size: 20, totalElements: 1, totalPages: 1 }))
+          }
+        },
+        {
+          provide: BudgetsApiService,
+          useValue: {
+            getBudgetDetail: jasmine.createSpy('getBudgetDetail').and.returnValue(of(options.consolidatedDetail ?? detail))
           }
         }
       ]
@@ -235,7 +253,6 @@ describe('BudgetsPageComponent', () => {
     const store = TestBed.inject(BudgetsStore) as jasmine.SpyObj<BudgetsStore>;
 
     component.viewMode.set('monthlyDetail');
-    component.changeDetailTab('subBudgets');
     component.startCreateSubBudget();
     fixture.detectChanges();
 
@@ -268,7 +285,6 @@ describe('BudgetsPageComponent', () => {
     const store = TestBed.inject(BudgetsStore) as jasmine.SpyObj<BudgetsStore>;
 
     component.viewMode.set('monthlyDetail');
-    component.changeDetailTab('subBudgets');
     component.startCreateSubBudget();
     fixture.detectChanges();
 
@@ -315,6 +331,65 @@ describe('BudgetsPageComponent', () => {
     );
   });
 
+  it('previews a forward change instead of saving directly when the toggle is checked', () => {
+    const plan: SubBudgetForwardPlanResponseDto = {
+      months: [
+        { year: 2026, month: 5, status: 'WILL_UPDATE' },
+        { year: 2026, month: 6, status: 'DIVERGES', currentName: 'Mercado', currentPlannedAmount: 400000 },
+        { year: 2026, month: 7, status: 'SKIPPED_CLOSED' }
+      ]
+    };
+    const fixture = configure({ forwardPlan: plan });
+    const component = fixture.componentInstance;
+    const store = TestBed.inject(BudgetsStore) as jasmine.SpyObj<BudgetsStore>;
+
+    component.startEditSubBudget(manualSubBudget);
+    component.subBudgetForm.patchValue({ name: 'Mercado', plannedAmount: 600000, applyForward: true });
+    component.saveSubBudget();
+
+    expect(store.previewSubBudgetForward).toHaveBeenCalledWith(
+      1,
+      1,
+      jasmine.objectContaining({ action: 'UPDATE', subBudgetId: 2, name: 'Mercado', plannedAmount: 600000 })
+    );
+    expect(store.updateSubBudget).not.toHaveBeenCalled();
+    expect(component.forwardPlan()).toEqual(plan);
+    expect(component.forwardSelectedMonths().has(6)).toBeTrue();
+    expect(component.forwardSelectedMonths().has(7)).toBeFalse();
+  });
+
+  it('applies the confirmed forward plan and reports a summary', () => {
+    const plan: SubBudgetForwardPlanResponseDto = {
+      months: [
+        { year: 2026, month: 5, status: 'WILL_DEACTIVATE' },
+        { year: 2026, month: 6, status: 'WILL_DEACTIVATE' }
+      ]
+    };
+    const applyResponse: SubBudgetForwardApplyResponseDto = {
+      months: [
+        { year: 2026, month: 5, outcome: 'APPLIED' },
+        { year: 2026, month: 6, outcome: 'APPLIED' }
+      ]
+    };
+    const fixture = configure({ forwardPlan: plan, forwardApplyResponse: applyResponse });
+    const component = fixture.componentInstance;
+    const store = TestBed.inject(BudgetsStore) as jasmine.SpyObj<BudgetsStore>;
+
+    component.startDeleteForward(manualSubBudget);
+
+    expect(store.previewSubBudgetForward).toHaveBeenCalledWith(1, 1, jasmine.objectContaining({ action: 'DELETE', subBudgetId: 2 }));
+
+    component.confirmForwardApply();
+
+    expect(store.applySubBudgetForward).toHaveBeenCalledWith(
+      1,
+      1,
+      jasmine.objectContaining({ action: 'DELETE', subBudgetId: 2, months: [6] })
+    );
+    expect(component.forwardPlan()).toBeNull();
+    expect(component.successMessage()).toContain('2 meses');
+  });
+
   it('limits member participant assignment to themselves', () => {
     const fixture = configure({ role: 'ACCOUNT_MEMBER' });
     const component = fixture.componentInstance;
@@ -329,7 +404,6 @@ describe('BudgetsPageComponent', () => {
     const component = fixture.componentInstance;
 
     component.viewMode.set('monthlyDetail');
-    component.changeDetailTab('subBudgets');
     fixture.detectChanges();
 
     const card = fixture.nativeElement.querySelector('.subbudget-card') as HTMLElement;
@@ -534,17 +608,6 @@ describe('BudgetsPageComponent', () => {
     expect(component.viewMode()).toBe('monthlyDetail');
   });
 
-  it('resets detail tab to category summary when opening another month detail', () => {
-    const fixture = configure();
-    const component = fixture.componentInstance;
-
-    component.viewMode.set('monthlyDetail');
-    component.changeDetailTab('subBudgets');
-    component.openBudgetDetail(budget);
-
-    expect(component.selectedDetailTab()).toBe('categorySummary');
-  });
-
   it('shows annual list as initial view and hides monthly detail section', () => {
     const fixture = configure();
 
@@ -658,31 +721,15 @@ describe('BudgetsPageComponent', () => {
     expect(fixture.nativeElement.querySelectorAll('.filters-panel').length).toBe(1);
   });
 
-  it('shows detail tabs and defaults to category summary tab', () => {
+  it('shows a single sub budgets section without any tabs in monthly detail', () => {
     const fixture = configure();
-    const component = fixture.componentInstance;
 
-    component.viewMode.set('monthlyDetail');
+    fixture.componentInstance.viewMode.set('monthlyDetail');
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.textContent).toContain('Presupuesto por categoria');
     expect(fixture.nativeElement.textContent).toContain('Subpresupuestos');
-    expect(component.selectedDetailTab()).toBe('categorySummary');
-    expect(fixture.nativeElement.querySelector('.category-budget-section')).not.toBeNull();
-    expect(fixture.nativeElement.querySelector('.subbudget-section')).toBeNull();
-  });
-
-  it('switches to sub budgets tab in monthly detail', () => {
-    const fixture = configure();
-    const component = fixture.componentInstance;
-
-    component.viewMode.set('monthlyDetail');
-    component.changeDetailTab('subBudgets');
-    fixture.detectChanges();
-
-    expect(component.selectedDetailTab()).toBe('subBudgets');
+    expect(fixture.nativeElement.querySelector('.detail-tabs')).toBeNull();
     expect(fixture.nativeElement.querySelector('.subbudget-section')).not.toBeNull();
-    expect(fixture.nativeElement.querySelector('.category-budget-section')).toBeNull();
   });
 
   it('shows current period sort and changes it preserving filters in store', () => {
@@ -727,7 +774,6 @@ describe('BudgetsPageComponent', () => {
   it('does not show edit or deactivate actions for derived sub budgets', () => {
     const fixture = configure({ budgets: [], selectedDetail: { ...detail, subBudgets: [derivedSubBudget], impacts: [] } });
     fixture.componentInstance.viewMode.set('monthlyDetail');
-    fixture.componentInstance.changeDetailTab('subBudgets');
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toContain('Laptop cuotas');
@@ -750,120 +796,9 @@ describe('BudgetsPageComponent', () => {
     expect(fixture.nativeElement.querySelector('.detail-panel .progress-track')).not.toBeNull();
   });
 
-  it('renders budget by category summary', () => {
-    const fixture = configure();
-    fixture.componentInstance.viewMode.set('monthlyDetail');
-    fixture.detectChanges();
-    const section = fixture.nativeElement.querySelector('.category-budget-section') as HTMLElement;
-
-    expect(section.textContent).toContain('Presupuesto por categoria');
-    expect(section.textContent).toContain('Mercado');
-    expect(section.textContent).toContain('Total presupuestado');
-    expect(section.textContent).toContain('$500,000');
-    expect(section.textContent).toContain('1 subpresupuesto');
-    expect(section.textContent).toContain('Ver subpresupuestos');
-  });
-
-  it('shows category sub budgets when clicking "Ver subpresupuestos"', () => {
-    const fixture = configure();
-    const component = fixture.componentInstance;
-    component.viewMode.set('monthlyDetail');
-    fixture.detectChanges();
-
-    const toggleButton = Array.from(fixture.nativeElement.querySelectorAll('.category-budget-section button')).find(
-      (button) => (button as HTMLButtonElement).textContent?.includes('Ver subpresupuestos')
-    ) as HTMLButtonElement | undefined;
-
-    expect(toggleButton).toBeTruthy();
-    toggleButton?.click();
-    fixture.detectChanges();
-
-    const section = fixture.nativeElement.querySelector('.category-budget-section') as HTMLElement;
-    expect(section.textContent).toContain('Ocultar subpresupuestos');
-    expect(section.textContent).toContain('Mercado');
-    expect(section.textContent).toContain('Presupuestado');
-    expect(section.textContent).toContain('$500,000');
-  });
-
-  it('highlights selected category card when showing its sub budgets', () => {
-    const fixture = configure();
-    const component = fixture.componentInstance;
-    component.viewMode.set('monthlyDetail');
-    fixture.detectChanges();
-
-    const toggleButton = Array.from(fixture.nativeElement.querySelectorAll('.category-budget-section button')).find(
-      (button) => (button as HTMLButtonElement).textContent?.includes('Ver subpresupuestos')
-    ) as HTMLButtonElement | undefined;
-
-    toggleButton?.click();
-    fixture.detectChanges();
-
-    const selectedCard = fixture.nativeElement.querySelector('.category-budget-list .budget-card.selected');
-    expect(selectedCard).not.toBeNull();
-  });
-
-  it('groups manual and debt-derived sub budgets by category', () => {
-    const fixture = configure({
-      selectedDetail: {
-        ...detail,
-        subBudgets: [
-          manualSubBudget,
-          { ...manualSubBudget, id: 5, name: 'Supermercado', plannedAmount: 200000 },
-          { ...derivedSubBudget, id: 6, plannedAmount: 300000 }
-        ]
-      }
-    });
-    fixture.componentInstance.viewMode.set('monthlyDetail');
-    fixture.detectChanges();
-    const section = fixture.nativeElement.querySelector('.category-budget-section') as HTMLElement;
-
-    expect(section.textContent).toContain('Mercado');
-    expect(section.textContent).toContain('$1,000,000');
-    expect(section.textContent).toContain('3 subpresupuestos');
-  });
-
-  it('excludes inactive and uncategorized sub budgets from category summary', () => {
-    const fixture = configure({
-      selectedDetail: {
-        ...detail,
-        subBudgets: [
-          manualSubBudget,
-          { ...manualSubBudget, id: 5, name: 'Inactivo', plannedAmount: 900000, status: 'INACTIVE' },
-          { ...manualSubBudget, id: 6, name: 'Sin categoria', categoryId: null, plannedAmount: 300000 }
-        ]
-      }
-    });
-    fixture.componentInstance.viewMode.set('monthlyDetail');
-    fixture.detectChanges();
-    const section = fixture.nativeElement.querySelector('.category-budget-section') as HTMLElement;
-
-    expect(section.textContent).toContain('$500,000');
-    expect(section.textContent).toContain('1 subpresupuesto');
-    expect(section.textContent).not.toContain('$900,000');
-    expect(section.textContent).not.toContain('$300,000');
-  });
-
-  it('shows empty category summary when no active categorized sub budgets exist', () => {
-    const fixture = configure({
-      selectedDetail: {
-        ...detail,
-        subBudgets: [
-          { ...manualSubBudget, status: 'INACTIVE' },
-          { ...manualSubBudget, id: 5, categoryId: null }
-        ]
-      }
-    });
-    fixture.componentInstance.viewMode.set('monthlyDetail');
-    fixture.detectChanges();
-    const section = fixture.nativeElement.querySelector('.category-budget-section') as HTMLElement;
-
-    expect(section.textContent).toContain('No hay categorias con presupuesto para este mes.');
-  });
-
   it('shows only base sub budget information without individual execution values', () => {
     const fixture = configure();
     fixture.componentInstance.viewMode.set('monthlyDetail');
-    fixture.componentInstance.changeDetailTab('subBudgets');
     fixture.detectChanges();
     const card = fixture.nativeElement.querySelector('.subbudget-card') as HTMLElement;
 
@@ -881,7 +816,6 @@ describe('BudgetsPageComponent', () => {
     const fixture = configure();
     const component = fixture.componentInstance;
     component.viewMode.set('monthlyDetail');
-    component.changeDetailTab('subBudgets');
     fixture.detectChanges();
 
     const editButton = fixture.nativeElement.querySelector('.subbudget-card .actions button') as HTMLButtonElement;
@@ -909,7 +843,6 @@ describe('BudgetsPageComponent', () => {
     });
     const component = fixture.componentInstance;
     component.viewMode.set('monthlyDetail');
-    component.changeDetailTab('subBudgets');
     fixture.detectChanges();
 
     component.setSubBudgetSearch('gas');
@@ -937,7 +870,6 @@ describe('BudgetsPageComponent', () => {
       budgetSummary: { ...summary, expectedAmount: 100000, paidAmount: 150000, pendingAmount: -50000 }
     });
     fixture.componentInstance.viewMode.set('monthlyDetail');
-    fixture.componentInstance.changeDetailTab('subBudgets');
     fixture.detectChanges();
     const card = fixture.nativeElement.querySelector('.subbudget-card') as HTMLElement;
 
@@ -964,5 +896,69 @@ describe('BudgetsPageComponent', () => {
 
     expect(fixture.nativeElement.textContent).toContain('No hay presupuesto para este mes');
     expect(fixture.nativeElement.querySelector('.error-panel')).toBeNull();
+  });
+
+  it('filters the sub budgets list by participant selection', () => {
+    const subBudgetWithParticipant: SubBudgetResponseDto = { ...manualSubBudget, participantId: 9 };
+    const fixture = configure({
+      selectedDetail: { ...detail, subBudgets: [manualSubBudget, { ...subBudgetWithParticipant, id: 5, name: 'Aseo' }] }
+    });
+    const component = fixture.componentInstance;
+    component.viewMode.set('monthlyDetail');
+    fixture.detectChanges();
+
+    component.toggleParticipantFilter('9');
+    fixture.detectChanges();
+
+    const cards = fixture.nativeElement.querySelectorAll('.subbudget-list .subbudget-card');
+    expect(cards.length).toBe(1);
+    expect((cards[0] as HTMLElement).textContent).toContain('Aseo');
+
+    component.clearParticipantFilter();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelectorAll('.subbudget-list .subbudget-card').length).toBe(2);
+  });
+
+  it('opens the monthly consolidated view with one table per participant plus category totals', () => {
+    const subBudgets: SubBudgetResponseDto[] = [
+      manualSubBudget,
+      { ...manualSubBudget, id: 5, name: 'Supermercado', plannedAmount: 200000 },
+      { ...manualSubBudget, id: 6, name: 'Aseo del hogar', participantId: 9, plannedAmount: 150000 },
+      { ...manualSubBudget, id: 7, name: 'Inactivo', plannedAmount: 900000, status: 'INACTIVE' }
+    ];
+    const fixture = configure({ consolidatedDetail: { ...detail, subBudgets } });
+    const component = fixture.componentInstance;
+    component.viewMode.set('monthlyDetail');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.monthly-consolidated-panel')).toBeNull();
+
+    const openButton = Array.from(fixture.nativeElement.querySelectorAll('button')).find(
+      (button) => (button as HTMLButtonElement).textContent?.includes('Consolidado mensual')
+    ) as HTMLButtonElement | undefined;
+    openButton?.click();
+    fixture.detectChanges();
+
+    const panel = fixture.nativeElement.querySelector('.monthly-consolidated-panel') as HTMLElement;
+    expect(panel).not.toBeNull();
+    // One table per participant (Global, Member) plus the category-totals table.
+    expect(panel.querySelectorAll('table').length).toBe(3);
+    expect(panel.querySelectorAll('h4').length).toBe(2);
+    expect(panel.textContent).toContain('Global');
+    expect(panel.textContent).toContain('$700,000');
+    expect(panel.textContent).toContain('Member (member@example.com)');
+    expect(panel.textContent).toContain('$150,000');
+    expect(panel.textContent).toContain('Total general');
+    expect(panel.textContent).toContain('$850,000');
+    expect(panel.textContent).not.toContain('$900,000');
+
+    const closeButton = Array.from(panel.querySelectorAll('button')).find(
+      (button) => (button as HTMLButtonElement).textContent?.includes('Cerrar')
+    ) as HTMLButtonElement | undefined;
+    closeButton?.click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.monthly-consolidated-panel')).toBeNull();
   });
 });

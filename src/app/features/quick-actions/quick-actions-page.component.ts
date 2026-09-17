@@ -18,6 +18,7 @@ import {
   PaymentMethodResponseDto
 } from '../../shared/models';
 import { enumLabel } from '../../shared/ui/enum-labels';
+import { MonthlyBudgetConsolidatedComponent } from '../budgets/monthly-budget-consolidated.component';
 import { installmentTotalValidator } from '../expenses/expenses-page.component';
 
 type QuickAction = 'none' | 'simple-expense' | 'installment-expense' | 'income';
@@ -25,7 +26,7 @@ type QuickAction = 'none' | 'simple-expense' | 'installment-expense' | 'income';
 @Component({
   selector: 'ef-quick-actions-page',
   standalone: true,
-  imports: [CurrencyPipe, ReactiveFormsModule, RouterLink],
+  imports: [CurrencyPipe, ReactiveFormsModule, RouterLink, MonthlyBudgetConsolidatedComponent],
   styleUrl: './quick-actions-page.component.scss',
   template: `
     <section class="page-shell">
@@ -82,7 +83,18 @@ type QuickAction = 'none' | 'simple-expense' | 'installment-expense' | 'income';
         <button class="button" type="button" [disabled]="!canCreateIncome()" (click)="startCreateIncome()">
           Crear ingreso
         </button>
+        <button class="button secondary" type="button" (click)="toggleCurrentMonthBudget()">
+          Ver presupuesto mes actual
+        </button>
       </div>
+
+      @if (showCurrentMonthBudget()) {
+        <ef-monthly-budget-consolidated
+          [year]="currentYear"
+          [month]="currentMonthNumber"
+          (close)="showCurrentMonthBudget.set(false)"
+        />
+      }
 
       @if (activeAction() === 'simple-expense') {
         <form class="panel form-grid quick-action-form" [formGroup]="simpleExpenseForm" (ngSubmit)="saveSimpleExpense()">
@@ -287,6 +299,11 @@ export class QuickActionsPageComponent implements OnInit {
   readonly accountMembers = signal<AccountMemberResponseDto[]>([]);
   readonly activeAction = signal<QuickAction>('none');
   readonly successMessage = signal<string | null>(null);
+  readonly showCurrentMonthBudget = signal(false);
+
+  private readonly now = new Date();
+  readonly currentYear = this.now.getFullYear();
+  readonly currentMonthNumber = this.now.getMonth() + 1;
 
   readonly accountId = computed(() => this.accountStore.selectedAccountId() ?? 0);
   readonly canCreateAccount = computed(() => this.accountStore.selectedAccount()?.status === 'ACTIVE');
@@ -407,6 +424,10 @@ export class QuickActionsPageComponent implements OnInit {
 
   closeActiveForm(): void {
     this.activeAction.set('none');
+  }
+
+  toggleCurrentMonthBudget(): void {
+    this.showCurrentMonthBudget.update((value) => !value);
   }
 
   saveSimpleExpense(): void {
