@@ -106,6 +106,7 @@ export class PrivateLayoutComponent implements OnInit {
 
   protected readonly navigation: NavigationItem[] = [
     { label: 'Cuentas', segment: null },
+    { label: 'Acciones rápidas', segment: 'quick-actions' },
     { label: 'Dashboard', segment: 'dashboard' },
     { label: 'Gastos', segment: 'expenses' },
     { label: 'Deudas', segment: 'debts' },

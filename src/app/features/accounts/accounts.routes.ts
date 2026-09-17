@@ -10,6 +10,11 @@ export const ACCOUNTS_ROUTES: Routes = [
     component: AccountsPageComponent
   },
   {
+    path: ':accountId/quick-actions',
+    canActivate: [accountRouteGuard],
+    loadChildren: () => import('../quick-actions/quick-actions.routes').then((m) => m.QUICK_ACTIONS_ROUTES)
+  },
+  {
     path: ':accountId/dashboard',
     canActivate: [accountRouteGuard],
     loadChildren: () => import('../dashboard/dashboard.routes').then((m) => m.DASHBOARD_ROUTES)

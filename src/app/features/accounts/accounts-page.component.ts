@@ -134,7 +134,7 @@ export class AccountsPageComponent implements OnInit {
         next: (account) => {
           this.form.reset();
           this.showCreateForm.set(false);
-          void this.router.navigate(['/app/accounts', account.id, 'dashboard']);
+          void this.router.navigate(['/app/accounts', account.id, 'quick-actions']);
         },
         error: () => undefined
       });
@@ -142,6 +142,6 @@ export class AccountsPageComponent implements OnInit {
 
   selectAccount(account: AccountResponseDto): void {
     this.accountStore.selectAccount(account);
-    void this.router.navigate(['/app/accounts', account.id, 'dashboard']);
+    void this.router.navigate(['/app/accounts', account.id, 'quick-actions']);
   }
 }

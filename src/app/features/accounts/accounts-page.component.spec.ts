@@ -85,7 +85,7 @@ describe('AccountsPageComponent', () => {
     expect(text).not.toContain('Abrir');
   });
 
-  it('selects an account and navigates to dashboard', () => {
+  it('selects an account and navigates to quick actions', () => {
     accountStore.accounts.set([account]);
     fixture.detectChanges();
 
@@ -96,6 +96,6 @@ describe('AccountsPageComponent', () => {
     button?.click();
 
     expect(accountStore.selectAccount).toHaveBeenCalledWith(account);
-    expect(router.navigate).toHaveBeenCalledWith(['/app/accounts', account.id, 'dashboard']);
+    expect(router.navigate).toHaveBeenCalledWith(['/app/accounts', account.id, 'quick-actions']);
   });
 });
