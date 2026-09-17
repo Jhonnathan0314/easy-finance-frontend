@@ -447,6 +447,7 @@ type AdvancedFilter =
                 <p class="muted">Cargando comparacion de presupuesto...</p>
               } @else if (analyticsStore.budgetVsExpensesByCategory(); as comparison) {
                 @if (comparison.length) {
+                  <p class="scroll-hint">Desliza para ver toda la tabla &#8594;</p>
                   <div class="comparison-table" role="table" aria-label="Comparacion de presupuesto y gasto conceptual">
                     <div class="comparison-row comparison-head" role="row">
                       <span role="columnheader">Categoria</span>

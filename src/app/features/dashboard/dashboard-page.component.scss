@@ -189,10 +189,18 @@
   align-items: start;
 }
 
+.scroll-hint {
+  display: none;
+  margin: -0.25rem 0 0.5rem;
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+}
+
 .comparison-table {
   display: grid;
   gap: 0.75rem;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .comparison-row {
@@ -310,4 +318,11 @@ button:disabled {
     flex-direction: column;
   }
 
+  .scroll-hint {
+    display: block;
+  }
+
+  .comparison-row {
+    grid-template-columns: minmax(7rem, 1.2fr) repeat(4, minmax(6rem, 1fr));
+  }
 }

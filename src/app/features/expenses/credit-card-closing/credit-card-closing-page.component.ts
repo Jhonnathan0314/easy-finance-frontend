@@ -84,24 +84,26 @@ import { PaymentMethodResponseDto } from '../../../shared/models';
               <strong class="closing-total">{{ preview.totalAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
 
               @if (preview.byCategory.length) {
-                <table class="category-breakdown">
-                  <thead>
-                    <tr>
-                      <th>Categoría</th>
-                      <th>Gastos</th>
-                      <th>Monto</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    @for (item of preview.byCategory; track item.categoryId) {
+                <div class="table-scroll">
+                  <table class="category-breakdown">
+                    <thead>
                       <tr>
-                        <td>{{ item.categoryName }}</td>
-                        <td>{{ item.count }}</td>
-                        <td>{{ item.amount | currency: 'COP':'symbol-narrow':'1.0-0' }}</td>
+                        <th>Categoría</th>
+                        <th>Gastos</th>
+                        <th>Monto</th>
                       </tr>
-                    }
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      @for (item of preview.byCategory; track item.categoryId) {
+                        <tr>
+                          <td>{{ item.categoryName }}</td>
+                          <td>{{ item.count }}</td>
+                          <td>{{ item.amount | currency: 'COP':'symbol-narrow':'1.0-0' }}</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
 
                 <ul class="closing-expense-list">
                   @for (expense of preview.expenses; track expense.id) {
