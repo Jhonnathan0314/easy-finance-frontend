@@ -1,5 +1,5 @@
 import { signal } from '@angular/core';
-import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 
@@ -273,17 +273,8 @@ describe('ExpensesPageComponent', () => {
     const fixture = configure({ archived: true });
 
     expect(fixture.nativeElement.textContent).toContain('La cuenta esta archivada');
-    expect(fixture.nativeElement.textContent).not.toContain('+ Gasto rápido');
     expect(fixture.nativeElement.textContent).not.toContain('Gasto simple');
     expect(fixture.nativeElement.textContent).not.toContain('Duplicar');
-  });
-
-  it('shows quick expense button for active accounts', () => {
-    const fixture = configure();
-    const button = findButton(fixture, '+ Gasto rápido');
-
-    expect(button).toBeTruthy();
-    expect(button?.disabled).toBeFalse();
   });
 
   it('does not render redundant detail actions because cards already show the expense data', () => {
@@ -300,17 +291,17 @@ describe('ExpensesPageComponent', () => {
     expect(findButton(fixture, 'Detalle')).toBeUndefined();
   });
 
-  it('disables quick expense when categories are missing', () => {
+  it('disables simple expense creation when categories are missing', () => {
     const fixture = configure({ categories: false });
-    const button = findButton(fixture, '+ Gasto rápido');
+    const button = findButton(fixture, 'Gasto simple');
 
     expect(button).toBeTruthy();
     expect(button?.disabled).toBeTrue();
   });
 
-  it('disables quick expense when payment methods are missing', () => {
+  it('disables simple expense creation when payment methods are missing', () => {
     const fixture = configure({ paymentMethods: false });
-    const button = findButton(fixture, '+ Gasto rápido');
+    const button = findButton(fixture, 'Gasto simple');
 
     expect(button).toBeTruthy();
     expect(button?.disabled).toBeTrue();
@@ -342,64 +333,6 @@ describe('ExpensesPageComponent', () => {
     expect(raw.paymentMethodIds).toEqual([2]);
     expect(raw.paymentState).toBe('PAID');
     expect(raw.expenseType).toBe('INSTALLMENT');
-  });
-
-  it('opens quick expense panel and focuses amount', fakeAsync(() => {
-    const fixture = configure();
-    const component = fixture.componentInstance;
-
-    component.startQuickExpense();
-    fixture.detectChanges();
-    tick();
-
-    expect(component.showQuickForm()).toBeTrue();
-    expect(fixture.nativeElement.textContent).toContain('Gasto rápido');
-    expect(document.activeElement).toBe(fixture.nativeElement.querySelector('input[formcontrolname="amount"]'));
-  }));
-
-  it('validates quick expense amount and required catalogs', () => {
-    const fixture = configure();
-    const component = fixture.componentInstance;
-
-    component.startQuickExpense();
-    component.quickExpenseForm.patchValue({ amount: 0, categoryId: 0, paymentMethodId: 0 });
-
-    expect(component.quickExpenseForm.valid).toBeFalse();
-    expect(component.quickExpenseForm.controls.amount.hasError('min')).toBeTrue();
-    expect(component.quickExpenseForm.controls.categoryId.hasError('min')).toBeTrue();
-    expect(component.quickExpenseForm.controls.paymentMethodId.hasError('min')).toBeTrue();
-  });
-
-  it('sets quick expense defaults', () => {
-    const fixture = configure();
-    const component = fixture.componentInstance;
-
-    component.startQuickExpense();
-    const raw = component.quickExpenseForm.getRawValue();
-
-    expect(raw.categoryId).toBe(1);
-    expect(raw.paymentMethodId).toBe(2);
-    expect(raw.paymentState).toBe('PAID');
-    expect(raw.expenseDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-  });
-
-  it('creates quick expense through the existing store endpoint', () => {
-    const fixture = configure();
-    const component = fixture.componentInstance;
-    const store = TestBed.inject(ExpensesStore) as jasmine.SpyObj<ExpensesStore>;
-
-    component.startQuickExpense();
-    component.quickExpenseForm.patchValue({ amount: 25000 });
-    component.saveQuickExpense();
-
-    expect(store.createSimpleExpense).toHaveBeenCalledWith(1, jasmine.objectContaining({
-      amount: 25000,
-      categoryId: 1,
-      paymentMethodId: 2,
-      description: 'Gasto rápido',
-      paymentState: 'PAID',
-      participantId: 7
-    }));
   });
 
   it('lets admin assign an active participant when creating a simple expense', () => {
@@ -465,21 +398,7 @@ describe('ExpensesPageComponent', () => {
     expect(store.createInstallmentExpense).toHaveBeenCalledWith(1, jasmine.objectContaining({ participantId: 9 }));
   });
 
-  it('closes and resets quick expense after success', () => {
-    const fixture = configure();
-    const component = fixture.componentInstance;
-
-    component.startQuickExpense();
-    component.quickExpenseForm.patchValue({ amount: 25000, description: 'Cafe' });
-    component.saveQuickExpense();
-
-    expect(component.showQuickForm()).toBeFalse();
-    expect(component.successMessage()).toBe('Gasto registrado correctamente.');
-    expect(component.quickExpenseForm.getRawValue().amount).toBe(0);
-    expect(component.quickExpenseForm.getRawValue().description).toBe('');
-  });
-
-  it('shows quick expense errors from the store', () => {
+  it('shows expense errors from the store', () => {
     const fixture = configure({
       error: {
         code: 'EXPENSE_AMOUNT_INVALID',
@@ -488,20 +407,6 @@ describe('ExpensesPageComponent', () => {
     });
 
     expect(fixture.nativeElement.textContent).toContain('El monto debe ser mayor que cero.');
-  });
-
-  it('does not double submit quick expense while saving', () => {
-    const fixture = configure({ saving: true });
-    const component = fixture.componentInstance;
-    const store = TestBed.inject(ExpensesStore) as jasmine.SpyObj<ExpensesStore>;
-
-    component.startQuickExpense();
-    component.quickExpenseForm.patchValue({ amount: 25000 });
-    component.saveQuickExpense();
-
-    expect(store.createSimpleExpense).not.toHaveBeenCalled();
-    fixture.detectChanges();
-    expect(findButton(fixture, 'Guardando')?.disabled).toBeTrue();
   });
 
   it('shows duplicate action for admin and owner', () => {

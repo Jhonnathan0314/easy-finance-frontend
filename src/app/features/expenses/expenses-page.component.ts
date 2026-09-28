@@ -1,5 +1,5 @@
 import { CurrencyPipe } from '@angular/common';
-import { Component, ElementRef, OnInit, ViewChild, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { take } from 'rxjs';
@@ -41,9 +41,6 @@ type ExpenseOriginFilter = '' | 'DEBT_PAYMENT' | 'NOT_DEBT_PAYMENT';
         </div>
         <div class="header-actions">
           @if (canCreate()) {
-            <button class="button" type="button" [disabled]="!hasRequiredCatalogs()" (click)="startQuickExpense()">
-              + Gasto rápido
-            </button>
             <button class="button" type="button" [disabled]="!hasRequiredCatalogs()" (click)="startCreateSimple()">
               Gasto simple
             </button>
@@ -52,7 +49,7 @@ type ExpenseOriginFilter = '' | 'DEBT_PAYMENT' | 'NOT_DEBT_PAYMENT';
             </button>
           }
           @if (isAccountAdmin()) {
-            <button type="button" (click)="goToCreditCardClosing()">Cerrar tarjeta de crédito</button>
+            <button class="button secondary" type="button" (click)="goToCreditCardClosing()">Cerrar tarjeta de crédito</button>
           }
         </div>
       </div>
@@ -161,69 +158,6 @@ type ExpenseOriginFilter = '' | 'DEBT_PAYMENT' | 'NOT_DEBT_PAYMENT';
           }
         </div>
       </div>
-
-      @if (showQuickForm()) {
-        <form
-          class="panel quick-expense-form"
-          [formGroup]="quickExpenseForm"
-          (ngSubmit)="saveQuickExpense()"
-          (keydown.escape)="closeQuickExpense()"
-        >
-          <div>
-            <h2>Gasto rápido</h2>
-            <p class="form-note">Se registrara como gasto simple con fecha de hoy.</p>
-          </div>
-          <label class="field amount-field">
-            <span>Monto</span>
-            <input #quickAmountInput type="number" min="0.01" step="0.01" inputmode="decimal" formControlName="amount">
-          </label>
-          <label class="field">
-            <span>Categoria</span>
-            <select formControlName="categoryId">
-              <option [ngValue]="0">Selecciona</option>
-              @for (category of expenseCategories(); track category.id) {
-                <option [ngValue]="category.id">{{ category.name }}</option>
-              }
-            </select>
-          </label>
-          <label class="field">
-            <span>Medio</span>
-            <select formControlName="paymentMethodId">
-              <option [ngValue]="0">Selecciona</option>
-              @for (method of paymentMethods(); track method.id) {
-                <option [ngValue]="method.id">{{ method.name }}</option>
-              }
-            </select>
-          </label>
-          <label class="field">
-            <span>Pago</span>
-            <select formControlName="paymentState">
-              @for (state of paymentStates; track state) {
-                <option [value]="state">{{ enumLabel(state) }}</option>
-              }
-            </select>
-          </label>
-          <label class="field">
-            <span>Participante</span>
-            <select formControlName="participantId">
-              <option value="">Yo mismo</option>
-              @for (member of assignableParticipants(); track member.participantId) {
-                <option [value]="member.participantId">{{ participantLabel(member) }}</option>
-              }
-            </select>
-          </label>
-          <label class="field wide">
-            <span>Descripcion</span>
-            <input type="text" formControlName="description" placeholder="Gasto rápido">
-          </label>
-          <div class="form-actions">
-            <button class="button" type="submit" [disabled]="quickExpenseForm.invalid || expensesStore.isSaving()">
-              {{ expensesStore.isSaving() ? 'Guardando...' : 'Guardar' }}
-            </button>
-            <button type="button" [disabled]="expensesStore.isSaving()" (click)="closeQuickExpense()">Cancelar</button>
-          </div>
-        </form>
-      }
 
       @if (showForm()) {
         <form class="panel form-grid expense-form" [formGroup]="activeForm()" (ngSubmit)="saveExpense()">
@@ -467,13 +401,10 @@ export class ExpensesPageComponent implements OnInit {
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly router = inject(Router);
 
-  @ViewChild('quickAmountInput') private quickAmountInput?: ElementRef<HTMLInputElement>;
-
   readonly expenseCategories = signal<CategoryResponseDto[]>([]);
   readonly paymentMethods = signal<PaymentMethodResponseDto[]>([]);
   readonly accountMembers = signal<AccountMemberResponseDto[]>([]);
   readonly selectedDetail = signal<ExpenseResponseDto | null>(null);
-  readonly showQuickForm = signal(false);
   readonly showForm = signal(false);
   readonly showDuplicateForm = signal(false);
   readonly showTotalModal = signal(false);
@@ -493,7 +424,6 @@ export class ExpensesPageComponent implements OnInit {
   );
   readonly canCreate = computed(() => this.accountStore.selectedAccount()?.status === 'ACTIVE');
   readonly isAccountAdmin = computed(() => this.accountStore.selectedAccount()?.currentUserRole === 'ACCOUNT_ADMIN');
-  readonly canUseQuickExpense = computed(() => this.canCreate() && this.hasRequiredCatalogs());
   readonly assignableParticipants = computed(() => {
     const activeMembers = this.accountMembers().filter((member) => member.status === 'ACTIVE');
     const account = this.accountStore.selectedAccount();
@@ -544,16 +474,6 @@ export class ExpensesPageComponent implements OnInit {
     paymentState: [''],
     expenseType: [''],
     origin: ['' as ExpenseOriginFilter]
-  });
-
-  readonly quickExpenseForm = this.fb.group({
-    amount: [0, [Validators.required, Validators.min(0.01)]],
-    categoryId: [0, [Validators.required, Validators.min(1)]],
-    paymentMethodId: [0, [Validators.required, Validators.min(1)]],
-    description: ['', [Validators.maxLength(500)]],
-    paymentState: ['PAID' as ExpensePaymentState],
-    expenseDate: [today(), [Validators.required]],
-    participantId: ['']
   });
 
   readonly simpleForm = this.fb.group({
@@ -666,7 +586,6 @@ export class ExpensesPageComponent implements OnInit {
       return;
     }
 
-    this.closeQuickExpense();
     this.formMode.set('simple');
     this.cancelDuplicateForm();
     this.editingExpense.set(null);
@@ -687,7 +606,6 @@ export class ExpensesPageComponent implements OnInit {
       return;
     }
 
-    this.closeQuickExpense();
     this.formMode.set('installment');
     this.cancelDuplicateForm();
     this.editingExpense.set(null);
@@ -718,7 +636,6 @@ export class ExpensesPageComponent implements OnInit {
     }
 
     this.blockedActionMessage.set(null);
-    this.closeQuickExpense();
     this.formMode.set('simple');
     this.cancelDuplicateForm();
     this.editingExpense.set(expense);
@@ -739,68 +656,6 @@ export class ExpensesPageComponent implements OnInit {
     this.editingExpense.set(null);
   }
 
-  startQuickExpense(): void {
-    if (!this.canUseQuickExpense()) {
-      return;
-    }
-
-    this.successMessage.set(null);
-    this.blockedActionMessage.set(null);
-    this.showForm.set(false);
-    this.cancelDuplicateForm();
-    this.editingExpense.set(null);
-    this.quickExpenseForm.reset({
-      amount: 0,
-      categoryId: this.expenseCategories()[0]?.id ?? 0,
-      paymentMethodId: this.paymentMethods()[0]?.id ?? 0,
-      description: '',
-      paymentState: 'PAID',
-      expenseDate: today(),
-      participantId: ''
-    });
-    this.showQuickForm.set(true);
-    setTimeout(() => this.quickAmountInput?.nativeElement.focus());
-  }
-
-  saveQuickExpense(): void {
-    if (this.quickExpenseForm.invalid || !this.canUseQuickExpense() || this.expensesStore.isSaving()) {
-      this.quickExpenseForm.markAllAsTouched();
-      return;
-    }
-
-    const raw = this.quickExpenseForm.getRawValue();
-
-    this.successMessage.set(null);
-    this.blockedActionMessage.set(null);
-    this.expensesStore
-      .createSimpleExpense(this.accountId(), {
-        categoryId: raw.categoryId,
-        paymentMethodId: raw.paymentMethodId,
-        description: raw.description.trim() || 'Gasto rápido',
-        amount: raw.amount,
-        expenseDate: raw.expenseDate,
-        paymentState: raw.paymentState,
-        participantId: this.selectedParticipantId(raw.participantId)
-      })
-      .pipe(take(1))
-      .subscribe({
-        next: () => {
-          this.successMessage.set('Gasto registrado correctamente.');
-          this.resetQuickExpenseForm();
-          this.showQuickForm.set(false);
-        },
-        error: () => undefined
-      });
-  }
-
-  closeQuickExpense(): void {
-    if (this.expensesStore.isSaving()) {
-      return;
-    }
-
-    this.showQuickForm.set(false);
-  }
-
   startDuplicateExpense(expense: ExpenseResponseDto): void {
     if (!this.canDuplicateExpense(expense)) {
       return;
@@ -808,7 +663,6 @@ export class ExpensesPageComponent implements OnInit {
 
     this.successMessage.set(null);
     this.blockedActionMessage.set(null);
-    this.closeQuickExpense();
     this.showForm.set(false);
     this.editingExpense.set(null);
     this.duplicatingExpense.set(expense);
@@ -1077,18 +931,6 @@ export class ExpensesPageComponent implements OnInit {
       });
   }
 
-  private resetQuickExpenseForm(): void {
-    this.quickExpenseForm.reset({
-      amount: 0,
-      categoryId: this.expenseCategories()[0]?.id ?? 0,
-      paymentMethodId: this.paymentMethods()[0]?.id ?? 0,
-      description: '',
-      paymentState: 'PAID',
-      expenseDate: today(),
-      participantId: ''
-    });
-  }
-
   private loadPage(page: number): void {
     this.expensesStore.loadExpenses(this.accountId(), { page }).pipe(take(1)).subscribe({ error: () => undefined });
   }
@@ -1171,7 +1013,12 @@ export function installmentTotalValidator(control: { get(path: string): { value:
 }
 
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = (now.getMonth() + 1).toString().padStart(2, '0');
+  const day = now.getDate().toString().padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
 }
 
 function nextMonthDate(value: string): string {
