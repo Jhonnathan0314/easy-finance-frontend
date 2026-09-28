@@ -18,10 +18,6 @@
   justify-content: space-between;
 }
 
-.button.secondary {
-  background: var(--color-brand);
-}
-
 .warning-panel {
   border-color: var(--color-warning-border);
   background: var(--color-warning-bg);
@@ -166,7 +162,6 @@
   font-weight: 700;
 }
 
-.quick-expense-form,
 .expense-form,
 .duplicate-expense-form {
   display: grid;
@@ -174,13 +169,11 @@
   gap: 1rem;
 }
 
-.quick-expense-form > *,
 .expense-form > *,
 .duplicate-expense-form > * {
   min-width: 0;
 }
 
-.quick-expense-form > div:first-child,
 .expense-form h2,
 .duplicate-expense-form h2,
 .duplicate-expense-form .form-note,
@@ -217,11 +210,6 @@
 
 .installment-summary strong {
   color: var(--color-text);
-}
-
-.quick-expense-form .amount-field input {
-  font-size: 1.2rem;
-  font-weight: 700;
 }
 
 .expense-card h3,
