@@ -11,11 +11,13 @@ import {
 } from '../../shared/models';
 import { AuthApiService } from './auth-api.service';
 import { AuthStorageService } from './auth-storage.service';
+import { GlobalErrorStore } from '../state/global-error.store';
 
 @Injectable({ providedIn: 'root' })
 export class AuthStore {
   private readonly authApi = inject(AuthApiService);
   private readonly storage = inject(AuthStorageService);
+  private readonly errorStore = inject(GlobalErrorStore);
   private readonly session = signal<AuthTokenResponseDto | null>(null);
   private bootstrapRequest: Observable<boolean> | null = null;
   private refreshRequest: Observable<AuthTokenResponseDto> | null = null;
@@ -34,6 +36,7 @@ export class AuthStore {
   login(request: LoginRequest): Observable<AuthTokenResponseDto> {
     this.isLoading.set(true);
     this.authError.set(null);
+    this.errorStore.clear();
 
     return this.authApi.login(request).pipe(
       tap((session) => this.setSession(session)),
@@ -48,6 +51,7 @@ export class AuthStore {
   register(request: RegisterRequest): Observable<AuthTokenResponseDto> {
     this.isLoading.set(true);
     this.authError.set(null);
+    this.errorStore.clear();
 
     return this.authApi.register(request).pipe(
       tap((session) => this.setSession(session)),
