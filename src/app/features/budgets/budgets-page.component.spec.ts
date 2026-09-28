@@ -827,6 +827,27 @@ describe('BudgetsPageComponent', () => {
     expect((selectedCard as HTMLElement).textContent).toContain('Mercado');
   });
 
+  it('hides inactive sub budgets (including settled debt-derived ones) from the sub budgets list', () => {
+    const fixture = configure({
+      selectedDetail: {
+        ...detail,
+        subBudgets: [
+          manualSubBudget,
+          { ...manualSubBudget, id: 5, name: 'Manual desactivado', status: 'INACTIVE' },
+          { ...derivedSubBudget, id: 6, name: 'Debt: Deuda ya pagada', status: 'INACTIVE' }
+        ]
+      }
+    });
+    fixture.componentInstance.viewMode.set('monthlyDetail');
+    fixture.detectChanges();
+
+    const cards = fixture.nativeElement.querySelectorAll('.subbudget-list .subbudget-card');
+    expect(cards.length).toBe(1);
+    expect((cards[0] as HTMLElement).textContent).toContain('Mercado');
+    expect(fixture.nativeElement.textContent).not.toContain('Manual desactivado');
+    expect(fixture.nativeElement.textContent).not.toContain('Debt: Deuda ya pagada');
+  });
+
   it('filters sub budgets by search text and category', () => {
     const fixture = configure({
       selectedDetail: {

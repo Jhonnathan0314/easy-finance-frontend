@@ -542,20 +542,8 @@ interface ParticipantFilterOption {
                         @if (canMutateSubBudget(subBudget)) {
                           <div class="actions">
                             <button type="button" (click)="startEditSubBudget(subBudget)">Editar</button>
-                            <button
-                              type="button"
-                              [disabled]="subBudget.status === 'INACTIVE'"
-                              (click)="deactivateSubBudget(subBudget)"
-                            >
-                              Desactivar
-                            </button>
-                            <button
-                              type="button"
-                              [disabled]="subBudget.status === 'INACTIVE'"
-                              (click)="startDeleteForward(subBudget)"
-                            >
-                              Eliminar desde este mes
-                            </button>
+                            <button type="button" (click)="deactivateSubBudget(subBudget)">Desactivar</button>
+                            <button type="button" (click)="startDeleteForward(subBudget)">Eliminar desde este mes</button>
                           </div>
                         }
                       </article>
@@ -707,7 +695,7 @@ export class BudgetsPageComponent implements OnInit {
     const categories = new Map<number, CategoryResponseDto>();
 
     for (const subBudget of this.budgetsStore.selectedBudgetDetail()?.subBudgets ?? []) {
-      if (subBudget.categoryId == null) {
+      if (subBudget.categoryId == null || subBudget.status !== 'ACTIVE') {
         continue;
       }
 
@@ -728,7 +716,7 @@ export class BudgetsPageComponent implements OnInit {
       const matchesCategory = categoryId == null || subBudget.categoryId === categoryId;
       const matchesParticipant = this.matchesParticipantFilter(subBudget.participantId);
 
-      return matchesSearch && matchesCategory && matchesParticipant;
+      return subBudget.status === 'ACTIVE' && matchesSearch && matchesCategory && matchesParticipant;
     });
   });
   readonly currentPeriodSort = computed<BudgetPeriodSort>(() =>
