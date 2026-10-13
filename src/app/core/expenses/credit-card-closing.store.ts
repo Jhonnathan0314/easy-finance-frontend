@@ -14,12 +14,18 @@ export class CreditCardClosingStore {
   readonly isConfirming = signal(false);
   readonly error = signal<ApiErrorResponse | null>(null);
 
-  calculate(accountId: number, paymentMethodId: number, from: string, to: string): Observable<CreditCardClosingPreviewResponseDto> {
+  calculate(
+    accountId: number,
+    paymentMethodId: number,
+    from: string,
+    to: string,
+    categoryIds: number[] = []
+  ): Observable<CreditCardClosingPreviewResponseDto> {
     this.isLoadingPreview.set(true);
     this.error.set(null);
     this.result.set(null);
 
-    return this.api.preview(accountId, paymentMethodId, from, to).pipe(
+    return this.api.preview(accountId, paymentMethodId, from, to, categoryIds).pipe(
       tap((preview) => this.preview.set(preview)),
       catchError((error: unknown) => {
         this.preview.set(null);
@@ -30,11 +36,17 @@ export class CreditCardClosingStore {
     );
   }
 
-  confirm(accountId: number, paymentMethodId: number, from: string, to: string): Observable<CreditCardClosingResultResponseDto> {
+  confirm(
+    accountId: number,
+    paymentMethodId: number,
+    from: string,
+    to: string,
+    categoryIds: number[] = []
+  ): Observable<CreditCardClosingResultResponseDto> {
     this.isConfirming.set(true);
     this.error.set(null);
 
-    return this.api.confirm(accountId, { paymentMethodId, from, to }).pipe(
+    return this.api.confirm(accountId, { paymentMethodId, from, to, ...(categoryIds.length ? { categoryIds } : {}) }).pipe(
       tap((result) => {
         this.result.set(result);
         this.preview.set(null);

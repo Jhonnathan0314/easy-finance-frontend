@@ -71,6 +71,9 @@ describe('CreditCardClosingPageComponent', () => {
           useValue: {
             listPaymentMethods: jasmine.createSpy('listPaymentMethods').and.returnValue(
               of({ content: [creditCard], page: 0, size: 100, totalElements: 1, totalPages: 1 })
+            ),
+            listCategories: jasmine.createSpy('listCategories').and.returnValue(
+              of({ content: [], page: 0, size: 100, totalElements: 0, totalPages: 0 })
             )
           }
         },
@@ -137,7 +140,7 @@ describe('CreditCardClosingPageComponent', () => {
     component.filterForm.patchValue({ paymentMethodId: 5, from: '2026-05-01', to: '2026-05-31' });
     component.calculate();
 
-    expect(store.calculate).toHaveBeenCalledWith(1, 5, '2026-05-01', '2026-05-31');
+    expect(store.calculate).toHaveBeenCalledWith(1, 5, '2026-05-01', '2026-05-31', []);
   });
 
   it('renders the category breakdown and total when a preview is available', () => {
@@ -156,7 +159,7 @@ describe('CreditCardClosingPageComponent', () => {
 
     component.confirmClosing(preview.paymentMethodId, preview.from, preview.to);
 
-    expect(store.confirm).toHaveBeenCalledWith(1, 5, '2026-05-01', '2026-05-31');
+    expect(store.confirm).toHaveBeenCalledWith(1, 5, '2026-05-01', '2026-05-31', []);
   });
 
   it('does not confirm the closing when the user cancels the dialog', () => {

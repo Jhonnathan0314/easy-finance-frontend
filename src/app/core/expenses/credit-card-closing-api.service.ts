@@ -8,11 +8,12 @@ import { ApiClient } from '../http/api-client';
 export class CreditCardClosingApiService {
   private readonly api = inject(ApiClient);
 
-  preview(accountId: number, paymentMethodId: number, from: string, to: string): Observable<CreditCardClosingPreviewResponseDto> {
+  preview(accountId: number, paymentMethodId: number, from: string, to: string, categoryIds: number[] = []): Observable<CreditCardClosingPreviewResponseDto> {
     return this.api.get<CreditCardClosingPreviewResponseDto>(`/accounts/${accountId}/expenses/credit-card-closing/preview`, {
       paymentMethodId,
       from,
-      to
+      to,
+      categoryIds: categoryIds.length ? categoryIds : undefined
     });
   }
 

@@ -7,12 +7,13 @@ import { take } from 'rxjs';
 import { CatalogsApiService } from '../../../core/catalogs/catalogs-api.service';
 import { CreditCardClosingStore } from '../../../core/expenses/credit-card-closing.store';
 import { AccountStore } from '../../../core/state/account.store';
-import { PaymentMethodResponseDto } from '../../../shared/models';
+import { CategoryResponseDto, PaymentMethodResponseDto } from '../../../shared/models';
+import { MultiSelectDropdownComponent, MultiSelectOption } from '../../../shared/ui/multi-select-dropdown.component';
 
 @Component({
   selector: 'ef-credit-card-closing-page',
   standalone: true,
-  imports: [CurrencyPipe, ReactiveFormsModule, RouterLink],
+  imports: [CurrencyPipe, MultiSelectDropdownComponent, ReactiveFormsModule, RouterLink],
   styleUrl: './credit-card-closing-page.component.scss',
   template: `
     <section class="page-shell">
@@ -66,6 +67,15 @@ import { PaymentMethodResponseDto } from '../../../shared/models';
               <span>Hasta</span>
               <input type="date" formControlName="to">
             </label>
+            <label class="field">
+              <span>Categorías</span>
+              <ef-multi-select-dropdown
+                [options]="categoryOptions()"
+                [selectedIds]="filterForm.controls.categoryIds.value"
+                placeholder="Todas"
+                (selectedIdsChange)="filterForm.controls.categoryIds.setValue($event)"
+              />
+            </label>
             <div class="form-actions">
               <button class="button" type="submit" [disabled]="filterForm.invalid || store.isLoadingPreview()">
                 {{ store.isLoadingPreview() ? 'Calculando...' : 'Calcular' }}
@@ -105,14 +115,28 @@ import { PaymentMethodResponseDto } from '../../../shared/models';
                   </table>
                 </div>
 
-                <ul class="closing-expense-list">
-                  @for (expense of preview.expenses; track expense.id) {
-                    <li>
-                      <span>{{ expense.expenseDate }} · {{ expense.description }}</span>
-                      <strong>{{ expense.amount | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
-                    </li>
-                  }
-                </ul>
+                <div class="table-scroll closing-expense-scroll">
+                  <table class="closing-expense-table">
+                    <thead>
+                      <tr>
+                        <th>Fecha</th>
+                        <th>Descripción</th>
+                        <th>Categoría</th>
+                        <th class="amount-col">Valor</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (expense of preview.expenses; track expense.id) {
+                        <tr>
+                          <td>{{ expense.expenseDate }}</td>
+                          <td>{{ expense.description }}</td>
+                          <td>{{ categoryName(expense.categoryId) }}</td>
+                          <td class="amount-col">{{ expense.amount | currency: 'COP':'symbol-narrow':'1.0-0' }}</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
 
                 <div class="form-actions">
                   <button class="button" type="button" [disabled]="store.isConfirming()" (click)="confirmClosing(preview.paymentMethodId, preview.from, preview.to)">
@@ -137,18 +161,25 @@ export class CreditCardClosingPageComponent implements OnInit {
   private readonly router = inject(Router);
 
   readonly creditCards = signal<PaymentMethodResponseDto[]>([]);
+  readonly categories = signal<CategoryResponseDto[]>([]);
+  readonly categoryOptions = computed<MultiSelectOption[]>(() =>
+    this.categories().map((category) => ({ id: category.id, label: category.name }))
+  );
+  private appliedCategoryIds: number[] = [];
   readonly accountId = computed(() => this.accountStore.selectedAccountId() ?? 0);
   readonly isAdmin = computed(() => this.accountStore.selectedAccount()?.currentUserRole === 'ACCOUNT_ADMIN');
 
   readonly filterForm = this.fb.group({
     paymentMethodId: [0, [Validators.required, Validators.min(1)]],
     from: ['', [Validators.required]],
-    to: ['', [Validators.required]]
+    to: ['', [Validators.required]],
+    categoryIds: [[] as number[]]
   });
 
   ngOnInit(): void {
     this.store.reset();
     this.loadCreditCards();
+    this.loadCategories();
   }
 
   calculate(): void {
@@ -158,7 +189,8 @@ export class CreditCardClosingPageComponent implements OnInit {
     }
 
     const raw = this.filterForm.getRawValue();
-    this.store.calculate(this.accountId(), raw.paymentMethodId, raw.from, raw.to).pipe(take(1)).subscribe({ error: () => undefined });
+    this.appliedCategoryIds = raw.categoryIds;
+    this.store.calculate(this.accountId(), raw.paymentMethodId, raw.from, raw.to, raw.categoryIds).pipe(take(1)).subscribe({ error: () => undefined });
   }
 
   confirmClosing(paymentMethodId: number, from: string, to: string): void {
@@ -168,12 +200,18 @@ export class CreditCardClosingPageComponent implements OnInit {
       return;
     }
 
-    this.store.confirm(this.accountId(), paymentMethodId, from, to).pipe(take(1)).subscribe({ error: () => undefined });
+    this.store.confirm(this.accountId(), paymentMethodId, from, to, this.appliedCategoryIds).pipe(take(1)).subscribe({ error: () => undefined });
   }
 
   startNewClosing(): void {
     this.store.reset();
-    this.filterForm.reset({ paymentMethodId: 0, from: '', to: '' });
+    this.filterForm.reset({ paymentMethodId: 0, from: '', to: '', categoryIds: [] });
+  }
+
+  categoryName(categoryId: number): string {
+    const fromPreview = this.store.preview()?.byCategory.find((item) => item.categoryId === categoryId)?.categoryName;
+
+    return fromPreview ?? this.categories().find((category) => category.id === categoryId)?.name ?? '-';
   }
 
   friendlyError(code: string, fallback: string): string {
@@ -188,6 +226,16 @@ export class CreditCardClosingPageComponent implements OnInit {
     };
 
     return messages[code] ?? fallback;
+  }
+
+  private loadCategories(): void {
+    this.catalogsApi
+      .listCategories(this.accountId(), { type: 'EXPENSE', status: 'ACTIVE', size: 100, sort: 'name,asc' })
+      .pipe(take(1))
+      .subscribe({
+        next: (page) => this.categories.set(page.content),
+        error: () => this.categories.set([])
+      });
   }
 
   private loadCreditCards(): void {

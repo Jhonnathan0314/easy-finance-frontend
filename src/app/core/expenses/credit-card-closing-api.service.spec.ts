@@ -39,6 +39,17 @@ describe('CreditCardClosingApiService', () => {
     });
   });
 
+  it('sends the category filter on preview', () => {
+    service.preview(3, 5, '2026-05-01', '2026-05-31', [7, 8]).subscribe();
+
+    const request = httpTesting.expectOne(
+      'http://localhost:8080/api/v1/accounts/3/expenses/credit-card-closing/preview?paymentMethodId=5&from=2026-05-01&to=2026-05-31&categoryIds=7&categoryIds=8'
+    );
+
+    expect(request.request.method).toBe('GET');
+    request.flush({ paymentMethodId: 5, from: '2026-05-01', to: '2026-05-31', totalAmount: 0, totalCount: 0, byCategory: [], expenses: [] });
+  });
+
   it('builds confirm endpoint with request body', () => {
     service.confirm(3, { paymentMethodId: 5, from: '2026-05-01', to: '2026-05-31' }).subscribe();
 
