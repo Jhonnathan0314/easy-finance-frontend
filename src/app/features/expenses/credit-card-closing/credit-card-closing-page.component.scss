@@ -5,6 +5,84 @@
   gap: 0.75rem;
 }
 
+.form-grid {
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  align-items: end;
+}
+
+.field {
+  min-width: 0;
+
+  input,
+  select {
+    box-sizing: border-box;
+    min-width: 0;
+    max-width: 100%;
+    padding: 0.65rem 0.75rem;
+  }
+
+  input[type='date'] {
+    cursor: pointer;
+  }
+}
+
+.form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+
+  .button,
+  button,
+  a.button {
+    padding: 0.55rem 1.1rem;
+    text-decoration: none;
+  }
+
+  button:not(.button) {
+    border: 1px solid var(--color-border-strong);
+    border-radius: 6px;
+    background: var(--color-bg-panel);
+    color: var(--color-text);
+    font-weight: 600;
+  }
+}
+
+.success-panel,
+.warning-panel,
+.error-panel {
+  display: grid;
+  gap: 0.75rem;
+
+  p {
+    margin: 0;
+  }
+}
+
+.success-panel {
+  border-color: var(--color-success-border);
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+}
+
+.warning-panel {
+  border-color: var(--color-warning-border);
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
+}
+
+.error-panel {
+  border-color: var(--color-error-border);
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
+}
+
+.hint {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
 .closing-total {
   display: block;
   font-size: 1.75rem;
