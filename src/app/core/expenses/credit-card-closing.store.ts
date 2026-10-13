@@ -43,12 +43,13 @@ export class CreditCardClosingStore {
     from: string,
     to: string,
     categoryIds: number[] = [],
-    targetState: ClosingTargetState = 'PAID'
+    targetState: ClosingTargetState = 'PAID',
+    expenseIds?: number[]
   ): Observable<CreditCardClosingResultResponseDto> {
     this.isConfirming.set(true);
     this.error.set(null);
 
-    return this.api.confirm(accountId, { paymentMethodId, from, to, targetState, ...(categoryIds.length ? { categoryIds } : {}) }).pipe(
+    return this.api.confirm(accountId, { paymentMethodId, from, to, targetState, ...(expenseIds ? { expenseIds } : {}), ...(categoryIds.length ? { categoryIds } : {}) }).pipe(
       tap((result) => {
         this.result.set(result);
         this.preview.set(null);

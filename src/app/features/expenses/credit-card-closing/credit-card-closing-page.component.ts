@@ -98,10 +98,12 @@ import { MultiSelectDropdownComponent, MultiSelectOption } from '../../../shared
           @if (store.preview(); as preview) {
             <div class="panel">
               <h2>Resumen del cierre</h2>
-              <p class="hint">{{ preview.totalCount }} gastos pendientes entre {{ preview.from }} y {{ preview.to }}.</p>
-              <strong class="closing-total">{{ preview.totalAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
+              <p class="hint">
+                {{ selectedExpenses().length }} de {{ preview.totalCount }} gastos seleccionados entre {{ preview.from }} y {{ preview.to }}.
+              </p>
+              <strong class="closing-total">{{ selectedTotal() | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
 
-              @if (preview.byCategory.length) {
+              @if (preview.expenses.length) {
                 <div class="table-scroll">
                   <table class="category-breakdown">
                     <thead>
@@ -112,7 +114,7 @@ import { MultiSelectDropdownComponent, MultiSelectOption } from '../../../shared
                       </tr>
                     </thead>
                     <tbody>
-                      @for (item of preview.byCategory; track item.categoryId) {
+                      @for (item of selectedByCategory(); track item.categoryId) {
                         <tr>
                           <td>{{ item.categoryName }}</td>
                           <td>{{ item.count }}</td>
@@ -127,6 +129,14 @@ import { MultiSelectDropdownComponent, MultiSelectOption } from '../../../shared
                   <table class="closing-expense-table">
                     <thead>
                       <tr>
+                        <th class="check-col">
+                          <input
+                            type="checkbox"
+                            aria-label="Seleccionar todos los gastos"
+                            [checked]="allSelected()"
+                            (change)="toggleAll($any($event.target).checked)"
+                          >
+                        </th>
                         <th>Fecha</th>
                         <th>Descripción</th>
                         <th>Categoría</th>
@@ -135,7 +145,15 @@ import { MultiSelectDropdownComponent, MultiSelectOption } from '../../../shared
                     </thead>
                     <tbody>
                       @for (expense of preview.expenses; track expense.id) {
-                        <tr>
+                        <tr [class.deselected]="!isSelected(expense.id)">
+                          <td class="check-col">
+                            <input
+                              type="checkbox"
+                              [attr.aria-label]="'Incluir ' + expense.description"
+                              [checked]="isSelected(expense.id)"
+                              (change)="toggleExpense(expense.id)"
+                            >
+                          </td>
                           <td>{{ expense.expenseDate }}</td>
                           <td>{{ expense.description }}</td>
                           <td>{{ categoryName(expense.categoryId) }}</td>
@@ -147,7 +165,7 @@ import { MultiSelectDropdownComponent, MultiSelectOption } from '../../../shared
                 </div>
 
                 <div class="form-actions">
-                  <button class="button" type="button" [disabled]="store.isConfirming()" (click)="confirmClosing(preview.paymentMethodId, preview.from, preview.to)">
+                  <button class="button" type="button" [disabled]="store.isConfirming() || !selectedExpenses().length" (click)="confirmClosing(preview.paymentMethodId, preview.from, preview.to)">
                     {{ store.isConfirming() ? 'Aplicando...' : confirmLabel() }}
                   </button>
                 </div>
@@ -167,6 +185,34 @@ export class CreditCardClosingPageComponent implements OnInit {
   private readonly catalogsApi = inject(CatalogsApiService);
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly router = inject(Router);
+
+  private readonly deselectedIds = signal<ReadonlySet<number>>(new Set());
+  readonly selectedExpenses = computed(() =>
+    (this.store.preview()?.expenses ?? []).filter((expense) => !this.deselectedIds().has(expense.id))
+  );
+  readonly selectedTotal = computed(() => this.selectedExpenses().reduce((sum, expense) => sum + expense.amount, 0));
+  readonly selectedByCategory = computed(() => {
+    const names = new Map((this.store.preview()?.byCategory ?? []).map((item) => [item.categoryId, item.categoryName]));
+    const groups = new Map<number, { categoryId: number; categoryName: string; amount: number; count: number }>();
+
+    for (const expense of this.selectedExpenses()) {
+      const group = groups.get(expense.categoryId) ?? {
+        categoryId: expense.categoryId,
+        categoryName: names.get(expense.categoryId) ?? this.categoryName(expense.categoryId),
+        amount: 0,
+        count: 0
+      };
+      group.amount += expense.amount;
+      group.count += 1;
+      groups.set(expense.categoryId, group);
+    }
+
+    return [...groups.values()].sort((a, b) => b.amount - a.amount);
+  });
+  readonly allSelected = computed(() => {
+    const total = this.store.preview()?.expenses.length ?? 0;
+    return total > 0 && this.selectedExpenses().length === total;
+  });
 
   readonly creditCards = signal<PaymentMethodResponseDto[]>([]);
   readonly categories = signal<CategoryResponseDto[]>([]);
@@ -200,6 +246,7 @@ export class CreditCardClosingPageComponent implements OnInit {
     }
 
     const raw = this.filterForm.getRawValue();
+    this.deselectedIds.set(new Set());
     this.appliedCategoryIds = raw.categoryIds;
     this.appliedTargetState.set(raw.targetState);
     this.store.calculate(this.accountId(), raw.paymentMethodId, raw.from, raw.to, raw.categoryIds, raw.targetState).pipe(take(1)).subscribe({ error: () => undefined });
@@ -208,16 +255,34 @@ export class CreditCardClosingPageComponent implements OnInit {
   confirmClosing(paymentMethodId: number, from: string, to: string): void {
     const preview = this.store.preview();
 
-    if (!preview || !globalThis.confirm(`¿${this.appliedTargetState() === 'IN_POCKET' ? 'Pasar a en bolsillo' : 'Marcar como pagados'} ${preview.totalCount} gastos por ${preview.totalAmount}?`)) {
+    if (!preview || !this.selectedExpenses().length || !globalThis.confirm(`¿${this.appliedTargetState() === 'IN_POCKET' ? 'Pasar a en bolsillo' : 'Marcar como pagados'} ${this.selectedExpenses().length} gastos por ${this.selectedTotal()}?`)) {
       return;
     }
 
-    this.store.confirm(this.accountId(), paymentMethodId, from, to, this.appliedCategoryIds, this.appliedTargetState()).pipe(take(1)).subscribe({ error: () => undefined });
+    this.store.confirm(this.accountId(), paymentMethodId, from, to, this.appliedCategoryIds, this.appliedTargetState(), this.selectedExpenses().map((expense) => expense.id)).pipe(take(1)).subscribe({ error: () => undefined });
   }
 
   startNewClosing(): void {
     this.store.reset();
     this.filterForm.reset({ paymentMethodId: 0, from: '', to: '', categoryIds: [], targetState: 'PAID' });
+  }
+
+  isSelected(expenseId: number): boolean {
+    return !this.deselectedIds().has(expenseId);
+  }
+
+  toggleExpense(expenseId: number): void {
+    const next = new Set(this.deselectedIds());
+
+    if (!next.delete(expenseId)) {
+      next.add(expenseId);
+    }
+
+    this.deselectedIds.set(next);
+  }
+
+  toggleAll(selectAll: boolean): void {
+    this.deselectedIds.set(selectAll ? new Set() : new Set((this.store.preview()?.expenses ?? []).map((expense) => expense.id)));
   }
 
   categoryName(categoryId: number): string {

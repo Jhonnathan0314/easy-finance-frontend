@@ -27,7 +27,10 @@ describe('CreditCardClosingPageComponent', () => {
     totalAmount: 35000,
     totalCount: 2,
     byCategory: [{ categoryId: 2, categoryName: 'Groceries', amount: 35000, count: 2 }],
-    expenses: []
+    expenses: [
+      { id: 11, categoryId: 2, description: 'Mercado', amount: 20000, expenseDate: '2026-05-02' },
+      { id: 12, categoryId: 2, description: 'Tienda', amount: 15000, expenseDate: '2026-05-03' }
+    ] as unknown as CreditCardClosingPreviewResponseDto['expenses']
   };
   const result: CreditCardClosingResultResponseDto = {
     paymentMethodId: 5,
@@ -159,7 +162,21 @@ describe('CreditCardClosingPageComponent', () => {
 
     component.confirmClosing(preview.paymentMethodId, preview.from, preview.to);
 
-    expect(store.confirm).toHaveBeenCalledWith(1, 5, '2026-05-01', '2026-05-31', [], 'PAID');
+    expect(store.confirm).toHaveBeenCalledWith(1, 5, '2026-05-01', '2026-05-31', [], 'PAID', [11, 12]);
+  });
+
+  it('only confirms the selected expenses and recalculates the totals', () => {
+    spyOn(globalThis, 'confirm').and.returnValue(true);
+    const fixture = configure({ preview });
+    const component = fixture.componentInstance;
+    const store = TestBed.inject(CreditCardClosingStore);
+
+    component.toggleExpense(12);
+    component.confirmClosing(preview.paymentMethodId, preview.from, preview.to);
+
+    expect(component.selectedTotal()).toBe(20000);
+    expect(component.selectedByCategory()).toEqual([{ categoryId: 2, categoryName: 'Groceries', amount: 20000, count: 1 }]);
+    expect(store.confirm).toHaveBeenCalledWith(1, 5, '2026-05-01', '2026-05-31', [], 'PAID', [11]);
   });
 
   it('does not confirm the closing when the user cancels the dialog', () => {

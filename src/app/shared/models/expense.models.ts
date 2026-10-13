@@ -97,6 +97,7 @@ export interface CreditCardClosingRequest {
   to: string;
   categoryIds?: number[];
   targetState?: ClosingTargetState;
+  expenseIds?: number[];
 }
 
 export interface CreditCardClosingCategoryItemDto {

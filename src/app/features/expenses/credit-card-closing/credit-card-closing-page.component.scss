@@ -132,6 +132,24 @@
     background: var(--color-bg-panel);
   }
 
+  .check-col {
+    width: 2rem;
+    padding-right: 0;
+
+    input {
+      width: 1rem;
+      height: 1rem;
+      margin: 0;
+      accent-color: var(--color-accent);
+      cursor: pointer;
+    }
+  }
+
+  tr.deselected td:not(.check-col) {
+    opacity: 0.45;
+    text-decoration: line-through;
+  }
+
   .amount-col {
     text-align: right;
     white-space: nowrap;
