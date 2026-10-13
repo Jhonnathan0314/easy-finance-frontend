@@ -130,12 +130,12 @@ a {
   gap: 0.35rem;
 }
 
-.field span {
+.field > span {
   font-size: 0.9rem;
   font-weight: 600;
 }
 
-.field input,
+.field input:not([type='checkbox']):not([type='radio']),
 .field textarea,
 .field select {
   width: 100%;

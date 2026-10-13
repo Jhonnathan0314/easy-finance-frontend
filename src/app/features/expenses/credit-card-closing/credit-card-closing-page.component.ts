@@ -67,7 +67,7 @@ import { MultiSelectDropdownComponent, MultiSelectOption } from '../../../shared
               <span>Hasta</span>
               <input type="date" formControlName="to">
             </label>
-            <label class="field">
+            <div class="field">
               <span>Categorías</span>
               <ef-multi-select-dropdown
                 [options]="categoryOptions()"
@@ -75,7 +75,7 @@ import { MultiSelectDropdownComponent, MultiSelectOption } from '../../../shared
                 placeholder="Todas"
                 (selectedIdsChange)="filterForm.controls.categoryIds.setValue($event)"
               />
-            </label>
+            </div>
             <div class="form-actions">
               <button class="button" type="submit" [disabled]="filterForm.invalid || store.isLoadingPreview()">
                 {{ store.isLoadingPreview() ? 'Calculando...' : 'Calcular' }}
