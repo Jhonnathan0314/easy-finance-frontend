@@ -454,7 +454,7 @@ export class ExpensesPageComponent implements OnInit {
     return this.formMode() === 'simple' ? 'Crear gasto simple' : 'Crear gasto en cuotas';
   });
 
-  readonly paymentStates: ExpensePaymentState[] = ['PENDING', 'PARTIAL', 'PAID'];
+  readonly paymentStates: ExpensePaymentState[] = ['PENDING', 'PARTIAL', 'IN_POCKET', 'PAID'];
   readonly expenseTypes: ExpenseType[] = ['SIMPLE', 'INSTALLMENT'];
   readonly pageSizeOptions = [10, 20, 50, 100];
   readonly dateSortOptions: Array<{ label: string; value: ExpenseDateSort }> = [

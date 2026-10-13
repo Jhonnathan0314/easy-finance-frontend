@@ -1,7 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { Observable, catchError, finalize, tap, throwError } from 'rxjs';
 
-import { ApiErrorResponse, CreditCardClosingPreviewResponseDto, CreditCardClosingResultResponseDto } from '../../shared/models';
+import { ApiErrorResponse, ClosingTargetState, CreditCardClosingPreviewResponseDto, CreditCardClosingResultResponseDto } from '../../shared/models';
 import { CreditCardClosingApiService } from './credit-card-closing-api.service';
 
 @Injectable({ providedIn: 'root' })
@@ -19,13 +19,14 @@ export class CreditCardClosingStore {
     paymentMethodId: number,
     from: string,
     to: string,
-    categoryIds: number[] = []
+    categoryIds: number[] = [],
+    targetState: ClosingTargetState = 'PAID'
   ): Observable<CreditCardClosingPreviewResponseDto> {
     this.isLoadingPreview.set(true);
     this.error.set(null);
     this.result.set(null);
 
-    return this.api.preview(accountId, paymentMethodId, from, to, categoryIds).pipe(
+    return this.api.preview(accountId, paymentMethodId, from, to, categoryIds, targetState).pipe(
       tap((preview) => this.preview.set(preview)),
       catchError((error: unknown) => {
         this.preview.set(null);
@@ -41,12 +42,13 @@ export class CreditCardClosingStore {
     paymentMethodId: number,
     from: string,
     to: string,
-    categoryIds: number[] = []
+    categoryIds: number[] = [],
+    targetState: ClosingTargetState = 'PAID'
   ): Observable<CreditCardClosingResultResponseDto> {
     this.isConfirming.set(true);
     this.error.set(null);
 
-    return this.api.confirm(accountId, { paymentMethodId, from, to, ...(categoryIds.length ? { categoryIds } : {}) }).pipe(
+    return this.api.confirm(accountId, { paymentMethodId, from, to, targetState, ...(categoryIds.length ? { categoryIds } : {}) }).pipe(
       tap((result) => {
         this.result.set(result);
         this.preview.set(null);

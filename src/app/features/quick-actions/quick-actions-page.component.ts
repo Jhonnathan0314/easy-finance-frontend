@@ -323,7 +323,7 @@ export class QuickActionsPageComponent implements OnInit {
     return activeMembers.filter((member) => member.participantId === currentParticipantId);
   });
 
-  readonly paymentStates: ExpensePaymentState[] = ['PENDING', 'PARTIAL', 'PAID'];
+  readonly paymentStates: ExpensePaymentState[] = ['PENDING', 'PARTIAL', 'IN_POCKET', 'PAID'];
 
   readonly simpleExpenseForm = this.fb.group({
     categoryId: [0, [Validators.required, Validators.min(1)]],

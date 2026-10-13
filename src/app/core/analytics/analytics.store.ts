@@ -38,7 +38,7 @@ export interface AdvancedDashboardResponse {
 
 const ANALYTICS_FILTERS_FEATURE = 'analytics';
 const GROUP_BY_OPTIONS: CashflowGroupBy[] = ['DAY', 'WEEK', 'MONTH'];
-const EXPENSE_PAYMENT_STATES = [null, 'PENDING', 'PARTIAL', 'PAID'];
+const EXPENSE_PAYMENT_STATES = [null, 'PENDING', 'PARTIAL', 'IN_POCKET', 'PAID'];
 const STATUSES = [null, 'ACTIVE', 'CANCELLED'];
 const EXPENSE_TYPES = [null, 'SIMPLE', 'INSTALLMENT'];
 

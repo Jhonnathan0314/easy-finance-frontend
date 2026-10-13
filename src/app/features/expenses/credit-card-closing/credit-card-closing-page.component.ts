@@ -7,7 +7,7 @@ import { take } from 'rxjs';
 import { CatalogsApiService } from '../../../core/catalogs/catalogs-api.service';
 import { CreditCardClosingStore } from '../../../core/expenses/credit-card-closing.store';
 import { AccountStore } from '../../../core/state/account.store';
-import { CategoryResponseDto, PaymentMethodResponseDto } from '../../../shared/models';
+import { CategoryResponseDto, ClosingTargetState, PaymentMethodResponseDto } from '../../../shared/models';
 import { MultiSelectDropdownComponent, MultiSelectOption } from '../../../shared/ui/multi-select-dropdown.component';
 
 @Component({
@@ -21,7 +21,7 @@ import { MultiSelectDropdownComponent, MultiSelectOption } from '../../../shared
         <div>
           <h1 class="page-title">Cierre de tarjeta de crédito</h1>
           <p class="page-subtitle">
-            Marca en bloque como pagados los gastos pendientes de una tarjeta en un rango de fechas.
+            Marca en bloque como pagados, o pasa a «en bolsillo», los gastos pendientes de una tarjeta en un rango de fechas.
           </p>
         </div>
         <a [routerLink]="['/app/accounts', accountId(), 'expenses']">Volver a gastos</a>
@@ -40,7 +40,8 @@ import { MultiSelectDropdownComponent, MultiSelectOption } from '../../../shared
         @if (store.result(); as result) {
           <div class="panel success-panel">
             <p>
-              Se marcaron <strong>{{ result.updatedCount }}</strong> gastos como pagados por un total de
+              Se {{ result.targetState === 'IN_POCKET' ? 'pasaron a en bolsillo' : 'marcaron como pagados' }}
+              <strong>{{ result.updatedCount }}</strong> gastos por un total de
               <strong>{{ result.totalAmount | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>.
             </p>
             <div class="form-actions">
@@ -76,6 +77,13 @@ import { MultiSelectDropdownComponent, MultiSelectOption } from '../../../shared
                 (selectedIdsChange)="filterForm.controls.categoryIds.setValue($event)"
               />
             </div>
+            <label class="field">
+              <span>Acción al confirmar</span>
+              <select formControlName="targetState">
+                <option value="PAID">Marcar como pagado</option>
+                <option value="IN_POCKET">Pasar a en bolsillo</option>
+              </select>
+            </label>
             <div class="form-actions">
               <button class="button" type="submit" [disabled]="filterForm.invalid || store.isLoadingPreview()">
                 {{ store.isLoadingPreview() ? 'Calculando...' : 'Calcular' }}
@@ -140,7 +148,7 @@ import { MultiSelectDropdownComponent, MultiSelectOption } from '../../../shared
 
                 <div class="form-actions">
                   <button class="button" type="button" [disabled]="store.isConfirming()" (click)="confirmClosing(preview.paymentMethodId, preview.from, preview.to)">
-                    {{ store.isConfirming() ? 'Marcando...' : 'Marcar como pagado' }}
+                    {{ store.isConfirming() ? 'Aplicando...' : confirmLabel() }}
                   </button>
                 </div>
               } @else {
@@ -166,6 +174,8 @@ export class CreditCardClosingPageComponent implements OnInit {
     this.categories().map((category) => ({ id: category.id, label: category.name }))
   );
   private appliedCategoryIds: number[] = [];
+  private readonly appliedTargetState = signal<ClosingTargetState>('PAID');
+  readonly confirmLabel = computed(() => (this.appliedTargetState() === 'IN_POCKET' ? 'Pasar a en bolsillo' : 'Marcar como pagado'));
   readonly accountId = computed(() => this.accountStore.selectedAccountId() ?? 0);
   readonly isAdmin = computed(() => this.accountStore.selectedAccount()?.currentUserRole === 'ACCOUNT_ADMIN');
 
@@ -173,7 +183,8 @@ export class CreditCardClosingPageComponent implements OnInit {
     paymentMethodId: [0, [Validators.required, Validators.min(1)]],
     from: ['', [Validators.required]],
     to: ['', [Validators.required]],
-    categoryIds: [[] as number[]]
+    categoryIds: [[] as number[]],
+    targetState: ['PAID' as ClosingTargetState]
   });
 
   ngOnInit(): void {
@@ -190,22 +201,23 @@ export class CreditCardClosingPageComponent implements OnInit {
 
     const raw = this.filterForm.getRawValue();
     this.appliedCategoryIds = raw.categoryIds;
-    this.store.calculate(this.accountId(), raw.paymentMethodId, raw.from, raw.to, raw.categoryIds).pipe(take(1)).subscribe({ error: () => undefined });
+    this.appliedTargetState.set(raw.targetState);
+    this.store.calculate(this.accountId(), raw.paymentMethodId, raw.from, raw.to, raw.categoryIds, raw.targetState).pipe(take(1)).subscribe({ error: () => undefined });
   }
 
   confirmClosing(paymentMethodId: number, from: string, to: string): void {
     const preview = this.store.preview();
 
-    if (!preview || !globalThis.confirm(`¿Marcar ${preview.totalCount} gastos como pagados por ${preview.totalAmount}?`)) {
+    if (!preview || !globalThis.confirm(`¿${this.appliedTargetState() === 'IN_POCKET' ? 'Pasar a en bolsillo' : 'Marcar como pagados'} ${preview.totalCount} gastos por ${preview.totalAmount}?`)) {
       return;
     }
 
-    this.store.confirm(this.accountId(), paymentMethodId, from, to, this.appliedCategoryIds).pipe(take(1)).subscribe({ error: () => undefined });
+    this.store.confirm(this.accountId(), paymentMethodId, from, to, this.appliedCategoryIds, this.appliedTargetState()).pipe(take(1)).subscribe({ error: () => undefined });
   }
 
   startNewClosing(): void {
     this.store.reset();
-    this.filterForm.reset({ paymentMethodId: 0, from: '', to: '', categoryIds: [] });
+    this.filterForm.reset({ paymentMethodId: 0, from: '', to: '', categoryIds: [], targetState: 'PAID' });
   }
 
   categoryName(categoryId: number): string {

@@ -55,7 +55,7 @@ const DEFAULT_FILTERS: ExpenseFilters = {
   sort: 'expenseDate,desc'
 };
 const EXPENSE_FILTERS_FEATURE = 'expenses';
-const PAYMENT_STATES: Array<ExpensePaymentState | null> = [null, 'PENDING', 'PARTIAL', 'PAID'];
+const PAYMENT_STATES: Array<ExpensePaymentState | null> = [null, 'PENDING', 'PARTIAL', 'IN_POCKET', 'PAID'];
 const EXPENSE_STATUSES: ExpenseStatus[] = ['ACTIVE', 'CANCELLED'];
 const EXPENSE_TYPES: Array<ExpenseType | null> = [null, 'SIMPLE', 'INSTALLMENT'];
 

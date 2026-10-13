@@ -88,7 +88,7 @@ export const DEBT_IMPORT_TEMPLATE_FILENAME = 'easy-finance-debt-import-template.
           <li>Solo .xlsx, maximo 5MB y maximo 1500 filas.</li>
           <li>La categoría debe existir, estar activa y ser de gasto.</li>
           <li>MedioPago debe existir y estar activo.</li>
-          <li>EstadoPago: PENDING, PARTIAL, PAID.</li>
+          <li>EstadoPago: PENDING, PARTIAL, IN_POCKET, PAID.</li>
           <li>Opcionalmente puedes asociar una fila a pago de deuda con AplicaPagoDeuda, Deuda, TipoPagoDeuda y NotasPagoDeuda.</li>
           <li>Filas invalidas se reportan y no se importan.</li>
           <li>Confirmar importa solo filas validas y registra pagos de deuda cuando aplique.</li>

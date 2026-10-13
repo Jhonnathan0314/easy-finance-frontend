@@ -89,11 +89,14 @@ export function isDebtPaymentExpense(expense: Pick<ExpenseResponse, 'sourceType'
   return expense.sourceType === 'DEBT_PAYMENT';
 }
 
+export type ClosingTargetState = Extract<ExpensePaymentState, 'PAID' | 'IN_POCKET'>;
+
 export interface CreditCardClosingRequest {
   paymentMethodId: number;
   from: string;
   to: string;
   categoryIds?: number[];
+  targetState?: ClosingTargetState;
 }
 
 export interface CreditCardClosingCategoryItemDto {
@@ -119,4 +122,5 @@ export interface CreditCardClosingResultResponseDto {
   to: string;
   totalAmount: number;
   updatedCount: number;
+  targetState?: ClosingTargetState;
 }

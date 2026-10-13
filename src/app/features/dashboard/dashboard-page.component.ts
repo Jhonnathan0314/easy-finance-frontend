@@ -119,6 +119,7 @@ type AdvancedFilter =
                 <option value="">Todos</option>
                 <option value="PENDING">{{ enumLabel('PENDING') }}</option>
                 <option value="PARTIAL">{{ enumLabel('PARTIAL') }}</option>
+                <option value="IN_POCKET">{{ enumLabel('IN_POCKET') }}</option>
                 <option value="PAID">{{ enumLabel('PAID') }}</option>
               </select>
             </label> }

@@ -140,7 +140,7 @@ describe('CreditCardClosingPageComponent', () => {
     component.filterForm.patchValue({ paymentMethodId: 5, from: '2026-05-01', to: '2026-05-31' });
     component.calculate();
 
-    expect(store.calculate).toHaveBeenCalledWith(1, 5, '2026-05-01', '2026-05-31', []);
+    expect(store.calculate).toHaveBeenCalledWith(1, 5, '2026-05-01', '2026-05-31', [], 'PAID');
   });
 
   it('renders the category breakdown and total when a preview is available', () => {
@@ -159,7 +159,7 @@ describe('CreditCardClosingPageComponent', () => {
 
     component.confirmClosing(preview.paymentMethodId, preview.from, preview.to);
 
-    expect(store.confirm).toHaveBeenCalledWith(1, 5, '2026-05-01', '2026-05-31', []);
+    expect(store.confirm).toHaveBeenCalledWith(1, 5, '2026-05-01', '2026-05-31', [], 'PAID');
   });
 
   it('does not confirm the closing when the user cancels the dialog', () => {

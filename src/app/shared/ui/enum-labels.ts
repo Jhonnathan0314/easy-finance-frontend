@@ -7,6 +7,7 @@ const ENUM_LABELS: Record<string, string> = {
   PAID: 'Pagado',
   PENDING: 'Pendiente',
   PARTIAL: 'Parcial',
+  IN_POCKET: 'En bolsillo',
   SIMPLE: 'Simple',
   INSTALLMENT: 'En cuotas',
   ACCOUNT_ADMIN: 'Administrador',
