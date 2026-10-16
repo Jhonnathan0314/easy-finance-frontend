@@ -13,7 +13,8 @@ import {
   DebtSourceType,
   DebtState,
   RegisterDebtPaymentRequest,
-  RegisterDebtPaymentResponseDto
+  RegisterDebtPaymentResponseDto,
+  UpdateDebtPaymentRequest
 } from '../../shared/models';
 import { FeatureFilterStorageService } from '../filters/feature-filter-storage.service';
 import { DebtsApiService } from './debts-api.service';
@@ -206,6 +207,45 @@ export class DebtsStore {
       ),
       catchError((error: unknown) => this.handleError(error)),
       finalize(() => this.isSaving.set(false))
+    );
+  }
+
+  updatePayment(
+    accountId: number,
+    debtId: number,
+    paymentId: number,
+    request: UpdateDebtPaymentRequest
+  ): Observable<RegisterDebtPaymentResponseDto> {
+    this.ensureAccount(accountId);
+    this.isSaving.set(true);
+    this.error.set(null);
+
+    return this.debtsApi.updatePayment(accountId, debtId, paymentId, request).pipe(
+      tap((response) => this.selectedDebt.set(response.debt)),
+      switchMap((response) => this.refreshAfterPaymentChange(accountId, debtId).pipe(map(() => response))),
+      catchError((error: unknown) => this.handleError(error)),
+      finalize(() => this.isSaving.set(false))
+    );
+  }
+
+  cancelPayment(accountId: number, debtId: number, paymentId: number): Observable<void> {
+    this.ensureAccount(accountId);
+    this.isSaving.set(true);
+    this.error.set(null);
+
+    return this.debtsApi.cancelPayment(accountId, debtId, paymentId).pipe(
+      switchMap(() => this.refreshAfterPaymentChange(accountId, debtId)),
+      map(() => undefined),
+      catchError((error: unknown) => this.handleError(error)),
+      finalize(() => this.isSaving.set(false))
+    );
+  }
+
+  private refreshAfterPaymentChange(accountId: number, debtId: number): Observable<unknown> {
+    return this.debtsApi.getDebt(accountId, debtId).pipe(
+      tap((debt) => this.selectedDebt.set(debt)),
+      switchMap(() => this.loadDebts(accountId)),
+      switchMap(() => this.loadPayments(accountId, debtId))
     );
   }
 

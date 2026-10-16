@@ -13,6 +13,7 @@ import {
   AccountMemberResponseDto,
   CategoryResponseDto,
   CreateManualDebtRequest,
+  DebtPaymentResponseDto,
   DebtPaymentStatus,
   DebtPaymentType,
   DebtResponseDto,
@@ -258,7 +259,7 @@ import { enumLabel } from '../../shared/ui/enum-labels';
 
             @if (showPaymentForm()) {
               <form class="payment-form" [formGroup]="paymentForm" (ngSubmit)="savePayment()">
-                <h3>Registrar pago</h3>
+                <h3>{{ editingPayment() ? 'Editar pago' : 'Registrar pago' }}</h3>
                 <label class="field">
                   <span>Tipo</span>
                   <select formControlName="paymentType">
@@ -292,11 +293,13 @@ import { enumLabel } from '../../shared/ui/enum-labels';
                   El capital se valida contra el saldo pendiente y lo reduce al registrarse. El interes (solo para
                   pagos de cuota) se guarda unicamente para consulta y no afecta el capital pendiente.
                 </p>
+                @if (!editingPayment()) {
                 <label class="checkbox-field wide">
                   <input type="checkbox" formControlName="createExpense">
                   <span>Crear gasto asociado</span>
                 </label>
-                @if (paymentForm.controls.createExpense.value) {
+                }
+                @if (!editingPayment() && paymentForm.controls.createExpense.value) {
                   <div class="associated-expense-fields wide">
                     <p class="hint">El gasto asociado usara el monto total pagado (capital + interes) y la misma fecha del pago.</p>
                     <label class="field">
@@ -330,8 +333,10 @@ import { enumLabel } from '../../shared/ui/enum-labels';
                   </div>
                 }
                 <div class="form-actions">
-                  <button class="button" type="submit" [disabled]="paymentForm.invalid || debtsStore.isSaving()">Guardar pago</button>
-                  <button type="button" (click)="showPaymentForm.set(false)">Cancelar</button>
+                  <button class="button" type="submit" [disabled]="paymentForm.invalid || debtsStore.isSaving()">
+                    {{ editingPayment() ? 'Guardar cambios' : 'Guardar pago' }}
+                  </button>
+                  <button type="button" (click)="closePaymentForm()">Cancelar</button>
                 </div>
               </form>
             } @else if (canRegisterPayment(debt)) {
@@ -386,7 +391,15 @@ import { enumLabel } from '../../shared/ui/enum-labels';
                         </span>
                       }
                     </div>
-                    <span>{{ payment.amount | currency: 'COP':'symbol-narrow':'1.0-0' }}</span>
+                    <div class="payment-row-side">
+                      <strong>{{ payment.amount | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
+                      @if (canAdjustPayment(debt, payment)) {
+                        <div class="payment-row-actions">
+                          <button type="button" [disabled]="debtsStore.isSaving()" (click)="startEditPayment(payment)">Editar</button>
+                          <button type="button" class="danger" [disabled]="debtsStore.isSaving()" (click)="deletePayment(payment)">Eliminar</button>
+                        </div>
+                      }
+                    </div>
                   </article>
                 }
               </div>
@@ -412,6 +425,7 @@ export class DebtsPageComponent implements OnInit {
   readonly canCreateDebt = computed(() => this.accountStore.selectedAccount()?.status === 'ACTIVE');
   readonly showDebtForm = signal(false);
   readonly showPaymentForm = signal(false);
+  readonly editingPayment = signal<DebtPaymentResponseDto | null>(null);
   readonly successMessage = signal<string | null>(null);
   readonly paymentFormError = signal<string | null>(null);
   readonly expenseCategories = signal<CategoryResponseDto[]>([]);
@@ -603,6 +617,7 @@ export class DebtsPageComponent implements OnInit {
     }
 
     this.paymentFormError.set(null);
+    this.editingPayment.set(null);
     this.paymentForm.reset({
       paymentType: 'INSTALLMENT',
       capitalAmount: 0,
@@ -617,8 +632,71 @@ export class DebtsPageComponent implements OnInit {
     this.showPaymentForm.set(true);
   }
 
+  startEditPayment(payment: DebtPaymentResponseDto): void {
+    const debt = this.selectedDebt();
+
+    if (!debt || !this.canAdjustPayment(debt, payment)) {
+      return;
+    }
+
+    this.paymentFormError.set(null);
+    this.editingPayment.set(payment);
+    this.paymentForm.reset({
+      paymentType: payment.paymentType,
+      capitalAmount: payment.capitalAmount,
+      interestAmount: payment.interestAmount,
+      paymentDate: payment.paymentDate,
+      notes: payment.notes ?? '',
+      createExpense: false,
+      categoryId: 0,
+      paymentMethodId: 0,
+      expenseDescription: ''
+    });
+    this.showPaymentForm.set(true);
+  }
+
+  closePaymentForm(): void {
+    this.showPaymentForm.set(false);
+    this.editingPayment.set(null);
+    this.paymentFormError.set(null);
+  }
+
+  deletePayment(payment: DebtPaymentResponseDto): void {
+    const debt = this.selectedDebt();
+
+    if (!debt || !this.canAdjustPayment(debt, payment) || !globalThis.confirm('¿Eliminar este pago? El saldo de la deuda se restaurará.')) {
+      return;
+    }
+
+    this.debtsStore
+      .cancelPayment(this.accountId(), debt.id, payment.id)
+      .pipe(take(1))
+      .subscribe({
+        next: () => {
+          this.successMessage.set('Pago eliminado.');
+          this.closePaymentForm();
+        },
+        error: () => undefined
+      });
+  }
+
+  canAdjustPayment(debt: DebtResponseDto, payment: DebtPaymentResponseDto): boolean {
+    return (
+      this.accountStore.selectedAccount()?.status === 'ACTIVE' &&
+      debt.state !== 'CANCELLED' &&
+      payment.status === 'ACTIVE' &&
+      !payment.hasAssociatedExpense
+    );
+  }
+
   savePayment(): void {
     const debt = this.selectedDebt();
+    const editing = this.editingPayment();
+
+    if (editing) {
+      this.saveEditedPayment(debt, editing);
+      return;
+    }
 
     if (!debt || this.paymentForm.invalid || !this.canRegisterPayment(debt)) {
       this.paymentForm.markAllAsTouched();
@@ -656,6 +734,38 @@ export class DebtsPageComponent implements OnInit {
           this.successMessage.set(response.createdExpenseId ? 'Pago registrado y gasto asociado creado.' : 'Pago registrado.');
           this.paymentFormError.set(null);
           this.showPaymentForm.set(false);
+        },
+        error: () => undefined
+      });
+  }
+
+  private saveEditedPayment(debt: DebtResponseDto | null, payment: DebtPaymentResponseDto): void {
+    if (!debt || this.paymentForm.invalid || !this.canAdjustPayment(debt, payment)) {
+      this.paymentForm.markAllAsTouched();
+      return;
+    }
+
+    const raw = this.paymentForm.getRawValue();
+    const interestAmount = raw.paymentType === 'CAPITAL_PAYMENT' ? 0 : raw.interestAmount;
+
+    if (toCents(raw.capitalAmount) > toCents(debt.remainingAmount) + toCents(payment.capitalAmount)) {
+      this.paymentFormError.set('El pago no puede superar el saldo pendiente.');
+      return;
+    }
+
+    this.debtsStore
+      .updatePayment(this.accountId(), debt.id, payment.id, {
+        paymentType: raw.paymentType,
+        capitalAmount: raw.capitalAmount,
+        interestAmount,
+        paymentDate: raw.paymentDate,
+        notes: raw.notes || null
+      })
+      .pipe(take(1))
+      .subscribe({
+        next: () => {
+          this.successMessage.set('Pago actualizado.');
+          this.closePaymentForm();
         },
         error: () => undefined
       });

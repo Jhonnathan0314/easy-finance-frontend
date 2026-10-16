@@ -58,6 +58,20 @@ describe('DebtsApiService', () => {
     expect(httpTesting.expectOne('http://localhost:8080/api/v1/accounts/4/debts/9/cancel').request.method).toBe('PATCH');
   });
 
+  it('builds update and cancel payment endpoints', () => {
+    service.updatePayment(5, 8, 13, { paymentType: 'INSTALLMENT', capitalAmount: 1000, paymentDate: '2026-05-12' }).subscribe();
+    service.cancelPayment(5, 8, 13).subscribe();
+
+    const updateRequest = httpTesting.expectOne('http://localhost:8080/api/v1/accounts/5/debts/8/payments/13' && ((r) => r.method === 'PUT'));
+    expect(updateRequest.request.url).toBe('http://localhost:8080/api/v1/accounts/5/debts/8/payments/13');
+    expect(updateRequest.request.body).toEqual({ paymentType: 'INSTALLMENT', capitalAmount: 1000, paymentDate: '2026-05-12' });
+    updateRequest.flush({});
+
+    const cancelRequest = httpTesting.expectOne((r) => r.method === 'DELETE');
+    expect(cancelRequest.request.url).toBe('http://localhost:8080/api/v1/accounts/5/debts/8/payments/13');
+    cancelRequest.flush(null);
+  });
+
   it('builds payment endpoints with query params', () => {
     service
       .listPayments(5, 8, {

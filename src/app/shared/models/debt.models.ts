@@ -25,6 +25,11 @@ export interface RegisterDebtPaymentRequest {
   expenseDescription?: string | null;
 }
 
+export type UpdateDebtPaymentRequest = Pick<
+  RegisterDebtPaymentRequest,
+  'paymentType' | 'capitalAmount' | 'interestAmount' | 'paymentDate' | 'notes'
+>;
+
 export interface DebtResponse {
   id: number;
   accountId: number;
@@ -66,6 +71,7 @@ export interface DebtPaymentResponse {
   status: DebtPaymentStatus;
   createdAt: string;
   updatedAt: string;
+  hasAssociatedExpense?: boolean;
 }
 
 export type DebtPaymentResponseDto = DebtPaymentResponse;

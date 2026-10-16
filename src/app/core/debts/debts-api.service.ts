@@ -9,7 +9,8 @@ import {
   DebtResponseDto,
   PageResponseDto,
   RegisterDebtPaymentRequest,
-  RegisterDebtPaymentResponseDto
+  RegisterDebtPaymentResponseDto,
+  UpdateDebtPaymentRequest
 } from '../../shared/models';
 import { ApiClient } from '../http/api-client';
 
@@ -53,6 +54,22 @@ export class DebtsApiService {
       `/accounts/${accountId}/debts/${debtId}/payments`,
       request
     );
+  }
+
+  updatePayment(
+    accountId: number,
+    debtId: number,
+    paymentId: number,
+    request: UpdateDebtPaymentRequest
+  ): Observable<RegisterDebtPaymentResponseDto> {
+    return this.api.put<RegisterDebtPaymentResponseDto, UpdateDebtPaymentRequest>(
+      `/accounts/${accountId}/debts/${debtId}/payments/${paymentId}`,
+      request
+    );
+  }
+
+  cancelPayment(accountId: number, debtId: number, paymentId: number): Observable<void> {
+    return this.api.delete<void>(`/accounts/${accountId}/debts/${debtId}/payments/${paymentId}`);
   }
 
   getPayment(accountId: number, debtId: number, paymentId: number): Observable<DebtPaymentResponseDto> {

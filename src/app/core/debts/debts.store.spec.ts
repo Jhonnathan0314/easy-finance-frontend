@@ -58,6 +58,8 @@ describe('DebtsStore', () => {
       'cancelDebt',
       'listPayments',
       'registerPayment',
+      'updatePayment',
+      'cancelPayment',
       'getPayment'
     ]);
     service.listDebts.and.returnValue(of({ content: [debt], page: 0, size: 20, totalElements: 1, totalPages: 1 }));
@@ -66,6 +68,8 @@ describe('DebtsStore', () => {
     service.cancelDebt.and.returnValue(of(undefined));
     service.listPayments.and.returnValue(of({ content: [payment], page: 0, size: 20, totalElements: 1, totalPages: 1 }));
     service.registerPayment.and.returnValue(of({ payment, debt: { ...debt, remainingAmount: 700000 }, createdExpenseId: 21 }));
+    service.updatePayment.and.returnValue(of({ payment, debt: { ...debt, remainingAmount: 650000 } }));
+    service.cancelPayment.and.returnValue(of(undefined));
     service.getPayment.and.returnValue(of(payment));
 
     TestBed.configureTestingModule({
@@ -122,6 +126,31 @@ describe('DebtsStore', () => {
         expect(response.createdExpenseId).toBe(21);
         done();
       });
+  });
+
+  it('updates a payment and refreshes the debt and payments', (done) => {
+    store
+      .updatePayment(10, 1, 5, { paymentType: 'INSTALLMENT', capitalAmount: 150000, paymentDate: '2026-05-12' })
+      .subscribe((response) => {
+        expect(service.updatePayment).toHaveBeenCalledWith(10, 1, 5, {
+          paymentType: 'INSTALLMENT',
+          capitalAmount: 150000,
+          paymentDate: '2026-05-12'
+        });
+        expect(service.getDebt).toHaveBeenCalledWith(10, 1);
+        expect(service.listPayments).toHaveBeenCalled();
+        expect(response.debt.remainingAmount).toBe(650000);
+        done();
+      });
+  });
+
+  it('cancels a payment and refreshes the debt and payments', (done) => {
+    store.cancelPayment(10, 1, 5).subscribe(() => {
+      expect(service.cancelPayment).toHaveBeenCalledWith(10, 1, 5);
+      expect(service.getDebt).toHaveBeenCalledWith(10, 1);
+      expect(service.listPayments).toHaveBeenCalled();
+      done();
+    });
   });
 
   it('cancels a debt and refreshes the list', (done) => {
