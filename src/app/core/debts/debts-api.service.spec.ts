@@ -62,12 +62,12 @@ describe('DebtsApiService', () => {
     service.updatePayment(5, 8, 13, { paymentType: 'INSTALLMENT', capitalAmount: 1000, paymentDate: '2026-05-12' }).subscribe();
     service.cancelPayment(5, 8, 13).subscribe();
 
-    const updateRequest = httpTesting.expectOne('http://localhost:8080/api/v1/accounts/5/debts/8/payments/13' && ((r) => r.method === 'PUT'));
+    const updateRequest = httpTesting.expectOne((request) => request.method === 'PUT');
     expect(updateRequest.request.url).toBe('http://localhost:8080/api/v1/accounts/5/debts/8/payments/13');
     expect(updateRequest.request.body).toEqual({ paymentType: 'INSTALLMENT', capitalAmount: 1000, paymentDate: '2026-05-12' });
     updateRequest.flush({});
 
-    const cancelRequest = httpTesting.expectOne((r) => r.method === 'DELETE');
+    const cancelRequest = httpTesting.expectOne((request) => request.method === 'DELETE');
     expect(cancelRequest.request.url).toBe('http://localhost:8080/api/v1/accounts/5/debts/8/payments/13');
     cancelRequest.flush(null);
   });
