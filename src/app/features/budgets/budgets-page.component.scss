@@ -283,6 +283,12 @@
   grid-template-columns: repeat(auto-fit, minmax(22rem, 1fr));
 }
 
+/* Subbudget cards need room for text plus actions: use as many columns as fit at 26rem+ each. */
+.subbudget-list.compact-grid {
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 26rem), 1fr));
+}
+
 .annual-budget-row,
 .compact-row {
   padding: 0.75rem;
@@ -299,11 +305,11 @@
 }
 
 .subbudget-card.compact-row {
-  grid-template-columns: minmax(0, 1fr) minmax(9.5rem, auto);
+  grid-template-columns: minmax(0, 1fr) auto;
   grid-template-areas:
-    "info actions"
-    "amount actions";
-  gap: 0.5rem 0.75rem;
+    "info amount"
+    "actions actions";
+  gap: 0.6rem 1rem;
   align-items: start;
 }
 
@@ -313,7 +319,8 @@
 
 .subbudget-card.compact-row .amount-block {
   grid-area: amount;
-  justify-items: start;
+  justify-items: end;
+  text-align: right;
 }
 
 .budget-card.selected {
@@ -419,6 +426,13 @@
 .subbudget-card .actions {
   grid-area: actions;
   align-self: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+}
+
+.subbudget-card h3,
+.subbudget-card p {
+  overflow-wrap: anywhere;
 }
 
 .amount-block {
@@ -492,10 +506,22 @@ button:disabled {
     justify-content: center;
   }
 
+  .subbudget-card.compact-row {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "info"
+      "amount"
+      "actions";
+  }
+
+  .subbudget-card.compact-row .amount-block {
+    justify-items: start;
+    text-align: left;
+  }
+
   .subbudget-card.compact-row .actions {
-    grid-area: auto;
     flex-direction: column;
-    align-items: center;
+    align-items: stretch;
   }
 }
 
