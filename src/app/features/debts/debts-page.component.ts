@@ -293,6 +293,9 @@ import { enumLabel } from '../../shared/ui/enum-labels';
                   El capital se valida contra el saldo pendiente y lo reduce al registrarse. El interes (solo para
                   pagos de cuota) se guarda unicamente para consulta y no afecta el capital pendiente.
                 </p>
+                @if (editingPayment()?.hasAssociatedExpense) {
+                  <p class="hint wide">Este pago tiene un gasto asociado: su monto y fecha se actualizarán con los nuevos valores.</p>
+                }
                 @if (!editingPayment()) {
                 <label class="checkbox-field wide">
                   <input type="checkbox" formControlName="createExpense">
@@ -664,7 +667,7 @@ export class DebtsPageComponent implements OnInit {
   deletePayment(payment: DebtPaymentResponseDto): void {
     const debt = this.selectedDebt();
 
-    if (!debt || !this.canAdjustPayment(debt, payment) || !globalThis.confirm('¿Eliminar este pago? El saldo de la deuda se restaurará.')) {
+    if (!debt || !this.canAdjustPayment(debt, payment) || !globalThis.confirm((payment.hasAssociatedExpense ? '¿Eliminar este pago? El saldo de la deuda se restaurará y su gasto asociado se cancelará.' : '¿Eliminar este pago? El saldo de la deuda se restaurará.'))) {
       return;
     }
 
@@ -684,8 +687,7 @@ export class DebtsPageComponent implements OnInit {
     return (
       this.accountStore.selectedAccount()?.status === 'ACTIVE' &&
       debt.state !== 'CANCELLED' &&
-      payment.status === 'ACTIVE' &&
-      !payment.hasAssociatedExpense
+      payment.status === 'ACTIVE'
     );
   }
 
