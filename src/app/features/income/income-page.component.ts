@@ -29,7 +29,7 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
           <p class="page-subtitle">Ingresos de la cuenta {{ accountId() }}.</p>
         </div>
         @if (canCreate()) {
-          <button class="button" type="button" [disabled]="!hasRequiredCatalogs()" (click)="startCreateIncome()">
+          <button class="button btn-success" type="button" [disabled]="!hasRequiredCatalogs()" (click)="startCreateIncome()">
             Crear ingreso
           </button>
         }
@@ -162,8 +162,8 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
             <input type="text" formControlName="description">
           </label>
           <div class="form-actions">
-            <button class="button" type="submit" [disabled]="incomeForm.invalid || incomeStore.isSaving()">Guardar</button>
-            <button type="button" (click)="cancelForm()">Cancelar</button>
+            <button class="button btn-success" type="submit" [disabled]="incomeForm.invalid || incomeStore.isSaving()">Guardar</button>
+            <button class="btn-danger" type="button" (click)="cancelForm()">Cancelar</button>
           </div>
         </form>
       }
@@ -190,10 +190,10 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
             <input type="text" formControlName="description">
           </label>
           <div class="form-actions">
-            <button class="button" type="submit" [disabled]="duplicateIncomeForm.invalid || incomeStore.isSaving()">
+            <button class="button btn-success" type="submit" [disabled]="duplicateIncomeForm.invalid || incomeStore.isSaving()">
               Duplicar ingreso
             </button>
-            <button type="button" (click)="cancelDuplicateForm()">Cancelar</button>
+            <button class="btn-danger" type="button" (click)="cancelDuplicateForm()">Cancelar</button>
           </div>
         </form>
       }
@@ -215,7 +215,7 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
         <div class="panel empty-state">
           <h2>No hay ingresos para los filtros actuales</h2>
           @if (canCreate() && hasRequiredCatalogs()) {
-            <button class="button" type="button" (click)="startCreateIncome()">Crear ingreso</button>
+            <button class="button btn-success" type="button" (click)="startCreateIncome()">Crear ingreso</button>
           }
         </div>
       } @else {
@@ -249,9 +249,9 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
               <strong>{{ income.amount | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
               <div class="actions">
                 @if (canMutateIncome(income)) {
-                  <button type="button" (click)="startEditIncome(income)">Editar</button>
+                  <button class="btn-info" type="button" (click)="startEditIncome(income)">Editar</button>
                   <button type="button" (click)="startDuplicateIncome(income)">Duplicar</button>
-                  <button type="button" (click)="cancelIncome(income)">Cancelar</button>
+                  <button class="btn-danger" type="button" (click)="cancelIncome(income)">Cancelar</button>
                 }
               </div>
             </article>

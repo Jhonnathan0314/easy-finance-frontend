@@ -40,7 +40,7 @@ import { AuthStore } from '../../core/auth/auth.store';
         </label>
 
         <div class="form-actions">
-          <button class="button" type="submit" [disabled]="form.invalid || authStore.isLoading()">
+          <button class="button btn-success" type="submit" [disabled]="form.invalid || authStore.isLoading()">
             {{ authStore.isLoading() ? 'Guardando...' : 'Guardar cambios' }}
           </button>
         </div>

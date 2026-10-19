@@ -42,10 +42,10 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
         </div>
         <div class="header-actions">
           @if (canCreate()) {
-            <button class="button" type="button" [disabled]="!hasRequiredCatalogs()" (click)="startCreateSimple()">
+            <button class="button btn-success" type="button" [disabled]="!hasRequiredCatalogs()" (click)="startCreateSimple()">
               Gasto simple
             </button>
-            <button class="button secondary" type="button" [disabled]="!hasRequiredCatalogs()" (click)="startCreateInstallment()">
+            <button class="button secondary btn-success" type="button" [disabled]="!hasRequiredCatalogs()" (click)="startCreateInstallment()">
               Gasto en cuotas
             </button>
           }
@@ -259,10 +259,10 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
           }
 
           <div class="form-actions">
-            <button class="button" type="submit" [disabled]="activeForm().invalid || expensesStore.isSaving()">
+            <button class="button btn-success" type="submit" [disabled]="activeForm().invalid || expensesStore.isSaving()">
               Guardar
             </button>
-            <button type="button" (click)="cancelForm()">Cancelar</button>
+            <button class="btn-danger" type="button" (click)="cancelForm()">Cancelar</button>
           </div>
         </form>
       }
@@ -298,10 +298,10 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
             <input type="text" formControlName="description">
           </label>
           <div class="form-actions">
-            <button class="button" type="submit" [disabled]="duplicateExpenseForm.invalid || expensesStore.isSaving()">
+            <button class="button btn-success" type="submit" [disabled]="duplicateExpenseForm.invalid || expensesStore.isSaving()">
               Duplicar gasto
             </button>
-            <button type="button" (click)="cancelDuplicateForm()">Cancelar</button>
+            <button class="btn-danger" type="button" (click)="cancelDuplicateForm()">Cancelar</button>
           </div>
         </form>
       }
@@ -352,8 +352,8 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
                   <button type="button" (click)="goToRelatedDebt(expense)">Ir a deuda</button>
                 }
                 @if (canMutateExpense(expense)) {
-                  <button type="button" (click)="startEditSimple(expense)">Editar</button>
-                  <button type="button" (click)="cancelExpense(expense)">Cancelar</button>
+                  <button class="btn-info" type="button" (click)="startEditSimple(expense)">Editar</button>
+                  <button class="btn-danger" type="button" (click)="cancelExpense(expense)">Cancelar</button>
                 }
                 @if (canDuplicateExpense(expense)) {
                   <button type="button" (click)="startDuplicateExpense(expense)">Duplicar</button>

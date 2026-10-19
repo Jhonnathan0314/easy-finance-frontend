@@ -64,7 +64,7 @@ import { enumLabel } from '../../shared/ui/enum-labels';
         <div class="panel empty-state">
           <h2>Aun no tienes cuentas</h2>
           <p>Crea tu primera cuenta para comenzar a organizar tus finanzas.</p>
-          <button class="button" type="button" (click)="openCreateForm()">Crear cuenta</button>
+          <button class="button btn-success" type="button" (click)="openCreateForm()">Crear cuenta</button>
         </div>
       } @else {
         <div class="accounts-grid">

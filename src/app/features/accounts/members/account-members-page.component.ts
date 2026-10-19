@@ -47,7 +47,7 @@ import { enumLabel } from '../../../shared/ui/enum-labels';
             <div class="section-header">
               <h2>Detalle de cuenta</h2>
               @if (!isEditingAccount()) {
-                <button type="button" (click)="startEditAccount()">Editar cuenta</button>
+                <button class="btn-info" type="button" (click)="startEditAccount()">Editar cuenta</button>
               }
             </div>
 
@@ -70,8 +70,8 @@ import { enumLabel } from '../../../shared/ui/enum-labels';
                 </label>
 
                 <div class="account-edit-actions">
-                  <button type="button" (click)="cancelEditAccount()" [disabled]="isSavingAccount()">Cancelar</button>
-                  <button type="submit" [disabled]="!canSaveAccountChanges()">
+                  <button class="btn-danger" type="button" (click)="cancelEditAccount()" [disabled]="isSavingAccount()">Cancelar</button>
+                  <button class="btn-success" type="submit" [disabled]="!canSaveAccountChanges()">
                     {{ isSavingAccount() ? 'Guardando...' : 'Guardar' }}
                   </button>
                 </div>
@@ -163,7 +163,7 @@ import { enumLabel } from '../../../shared/ui/enum-labels';
                         </select>
                       </label>
                       @if (hasPendingRoleChange(member)) {
-                        <button
+                        <button class="btn-success"
                           type="button"
                           [disabled]="isSavingMember(member.participantId)"
                           (click)="saveRoleChange(member)"
@@ -171,7 +171,7 @@ import { enumLabel } from '../../../shared/ui/enum-labels';
                           Guardar
                         </button>
                       }
-                      <button
+                      <button class="btn-danger"
                         type="button"
                         [disabled]="isSavingMember(member.participantId)"
                         (click)="removeMember(member)"

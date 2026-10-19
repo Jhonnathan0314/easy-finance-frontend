@@ -11,6 +11,11 @@
   --color-accent-hover: #1d4ed8;
   --color-brand: #0f766e;
   --color-success-solid: #16a34a;
+  --color-success-solid-hover: #15803d;
+  --color-error-solid: #dc2626;
+  --color-error-solid-hover: #b91c1c;
+  --color-warning-solid: #d97706;
+  --color-warning-solid-hover: #b45309;
   --color-success-text: #166534;
   --color-success-bg: #f0fdf4;
   --color-success-border: #bbf7d0;
@@ -41,6 +46,11 @@
   --color-accent-hover: #60a5fa;
   --color-brand: #5eead4;
   --color-success-solid: #22c55e;
+  --color-success-solid-hover: #16a34a;
+  --color-error-solid: #dc2626;
+  --color-error-solid-hover: #ef4444;
+  --color-warning-solid: #d97706;
+  --color-warning-solid-hover: #f59e0b;
   --color-success-text: #86efac;
   --color-success-bg: #0f2a1a;
   --color-success-border: #1e4d33;
@@ -196,4 +206,84 @@ input:-webkit-autofill:focus {
 .button.secondary:not(:disabled):hover {
   border-color: var(--color-accent);
   background: var(--color-info-bg);
+}
+
+/*
+ * Semantic action colors. Add one of these classes to any button (with or without .button):
+ *   btn-success  save / confirm / create      btn-danger   delete / cancel / remove
+ *   btn-warning  deactivate / caution         btn-info     edit
+ * Plain buttons get a tinted outline; solid `.button`s get a filled color. !important keeps the
+ * color consistent over per-component button styles.
+ */
+.btn-success {
+  --action-fg: var(--color-success-text);
+  --action-bg: var(--color-success-bg);
+  --action-border: var(--color-success-border);
+  --action-solid: var(--color-success-solid);
+  --action-solid-hover: var(--color-success-solid-hover);
+}
+
+.btn-danger {
+  --action-fg: var(--color-error-text);
+  --action-bg: var(--color-error-bg);
+  --action-border: var(--color-error-border);
+  --action-solid: var(--color-error-solid);
+  --action-solid-hover: var(--color-error-solid-hover);
+}
+
+.btn-warning {
+  --action-fg: var(--color-warning-text);
+  --action-bg: var(--color-warning-bg);
+  --action-border: var(--color-warning-border);
+  --action-solid: var(--color-warning-solid);
+  --action-solid-hover: var(--color-warning-solid-hover);
+}
+
+.btn-info {
+  --action-fg: var(--color-info-text);
+  --action-bg: var(--color-info-bg);
+  --action-border: var(--color-accent);
+  --action-solid: var(--color-accent);
+  --action-solid-hover: var(--color-accent-hover);
+}
+
+button.btn-success:not(:disabled),
+button.btn-danger:not(:disabled),
+button.btn-warning:not(:disabled),
+button.btn-info:not(:disabled) {
+  border-color: var(--action-border) !important;
+  background: var(--action-bg) !important;
+  color: var(--action-fg) !important;
+}
+
+button.btn-success:not(:disabled):hover,
+button.btn-danger:not(:disabled):hover,
+button.btn-warning:not(:disabled):hover,
+button.btn-info:not(:disabled):hover {
+  border-color: var(--action-solid) !important;
+  background: var(--action-bg) !important;
+}
+
+button.button.btn-success:not(.secondary):not(:disabled),
+button.button.btn-danger:not(.secondary):not(:disabled),
+button.button.btn-warning:not(.secondary):not(:disabled),
+button.button.btn-info:not(.secondary):not(:disabled) {
+  border-color: var(--action-solid) !important;
+  background: var(--action-solid) !important;
+  color: #ffffff !important;
+}
+
+button.button.btn-success:not(.secondary):not(:disabled):hover,
+button.button.btn-danger:not(.secondary):not(:disabled):hover,
+button.button.btn-warning:not(.secondary):not(:disabled):hover,
+button.button.btn-info:not(.secondary):not(:disabled):hover {
+  border-color: var(--action-solid-hover) !important;
+  background: var(--action-solid-hover) !important;
+}
+
+button.btn-success:disabled:not(.button),
+button.btn-danger:disabled:not(.button),
+button.btn-warning:disabled:not(.button),
+button.btn-info:disabled:not(.button) {
+  opacity: 0.55;
 }

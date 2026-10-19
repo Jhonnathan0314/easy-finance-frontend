@@ -105,7 +105,7 @@ export const DEBT_IMPORT_TEMPLATE_FILENAME = 'easy-finance-debt-import-template.
           <div class="selected-file">
             <strong>{{ file.name }}</strong>
             <span>{{ fileSizeLabel(file.size) }}</span>
-            <button type="button" (click)="clearFile(fileInput)">Quitar</button>
+            <button class="btn-danger" type="button" (click)="clearFile(fileInput)">Quitar</button>
           </div>
         } @else {
           <p class="muted">Selecciona un archivo .xlsx para generar el preview.</p>
@@ -189,7 +189,7 @@ export const DEBT_IMPORT_TEMPLATE_FILENAME = 'easy-finance-debt-import-template.
 
           <div class="confirm-row">
             @if (batch.status === 'PREVIEW') {
-              <button class="button" type="button" (click)="confirm(batch.batchId)" [disabled]="!canConfirm()">
+              <button class="button btn-success" type="button" (click)="confirm(batch.batchId)" [disabled]="!canConfirm()">
                 {{ importsStore.isConfirming() ? 'Confirmando...' : 'Confirmar importacion' }}
               </button>
             } @else if (batch.status === 'CONFIRMED') {
@@ -327,7 +327,7 @@ export const DEBT_IMPORT_TEMPLATE_FILENAME = 'easy-finance-debt-import-template.
           <div class="selected-file">
             <strong>{{ file.name }}</strong>
             <span>{{ fileSizeLabel(file.size) }}</span>
-            <button type="button" (click)="clearIncomeFile(incomeFileInput)">Quitar</button>
+            <button class="btn-danger" type="button" (click)="clearIncomeFile(incomeFileInput)">Quitar</button>
           </div>
         } @else {
           <p class="muted">Selecciona un archivo .xlsx para generar el preview.</p>
@@ -384,7 +384,7 @@ export const DEBT_IMPORT_TEMPLATE_FILENAME = 'easy-finance-debt-import-template.
             </div>
           </dl>
           <div class="confirm-row">
-            <button class="button" type="button" (click)="importIncomes()" [disabled]="!canImportIncomes()">
+            <button class="button btn-success" type="button" (click)="importIncomes()" [disabled]="!canImportIncomes()">
               {{ importsStore.isImportingIncome() ? 'Confirmando...' : 'Confirmar importacion' }}
             </button>
           </div>
@@ -574,7 +574,7 @@ export const DEBT_IMPORT_TEMPLATE_FILENAME = 'easy-finance-debt-import-template.
           <div class="selected-file">
             <strong>{{ file.name }}</strong>
             <span>{{ fileSizeLabel(file.size) }}</span>
-            <button type="button" (click)="clearCategoryFile(categoryFileInput)">Quitar</button>
+            <button class="btn-danger" type="button" (click)="clearCategoryFile(categoryFileInput)">Quitar</button>
           </div>
         } @else {
           <p class="muted">Selecciona un archivo .xlsx para generar el preview.</p>
@@ -631,7 +631,7 @@ export const DEBT_IMPORT_TEMPLATE_FILENAME = 'easy-finance-debt-import-template.
             </div>
           </dl>
           <div class="confirm-row">
-            <button class="button" type="button" (click)="importCategories()" [disabled]="!canImportCategories()">
+            <button class="button btn-success" type="button" (click)="importCategories()" [disabled]="!canImportCategories()">
               {{ importsStore.isImportingCategory() ? 'Confirmando...' : 'Confirmar importacion' }}
             </button>
           </div>
@@ -812,7 +812,7 @@ export const DEBT_IMPORT_TEMPLATE_FILENAME = 'easy-finance-debt-import-template.
           <div class="selected-file">
             <strong>{{ file.name }}</strong>
             <span>{{ fileSizeLabel(file.size) }}</span>
-            <button type="button" (click)="clearPaymentMethodFile(paymentMethodFileInput)">Quitar</button>
+            <button class="btn-danger" type="button" (click)="clearPaymentMethodFile(paymentMethodFileInput)">Quitar</button>
           </div>
         } @else {
           <p class="muted">Selecciona un archivo .xlsx para generar el preview.</p>
@@ -869,7 +869,7 @@ export const DEBT_IMPORT_TEMPLATE_FILENAME = 'easy-finance-debt-import-template.
             </div>
           </dl>
           <div class="confirm-row">
-            <button class="button" type="button" (click)="importPaymentMethods()" [disabled]="!canImportPaymentMethods()">
+            <button class="button btn-success" type="button" (click)="importPaymentMethods()" [disabled]="!canImportPaymentMethods()">
               {{ importsStore.isImportingPaymentMethod() ? 'Confirmando...' : 'Confirmar importacion' }}
             </button>
           </div>
@@ -1049,7 +1049,7 @@ export const DEBT_IMPORT_TEMPLATE_FILENAME = 'easy-finance-debt-import-template.
           <div class="selected-file">
             <strong>{{ file.name }}</strong>
             <span>{{ fileSizeLabel(file.size) }}</span>
-            <button type="button" (click)="clearAnnualBudgetFile(annualBudgetFileInput)">Quitar</button>
+            <button class="btn-danger" type="button" (click)="clearAnnualBudgetFile(annualBudgetFileInput)">Quitar</button>
           </div>
         } @else {
           <p class="muted">Selecciona un archivo .xlsx para generar el preview.</p>
@@ -1106,7 +1106,7 @@ export const DEBT_IMPORT_TEMPLATE_FILENAME = 'easy-finance-debt-import-template.
             </div>
           </dl>
           <div class="confirm-row">
-            <button class="button" type="button" (click)="importAnnualBudget()" [disabled]="!canImportAnnualBudget()">
+            <button class="button btn-success" type="button" (click)="importAnnualBudget()" [disabled]="!canImportAnnualBudget()">
               {{ importsStore.isImportingAnnualBudget() ? 'Confirmando...' : 'Confirmar importacion' }}
             </button>
           </div>
@@ -1298,7 +1298,7 @@ export const DEBT_IMPORT_TEMPLATE_FILENAME = 'easy-finance-debt-import-template.
           <div class="selected-file">
             <strong>{{ file.name }}</strong>
             <span>{{ fileSizeLabel(file.size) }}</span>
-            <button type="button" (click)="clearDebtFile(debtFileInput)">Quitar</button>
+            <button class="btn-danger" type="button" (click)="clearDebtFile(debtFileInput)">Quitar</button>
           </div>
         } @else {
           <p class="muted">Selecciona un archivo .xlsx para generar el preview.</p>
@@ -1355,7 +1355,7 @@ export const DEBT_IMPORT_TEMPLATE_FILENAME = 'easy-finance-debt-import-template.
             </div>
           </dl>
           <div class="confirm-row">
-            <button class="button" type="button" (click)="importDebtsAction()" [disabled]="!canImportDebts()">
+            <button class="button btn-success" type="button" (click)="importDebtsAction()" [disabled]="!canImportDebts()">
               {{ importsStore.isImportingDebt() ? 'Confirmando...' : 'Confirmar importacion' }}
             </button>
           </div>

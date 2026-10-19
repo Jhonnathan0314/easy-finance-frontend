@@ -165,7 +165,7 @@ import { MultiSelectDropdownComponent, MultiSelectOption } from '../../../shared
                 </div>
 
                 <div class="form-actions">
-                  <button class="button" type="button" [disabled]="store.isConfirming() || !selectedExpenses().length" (click)="confirmClosing(preview.paymentMethodId, preview.from, preview.to)">
+                  <button class="button btn-success" type="button" [disabled]="store.isConfirming() || !selectedExpenses().length" (click)="confirmClosing(preview.paymentMethodId, preview.from, preview.to)">
                     {{ store.isConfirming() ? 'Aplicando...' : confirmLabel() }}
                   </button>
                 </div>

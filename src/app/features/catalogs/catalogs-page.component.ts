@@ -58,7 +58,7 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
           <div class="section-header">
             <h2>Categorias</h2>
             @if (canWrite()) {
-              <button class="button" type="button" (click)="startCreateCategory()">Nueva categoria</button>
+              <button class="button btn-success" type="button" (click)="startCreateCategory()">Nueva categoria</button>
             }
           </div>
 
@@ -116,8 +116,8 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
                 }
               </label>
               <div class="form-actions">
-                <button class="button" type="submit" [disabled]="categoryForm.invalid || isSaving()">Guardar</button>
-                <button type="button" (click)="cancelCategoryForm()">Cancelar</button>
+                <button class="button btn-success" type="submit" [disabled]="categoryForm.invalid || isSaving()">Guardar</button>
+                <button class="btn-danger" type="button" (click)="cancelCategoryForm()">Cancelar</button>
               </div>
             </form>
           }
@@ -142,8 +142,8 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
                   </div>
                   @if (canWrite()) {
                     <div class="actions">
-                      <button type="button" (click)="startEditCategory(category)">Editar</button>
-                      <button type="button" [disabled]="category.status === 'INACTIVE'" (click)="deactivateCategory(category)">
+                      <button class="btn-info" type="button" (click)="startEditCategory(category)">Editar</button>
+                      <button class="btn-warning" type="button" [disabled]="category.status === 'INACTIVE'" (click)="deactivateCategory(category)">
                         Desactivar
                       </button>
                     </div>
@@ -158,7 +158,7 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
           <div class="section-header">
             <h2>Medios de pago</h2>
             @if (canWrite()) {
-              <button class="button" type="button" (click)="startCreatePaymentMethod()">Nuevo medio</button>
+              <button class="button btn-success" type="button" (click)="startCreatePaymentMethod()">Nuevo medio</button>
             }
           </div>
 
@@ -216,8 +216,8 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
                 }
               </label>
               <div class="form-actions">
-                <button class="button" type="submit" [disabled]="paymentMethodForm.invalid || isSaving()">Guardar</button>
-                <button type="button" (click)="cancelPaymentMethodForm()">Cancelar</button>
+                <button class="button btn-success" type="submit" [disabled]="paymentMethodForm.invalid || isSaving()">Guardar</button>
+                <button class="btn-danger" type="button" (click)="cancelPaymentMethodForm()">Cancelar</button>
               </div>
             </form>
           }
@@ -242,8 +242,8 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
                   </div>
                   @if (canWrite()) {
                     <div class="actions">
-                      <button type="button" (click)="startEditPaymentMethod(paymentMethod)">Editar</button>
-                      <button
+                      <button class="btn-info" type="button" (click)="startEditPaymentMethod(paymentMethod)">Editar</button>
+                      <button class="btn-warning"
                         type="button"
                         [disabled]="paymentMethod.status === 'INACTIVE'"
                         (click)="deactivatePaymentMethod(paymentMethod)"

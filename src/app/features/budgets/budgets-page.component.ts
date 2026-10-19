@@ -54,8 +54,8 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
         </div>
         @if (canWrite()) {
           <div class="header-actions">
-            <button class="button" type="button" (click)="startUpsertBudget()">Crear/actualizar presupuesto</button>
-            <button class="button" type="button" [disabled]="!expenseCategories().length" (click)="startAnnualBudget()">
+            <button class="button btn-success" type="button" (click)="startUpsertBudget()">Crear/actualizar presupuesto</button>
+            <button class="button btn-success" type="button" [disabled]="!expenseCategories().length" (click)="startAnnualBudget()">
               Crear presupuesto anual
             </button>
           </div>
@@ -166,8 +166,8 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
             </select>
           </label>
           <div class="form-actions">
-            <button class="button" type="submit" [disabled]="budgetForm.invalid || budgetsStore.isSaving()">Guardar</button>
-            <button type="button" (click)="cancelBudgetForm()">Cancelar</button>
+            <button class="button btn-success" type="submit" [disabled]="budgetForm.invalid || budgetsStore.isSaving()">Guardar</button>
+            <button class="btn-danger" type="button" (click)="cancelBudgetForm()">Cancelar</button>
           </div>
         </form>
       }
@@ -197,7 +197,7 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
           <div class="annual-subbudget-grid">
             <div class="section-heading">
               <h3>Subpresupuestos base</h3>
-              <button class="button" type="button" (click)="addAnnualSubBudget()">Agregar base</button>
+              <button class="button btn-success" type="button" (click)="addAnnualSubBudget()">Agregar base</button>
             </div>
             <div class="annual-subbudget-list" formArrayName="subBudgets">
               @for (group of annualSubBudgets.controls; track $index) {
@@ -220,7 +220,7 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
                     <input type="number" min="0.01" step="0.01" formControlName="plannedAmount">
                   </label>
                   <div class="annual-subbudget-actions">
-                    <button type="button" (click)="removeAnnualSubBudget($index)" [disabled]="annualSubBudgets.length <= 1">
+                    <button class="btn-danger" type="button" (click)="removeAnnualSubBudget($index)" [disabled]="annualSubBudgets.length <= 1">
                       Quitar
                     </button>
                   </div>
@@ -229,8 +229,8 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
             </div>
           </div>
           <div class="form-actions">
-            <button class="button" type="submit" [disabled]="annualBudgetForm.invalid || budgetsStore.isSaving()">Crear anual</button>
-            <button type="button" (click)="cancelAnnualBudgetForm()">Cancelar</button>
+            <button class="button btn-success" type="submit" [disabled]="annualBudgetForm.invalid || budgetsStore.isSaving()">Crear anual</button>
+            <button class="btn-danger" type="button" (click)="cancelAnnualBudgetForm()">Cancelar</button>
           </div>
         </form>
       }
@@ -248,7 +248,7 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
             <div class="panel empty-state">
               <h2>No hay presupuestos para este año</h2>
               @if (canWrite()) {
-                <button class="button" type="button" (click)="startUpsertBudget()">Crear presupuesto mensual</button>
+                <button class="button btn-success" type="button" (click)="startUpsertBudget()">Crear presupuesto mensual</button>
               }
             </div>
           } @else {
@@ -265,7 +265,7 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
                   <div class="actions">
                     <button type="button" (click)="openBudgetDetail(budget)">Ver detalle</button>
                     @if (canWrite()) {
-                      <button type="button" (click)="startUpsertBudget(budget)">Editar</button>
+                      <button class="btn-info" type="button" (click)="startUpsertBudget(budget)">Editar</button>
                     }
                   </div>
                 </article>
@@ -285,7 +285,7 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
                 <div class="detail-actions">
                   <button class="secondary-button" type="button" (click)="backToAnnualList()">Volver al listado</button>
                   @if (canWrite()) {
-                    <button class="button" type="button" (click)="startDuplicateBudget()">Duplicar presupuesto</button>
+                    <button class="button btn-success" type="button" (click)="startDuplicateBudget()">Duplicar presupuesto</button>
                   }
                 </div>
               </div>
@@ -353,7 +353,7 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
                   <div class="actions">
                     <button type="button" (click)="openMonthlyConsolidated()">Consolidado mensual</button>
                     @if (canWrite()) {
-                      <button class="button" type="button" (click)="startCreateSubBudget()" [disabled]="!expenseCategories().length">
+                      <button class="button btn-success" type="button" (click)="startCreateSubBudget()" [disabled]="!expenseCategories().length">
                         Nuevo subpresupuesto
                       </button>
                     }
@@ -411,10 +411,10 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
                   <input type="text" formControlName="name">
                 </label>
                 <div class="form-actions">
-                  <button class="button" type="submit" [disabled]="duplicateBudgetForm.invalid || budgetsStore.isSaving()">
+                  <button class="button btn-success" type="submit" [disabled]="duplicateBudgetForm.invalid || budgetsStore.isSaving()">
                     Duplicar
                   </button>
-                  <button type="button" (click)="cancelDuplicateBudgetForm()">Cancelar</button>
+                  <button class="btn-danger" type="button" (click)="cancelDuplicateBudgetForm()">Cancelar</button>
                 </div>
               </form>
             }
@@ -455,8 +455,8 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
                       <span>Aplicar desde {{ monthLabel(detail.budget.month) }} hasta diciembre {{ detail.budget.year }}</span>
                     </label>
                     <div class="form-actions">
-                      <button class="button" type="submit" [disabled]="subBudgetForm.invalid || budgetsStore.isSaving()">Guardar</button>
-                      <button type="button" (click)="cancelSubBudgetForm()">Cancelar</button>
+                      <button class="button btn-success" type="submit" [disabled]="subBudgetForm.invalid || budgetsStore.isSaving()">Guardar</button>
+                      <button class="btn-danger" type="button" (click)="cancelSubBudgetForm()">Cancelar</button>
                     </div>
                   </form>
                 }
@@ -517,8 +517,8 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
                       </tbody>
                     </table>
                     <div class="form-actions">
-                      <button class="button" type="button" [disabled]="forwardBusy()" (click)="confirmForwardApply()">Confirmar</button>
-                      <button type="button" (click)="cancelForwardPreview()">Cancelar</button>
+                      <button class="button btn-success" type="button" [disabled]="forwardBusy()" (click)="confirmForwardApply()">Confirmar</button>
+                      <button class="btn-danger" type="button" (click)="cancelForwardPreview()">Cancelar</button>
                     </div>
                   </section>
                 }
@@ -542,9 +542,9 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
                         </div>
                         @if (canMutateSubBudget(subBudget)) {
                           <div class="actions">
-                            <button type="button" (click)="startEditSubBudget(subBudget)">Editar</button>
-                            <button type="button" (click)="deactivateSubBudget(subBudget)">Desactivar</button>
-                            <button type="button" (click)="startDeleteForward(subBudget)">Eliminar desde este mes</button>
+                            <button class="btn-info" type="button" (click)="startEditSubBudget(subBudget)">Editar</button>
+                            <button class="btn-warning" type="button" (click)="deactivateSubBudget(subBudget)">Desactivar</button>
+                            <button class="btn-danger" type="button" (click)="startDeleteForward(subBudget)">Eliminar desde este mes</button>
                           </div>
                         }
                       </article>
@@ -601,7 +601,7 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
                 <p>Selecciona otro periodo o crea el presupuesto mensual para comenzar.</p>
                 <button class="secondary-button" type="button" (click)="backToAnnualList()">Volver al listado</button>
                 @if (canWrite()) {
-                  <button class="button" type="button" (click)="startUpsertBudget()">Crear presupuesto mensual</button>
+                  <button class="button btn-success" type="button" (click)="startUpsertBudget()">Crear presupuesto mensual</button>
                 }
               </div>
             </div>

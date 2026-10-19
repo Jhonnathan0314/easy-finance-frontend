@@ -38,7 +38,7 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
           <p class="page-subtitle">Deudas manuales, derivadas y pagos de la cuenta {{ accountId() }}.</p>
         </div>
         @if (canCreateDebt()) {
-          <button class="button" type="button" (click)="startCreateDebt()">Crear deuda manual</button>
+          <button class="button btn-success" type="button" (click)="startCreateDebt()">Crear deuda manual</button>
         }
       </div>
 
@@ -140,8 +140,8 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
             <p class="form-error">Numero de cuotas y valor cuota deben completarse juntos.</p>
           }
           <div class="form-actions">
-            <button class="button" type="submit" [disabled]="manualDebtForm.invalid || debtsStore.isSaving()">Guardar</button>
-            <button type="button" (click)="cancelDebtForm()">Cancelar</button>
+            <button class="button btn-success" type="submit" [disabled]="manualDebtForm.invalid || debtsStore.isSaving()">Guardar</button>
+            <button class="btn-danger" type="button" (click)="cancelDebtForm()">Cancelar</button>
           </div>
         </form>
       }
@@ -155,7 +155,7 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
               <h2>Aun no tienes deudas</h2>
               <p>Tambien se crean deudas al registrar gastos en cuotas.</p>
               @if (canCreateDebt()) {
-                <button class="button" type="button" (click)="startCreateDebt()">Crear deuda manual</button>
+                <button class="button btn-success" type="button" (click)="startCreateDebt()">Crear deuda manual</button>
               }
             </div>
           } @else {
@@ -199,10 +199,10 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
                   <div class="actions">
                     <button type="button" (click)="selectDebt(debt)">Detalle</button>
                     @if (canRegisterPayment(debt)) {
-                      <button type="button" (click)="startPayment(debt)">Registrar pago</button>
+                      <button class="btn-success" type="button" (click)="startPayment(debt)">Registrar pago</button>
                     }
                     @if (canCancelDebt(debt)) {
-                      <button type="button" (click)="cancelDebt(debt)">Cancelar</button>
+                      <button class="btn-danger" type="button" (click)="cancelDebt(debt)">Cancelar</button>
                     }
                   </div>
                 </article>
@@ -337,14 +337,14 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
                   </div>
                 }
                 <div class="form-actions">
-                  <button class="button" type="submit" [disabled]="paymentForm.invalid || debtsStore.isSaving()">
+                  <button class="button btn-success" type="submit" [disabled]="paymentForm.invalid || debtsStore.isSaving()">
                     {{ editingPayment() ? 'Guardar cambios' : 'Guardar pago' }}
                   </button>
-                  <button type="button" (click)="closePaymentForm()">Cancelar</button>
+                  <button class="btn-danger" type="button" (click)="closePaymentForm()">Cancelar</button>
                 </div>
               </form>
             } @else if (canRegisterPayment(debt)) {
-              <button class="button" type="button" (click)="startPayment(debt)">Registrar pago</button>
+              <button class="button btn-success" type="button" (click)="startPayment(debt)">Registrar pago</button>
             }
 
             <form class="filters compact" [formGroup]="paymentFilterForm" (ngSubmit)="applyPaymentFilters()">
@@ -399,8 +399,8 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
                       <strong>{{ payment.amount | currency: 'COP':'symbol-narrow':'1.0-0' }}</strong>
                       @if (canAdjustPayment(debt, payment)) {
                         <div class="payment-row-actions">
-                          <button type="button" [disabled]="debtsStore.isSaving()" (click)="startEditPayment(payment)">Editar</button>
-                          <button type="button" class="danger" [disabled]="debtsStore.isSaving()" (click)="deletePayment(payment)">Eliminar</button>
+                          <button class="btn-info" type="button" [disabled]="debtsStore.isSaving()" (click)="startEditPayment(payment)">Editar</button>
+                          <button type="button" class="danger btn-danger" [disabled]="debtsStore.isSaving()" (click)="deletePayment(payment)">Eliminar</button>
                         </div>
                       }
                     </div>

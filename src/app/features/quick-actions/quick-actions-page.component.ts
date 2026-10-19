@@ -75,13 +75,13 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
       }
 
       <div class="quick-action-buttons">
-        <button class="button" type="button" [disabled]="!canCreateExpense()" (click)="startCreateSimpleExpense()">
+        <button class="button btn-success" type="button" [disabled]="!canCreateExpense()" (click)="startCreateSimpleExpense()">
           Gasto simple
         </button>
-        <button class="button secondary" type="button" [disabled]="!canCreateExpense()" (click)="startCreateInstallmentExpense()">
+        <button class="button secondary btn-success" type="button" [disabled]="!canCreateExpense()" (click)="startCreateInstallmentExpense()">
           Gasto en cuotas
         </button>
-        <button class="button" type="button" [disabled]="!canCreateIncome()" (click)="startCreateIncome()">
+        <button class="button btn-success" type="button" [disabled]="!canCreateIncome()" (click)="startCreateIncome()">
           Crear ingreso
         </button>
         <button class="button secondary" type="button" (click)="toggleCurrentMonthBudget()">
@@ -148,10 +148,10 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
             </select>
           </label>
           <div class="form-actions">
-            <button class="button" type="submit" [disabled]="simpleExpenseForm.invalid || expensesStore.isSaving()">
+            <button class="button btn-success" type="submit" [disabled]="simpleExpenseForm.invalid || expensesStore.isSaving()">
               Guardar
             </button>
-            <button type="button" (click)="closeActiveForm()">Cancelar</button>
+            <button class="btn-danger" type="button" (click)="closeActiveForm()">Cancelar</button>
           </div>
         </form>
       }
@@ -234,10 +234,10 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
             <p class="form-error">El total financiado no puede ser menor al valor original del gasto.</p>
           }
           <div class="form-actions">
-            <button class="button" type="submit" [disabled]="installmentExpenseForm.invalid || expensesStore.isSaving()">
+            <button class="button btn-success" type="submit" [disabled]="installmentExpenseForm.invalid || expensesStore.isSaving()">
               Guardar
             </button>
-            <button type="button" (click)="closeActiveForm()">Cancelar</button>
+            <button class="btn-danger" type="button" (click)="closeActiveForm()">Cancelar</button>
           </div>
         </form>
       }
@@ -276,8 +276,8 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
             <input type="text" formControlName="description">
           </label>
           <div class="form-actions">
-            <button class="button" type="submit" [disabled]="incomeForm.invalid || incomeStore.isSaving()">Guardar</button>
-            <button type="button" (click)="closeActiveForm()">Cancelar</button>
+            <button class="button btn-success" type="submit" [disabled]="incomeForm.invalid || incomeStore.isSaving()">Guardar</button>
+            <button class="btn-danger" type="button" (click)="closeActiveForm()">Cancelar</button>
           </div>
         </form>
       }
