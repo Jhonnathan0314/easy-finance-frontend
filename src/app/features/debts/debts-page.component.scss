@@ -367,3 +367,27 @@ button:disabled {
     color: var(--color-error-text);
   }
 }
+
+.detail-tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.detail-tabs button {
+  min-height: 2.5rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 6px 6px 0 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  padding: 0.4rem 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.detail-tabs button.active {
+  border-bottom-color: var(--color-accent);
+  background: var(--color-info-bg);
+  color: var(--color-accent-hover);
+}

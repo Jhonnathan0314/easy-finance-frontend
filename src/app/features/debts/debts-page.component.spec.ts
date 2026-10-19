@@ -411,6 +411,8 @@ describe('DebtsPageComponent', () => {
   it('shows a capital/interest breakdown in payment history when interest was paid', () => {
     const paymentWithInterest: DebtPaymentResponseDto = { ...payment, capitalAmount: 80000, interestAmount: 20000, amount: 100000 };
     const fixture = configure({ selectedDebt: debt, payments: [paymentWithInterest] });
+    fixture.componentInstance.detailTab.set('history');
+    fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toContain('Capital:');
     expect(fixture.nativeElement.textContent).toContain('Interes:');
@@ -418,8 +420,23 @@ describe('DebtsPageComponent', () => {
 
   it('does not show a capital/interest breakdown when no interest was paid', () => {
     const fixture = configure({ selectedDebt: debt, payments: [payment] });
+    fixture.componentInstance.detailTab.set('history');
+    fixture.detectChanges();
 
     expect(fixture.nativeElement.querySelector('.payment-breakdown')).toBeNull();
+  });
+
+  it('splits the debt detail into a summary tab and a payment history tab', () => {
+    const fixture = configure({ selectedDebt: debt, payments: [payment] });
+
+    expect(fixture.nativeElement.querySelector('.summary-grid')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.payment-list')).toBeNull();
+
+    fixture.componentInstance.detailTab.set('history');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.summary-grid')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.payment-list')).not.toBeNull();
   });
 
   it('shows debt capital and scheduled total in list and detail', () => {

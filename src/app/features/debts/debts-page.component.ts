@@ -225,6 +225,16 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
               <p class="hint">Creada desde gasto en cuotas. El participante se hereda del gasto origen y no se edita desde Deudas.</p>
             }
 
+            <nav class="detail-tabs" role="tablist" aria-label="Secciones del detalle de deuda">
+              <button type="button" role="tab" [class.active]="detailTab() === 'summary'" [attr.aria-selected]="detailTab() === 'summary'" (click)="detailTab.set('summary')">
+                Resumen y pago
+              </button>
+              <button type="button" role="tab" [class.active]="detailTab() === 'history'" [attr.aria-selected]="detailTab() === 'history'" (click)="detailTab.set('history')">
+                Historial de pagos@if (debtsStore.payments().length) { ({{ debtsStore.payments().length }}) }
+              </button>
+            </nav>
+
+            @if (detailTab() === 'summary') {
             <dl class="summary-grid">
               <div>
                 <dt>Capital original</dt>
@@ -346,7 +356,7 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
             } @else if (canRegisterPayment(debt)) {
               <button class="button btn-success" type="button" (click)="startPayment(debt)">Registrar pago</button>
             }
-
+            } @else {
             <form class="filters compact" [formGroup]="paymentFilterForm" (ngSubmit)="applyPaymentFilters()">
               <label>
                 <span>Desde</span>
@@ -408,6 +418,7 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
                 }
               </div>
             }
+            }
           </aside>
         }
       </div>
@@ -429,6 +440,7 @@ export class DebtsPageComponent implements OnInit {
   readonly canCreateDebt = computed(() => this.accountStore.selectedAccount()?.status === 'ACTIVE');
   readonly showDebtForm = signal(false);
   readonly showPaymentForm = signal(false);
+  readonly detailTab = signal<'summary' | 'history'>('summary');
   readonly editingPayment = signal<DebtPaymentResponseDto | null>(null);
   readonly successMessage = signal<string | null>(null);
   readonly paymentFormError = signal<string | null>(null);
@@ -513,6 +525,7 @@ export class DebtsPageComponent implements OnInit {
 
     this.paymentFormError.set(null);
     this.showPaymentForm.set(false);
+    this.detailTab.set('summary');
     this.debtsStore.getDebt(this.accountId(), openDebtId).pipe(take(1)).subscribe({ error: () => undefined });
     this.debtsStore.loadPayments(this.accountId(), openDebtId).pipe(take(1)).subscribe({ error: () => undefined });
   }
@@ -609,6 +622,7 @@ export class DebtsPageComponent implements OnInit {
     this.debtsStore.selectedDebt.set(null);
     this.debtsStore.payments.set([]);
     this.showPaymentForm.set(false);
+    this.detailTab.set('summary');
   }
 
   startPayment(debt: DebtResponseDto): void {
@@ -622,6 +636,7 @@ export class DebtsPageComponent implements OnInit {
 
     this.paymentFormError.set(null);
     this.editingPayment.set(null);
+    this.detailTab.set('summary');
     this.paymentForm.reset({
       paymentType: 'INSTALLMENT',
       capitalAmount: 0,
@@ -645,6 +660,7 @@ export class DebtsPageComponent implements OnInit {
 
     this.paymentFormError.set(null);
     this.editingPayment.set(payment);
+    this.detailTab.set('summary');
     this.paymentForm.reset({
       paymentType: payment.paymentType,
       capitalAmount: payment.capitalAmount,
@@ -737,6 +753,7 @@ export class DebtsPageComponent implements OnInit {
           this.successMessage.set(response.createdExpenseId ? 'Pago registrado y gasto asociado creado.' : 'Pago registrado.');
           this.paymentFormError.set(null);
           this.showPaymentForm.set(false);
+          this.detailTab.set('history');
         },
         error: () => undefined
       });
@@ -769,6 +786,7 @@ export class DebtsPageComponent implements OnInit {
         next: () => {
           this.successMessage.set('Pago actualizado.');
           this.closePaymentForm();
+          this.detailTab.set('history');
         },
         error: () => undefined
       });
