@@ -146,7 +146,7 @@ import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.direct
         </form>
       }
 
-      <div class="content-grid">
+      <div class="content-grid" [class.has-detail]="!!selectedDebt()">
         <section>
           @if (debtsStore.isLoadingDebts()) {
             <div class="panel">Cargando deudas...</div>
