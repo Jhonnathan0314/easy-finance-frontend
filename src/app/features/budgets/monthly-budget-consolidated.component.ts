@@ -35,7 +35,7 @@ const MONTH_NAMES = [
     <section class="panel monthly-consolidated-panel" aria-label="Consolidado mensual">
       <div class="section-heading">
         <h2>Consolidado {{ monthLabel() }} {{ year }}</h2>
-        <button type="button" (click)="close.emit()">Cerrar</button>
+        <button class="button secondary" type="button" (click)="close.emit()">Cerrar</button>
       </div>
 
       @if (isLoading()) {
