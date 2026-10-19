@@ -2,7 +2,9 @@ import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 
+import { AccountsApiService } from '../../core/accounts/accounts-api.service';
 import { AnalyticsStore } from '../../core/analytics/analytics.store';
+import { CatalogsApiService } from '../../core/catalogs/catalogs-api.service';
 import { AccountStore } from '../../core/state/account.store';
 import {
   ApiErrorResponse,
@@ -124,6 +126,14 @@ describe('DashboardPageComponent', () => {
     TestBed.configureTestingModule({
       imports: [DashboardPageComponent],
       providers: [
+        { provide: AccountsApiService, useValue: { listMembers: () => of([{ participantId: 7, displayName: 'Ana', email: 'a@x.com', role: 'ACCOUNT_ADMIN', status: 'ACTIVE', joinedAt: '' }]) } },
+        {
+          provide: CatalogsApiService,
+          useValue: {
+            listCategories: () => of({ content: [{ id: 2, name: 'Food' }], page: 0, size: 100, totalElements: 1, totalPages: 1 }),
+            listPaymentMethods: () => of({ content: [{ id: 4, name: 'Cash' }], page: 0, size: 100, totalElements: 1, totalPages: 1 })
+          }
+        },
         {
           provide: AccountStore,
           useValue: {
@@ -205,14 +215,13 @@ describe('DashboardPageComponent', () => {
     expect(text).toContain('Gastos');
     expect(text).toContain('Presupuesto');
     expect(fixture.nativeElement.querySelector('.dashboard-tabs button.active')?.textContent).toContain('Resumen');
-    expect(text).not.toContain('Este mes');
-    expect(text).not.toContain('Ultimos 30 dias');
-    expect(text).not.toContain('Ultimos 3 meses');
-    expect(text).not.toContain('Este anio');
-    expect(text).toContain('Aplicar mes');
-    expect(text).toContain('Marzo');
-    expect(text).toContain('Desde');
-    expect(text).toContain('Hasta');
+    expect(text).toContain('Este mes');
+    expect(text).toContain('Mes anterior');
+    expect(text).toContain('Últimos 3 meses');
+    expect(text).toContain('Este año');
+    expect(text).toContain('Personalizado');
+    expect(text).not.toContain('Refrescar');
+    expect(text).not.toContain('Aplicar mes');
     expect(text).toContain('Cashflow real');
     expect(text).toContain('Ingresos reales');
     expect(text).toContain('Gastos reales pagados');
@@ -337,6 +346,48 @@ describe('DashboardPageComponent', () => {
 
     expect(store.clearPersistedFilters).toHaveBeenCalledWith(1);
     expect(store.applyFilters).toHaveBeenCalledWith(1, jasmine.objectContaining({ groupBy: 'WEEK' }), { persist: false });
+  });
+
+  it('applies a period preset immediately', () => {
+    const fixture = configure();
+    const store = TestBed.inject(AnalyticsStore) as jasmine.SpyObj<AnalyticsStore>;
+    store.applyFilters.calls.reset();
+
+    fixture.componentInstance.selectPeriod('this-year');
+    const year = new Date().getFullYear();
+
+    expect(fixture.componentInstance.periodMode()).toBe('this-year');
+    expect(store.applyFilters).toHaveBeenCalledWith(1, jasmine.objectContaining({
+      from: `${year}-01-01`,
+      to: `${year}-12-31`
+    }));
+  });
+
+  it('shows custom period controls only in custom mode', () => {
+    const fixture = configure();
+
+    expect(fixture.nativeElement.querySelector('.custom-period')).toBeNull();
+
+    fixture.componentInstance.selectPeriod('custom');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.custom-period')).not.toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Desde');
+  });
+
+  it('shows active filters as removable chips and reloads when cleared', () => {
+    const fixture = configure({ persistedFilters: { from: '2026-05-01', to: '2026-05-31', groupBy: 'MONTH', participantId: 7 } });
+    const store = TestBed.inject(AnalyticsStore) as jasmine.SpyObj<AnalyticsStore>;
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.filter-chip')?.textContent).toContain('Participante: Ana');
+
+    store.applyFilters.calls.reset();
+    fixture.componentInstance.clearAdvancedFilters();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.filter-chip')).toBeNull();
+    expect(store.applyFilters).toHaveBeenCalledWith(1, jasmine.objectContaining({ participantId: null }));
   });
 
   it('shows cashflow timeline in the cashflow tab', () => {

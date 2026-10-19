@@ -1,21 +1,40 @@
 import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { take } from 'rxjs';
+import { EMPTY, Subject, catchError, debounceTime, merge, switchMap } from 'rxjs';
 
 import { AnalyticsStore, monthDateRange, monthPeriodFromRange } from '../../core/analytics/analytics.store';
+import { AccountsApiService } from '../../core/accounts/accounts-api.service';
+import { CatalogsApiService } from '../../core/catalogs/catalogs-api.service';
 import { AccountStore } from '../../core/state/account.store';
 import {
+  AccountMemberResponseDto,
   AnalyticsDashboardFilters,
   BudgetVsExpensesByCategoryItemDto,
   CashflowGroupBy,
   CashflowItemDto,
   CategoryAmountItemDto,
+  CategoryResponseDto,
   PaymentMethodAmountItemDto,
+  PaymentMethodResponseDto,
   PaymentMethodTypeAmountItemDto
 } from '../../shared/models';
 import { enumLabel } from '../../shared/ui/enum-labels';
 
+type PeriodPreset = 'this-month' | 'last-month' | 'this-year' | 'last-3-months';
+type PeriodMode = PeriodPreset | 'custom';
+type AdvancedFilterKey =
+  | 'participantId'
+  | 'expenseCategoryId'
+  | 'incomeCategoryId'
+  | 'paymentMethodId'
+  | 'expenseStatus'
+  | 'expensePaymentState'
+  | 'incomeStatus'
+  | 'expenseType'
+  | 'debtState'
+  | 'groupBy';
 type DashboardTab = 'summary' | 'cashflow' | 'expenses' | 'debts' | 'budget';
 type AdvancedFilter =
   | 'participant'
@@ -47,63 +66,132 @@ type AdvancedFilter =
       </div>
 
       <form class="panel filters-panel" [formGroup]="filtersForm" (ngSubmit)="loadDashboard()">
-        <div class="filters specific-month-filter" aria-label="Mes especifico">
-          <label>
-            <span>Anio</span>
-            <select formControlName="specificYear" (change)="clearSpecificMonth()">
-              <option value="">Seleccionar</option>
-              @for (year of yearOptions; track year) {
-                <option [value]="year">{{ year }}</option>
-              }
-            </select>
-          </label>
-          <label>
-            <span>Mes</span>
-            <select formControlName="specificMonth">
-              <option value="">Seleccionar</option>
-              @for (month of monthOptions; track month.value) {
-                <option [value]="month.value">{{ month.label }}</option>
-              }
-            </select>
-          </label>
-          <button type="button" (click)="applySpecificPeriod()" [disabled]="analyticsStore.loading()">Aplicar mes o año</button>
-        </div>
-
-        <div class="filters">
-          <label>
-            <span>Desde</span>
-            <input type="date" formControlName="from" (change)="syncSpecificMonthFromRange()">
-          </label>
-          <label>
-            <span>Hasta</span>
-            <input type="date" formControlName="to" (change)="syncSpecificMonthFromRange()">
-          </label>
-          <button type="button" class="secondary-button" (click)="advancedOpen.update(toggle)">
-            {{ advancedOpen() ? 'Ocultar filtros' : 'Filtros avanzados' }}
-          </button>
-          <div class="filter-actions">
-            <button type="submit" [disabled]="analyticsStore.loading()">Refrescar</button>
-            <button type="button" class="secondary-button" (click)="clearFilters()">Limpiar filtros</button>
+        <div class="period-bar">
+          <div class="period-chips" role="group" aria-label="Periodo">
+            @for (preset of periodPresets; track preset.id) {
+              <button
+                type="button"
+                class="chip"
+                [class.active]="periodMode() === preset.id"
+                [attr.aria-pressed]="periodMode() === preset.id"
+                (click)="selectPeriod(preset.id)"
+              >
+                {{ preset.label }}
+              </button>
+            }
+            <button
+              type="button"
+              class="chip"
+              [class.active]="periodMode() === 'custom'"
+              [attr.aria-pressed]="periodMode() === 'custom'"
+              (click)="selectPeriod('custom')"
+            >
+              Personalizado
+            </button>
+          </div>
+          <div class="period-actions">
+            <span class="period-summary">{{ periodSummary() }}</span>
+            <button
+              type="button"
+              class="icon-button"
+              title="Recargar datos"
+              aria-label="Recargar datos"
+              [disabled]="analyticsStore.loading()"
+              (click)="loadDashboard()"
+            >
+              &#x21bb;
+            </button>
+            <button
+              type="button"
+              class="secondary-button"
+              [attr.aria-expanded]="advancedOpen()"
+              (click)="advancedOpen.update(toggle)"
+            >
+              Filtros@if (activeFilterChips().length) { ({{ activeFilterChips().length }}) }
+            </button>
           </div>
         </div>
+
+        @if (periodMode() === 'custom') {
+          <div class="filters custom-period" aria-label="Periodo personalizado">
+            <label>
+              <span>Año</span>
+              <select formControlName="specificYear">
+                <option value="">Seleccionar</option>
+                @for (year of yearOptions; track year) {
+                  <option [value]="year">{{ year }}</option>
+                }
+              </select>
+            </label>
+            <label>
+              <span>Mes</span>
+              <select formControlName="specificMonth">
+                <option value="">Todo el año</option>
+                @for (month of monthOptions; track month.value) {
+                  <option [value]="month.value">{{ month.label }}</option>
+                }
+              </select>
+            </label>
+            <label>
+              <span>Desde</span>
+              <input type="date" formControlName="from">
+            </label>
+            <label>
+              <span>Hasta</span>
+              <input type="date" formControlName="to">
+            </label>
+          </div>
+        }
+
+        @if (activeFilterChips().length) {
+          <div class="active-filters" aria-label="Filtros activos">
+            @for (chip of activeFilterChips(); track chip.key) {
+              <span class="filter-chip">
+                {{ chip.label }}
+                <button type="button" [attr.aria-label]="'Quitar filtro ' + chip.label" (click)="removeFilter(chip.key)">&#x2715;</button>
+              </span>
+            }
+            <button type="button" class="link-button" (click)="clearAdvancedFilters()">Limpiar filtros</button>
+          </div>
+        }
 
         @if (advancedOpen()) {
           <div class="advanced-filters">
             @if (advancedFilterVisible('participant')) { <label>
-              <span>Participante ID</span>
-              <input type="number" min="1" formControlName="participantId">
+              <span>Participante</span>
+              <select formControlName="participantId">
+                <option value="">Todos</option>
+                @for (member of members(); track member.participantId) {
+                  <option [value]="member.participantId">{{ member.displayName }}</option>
+                }
+              </select>
             </label> }
             @if (advancedFilterVisible('expenseCategory')) { <label>
-              <span>Categoria gasto ID</span>
-              <input type="number" min="1" formControlName="expenseCategoryId">
+              <span>Categoria gasto</span>
+              <select formControlName="expenseCategoryId">
+                <option value="">Todas</option>
+                @for (category of expenseCategories(); track category.id) {
+                  <option [value]="category.id">{{ category.name }}</option>
+                }
+              </select>
             </label> }
             @if (advancedFilterVisible('incomeCategory')) { <label>
-              <span>Categoria ingreso ID</span>
-              <input type="number" min="1" formControlName="incomeCategoryId">
+              <span>Categoria ingreso</span>
+              <select formControlName="incomeCategoryId">
+                <option value="">Todas</option>
+                @for (category of incomeCategories(); track category.id) {
+                  <option [value]="category.id">{{ category.name }}</option>
+                }
+              </select>
             </label> }
             @if (advancedFilterVisible('paymentMethod')) { <label>
-              <span>Medio de pago ID</span>
-              <input type="number" min="1" formControlName="paymentMethodId">
+              <span>Medio de pago</span>
+              <select formControlName="paymentMethodId">
+                <option value="">Todos</option>
+                @for (method of paymentMethods(); track method.id) {
+                  <option [value]="method.id">{{ method.name }}</option>
+                }
+              </select>
             </label> }
             @if (advancedFilterVisible('expenseStatus')) { <label>
               <span>Status gasto</span>
@@ -508,7 +596,23 @@ export class DashboardPageComponent implements OnInit {
   protected readonly accountStore = inject(AccountStore);
   protected readonly enumLabel = enumLabel;
   private readonly fb = inject(NonNullableFormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly accountsApi = inject(AccountsApiService);
+  private readonly catalogsApi = inject(CatalogsApiService);
+  private readonly now = new Date();
+  private readonly loadRequests = new Subject<{ filters: AnalyticsDashboardFilters; persist: boolean }>();
 
+  readonly periodPresets: { id: PeriodPreset; label: string }[] = [
+    { id: 'this-month', label: 'Este mes' },
+    { id: 'last-month', label: 'Mes anterior' },
+    { id: 'last-3-months', label: 'Últimos 3 meses' },
+    { id: 'this-year', label: 'Este año' }
+  ];
+  readonly periodMode = signal<PeriodMode>('this-month');
+  readonly members = signal<AccountMemberResponseDto[]>([]);
+  readonly expenseCategories = signal<CategoryResponseDto[]>([]);
+  readonly incomeCategories = signal<CategoryResponseDto[]>([]);
+  readonly paymentMethods = signal<PaymentMethodResponseDto[]>([]);
   readonly groupByOptions: CashflowGroupBy[] = ['DAY', 'WEEK', 'MONTH'];
   readonly yearOptions = Array.from({ length: 101 }, (_, index) => 2000 + index);
   readonly monthOptions = [
@@ -555,8 +659,132 @@ export class DashboardPageComponent implements OnInit {
     debtState: ['ACTIVE']
   });
 
+  constructor() {
+    this.loadRequests
+      .pipe(
+        switchMap(({ filters, persist }) =>
+          (persist
+            ? this.analyticsStore.applyFilters(this.accountId(), filters)
+            : this.analyticsStore.applyFilters(this.accountId(), filters, { persist: false })
+          ).pipe(catchError(() => EMPTY))
+        ),
+        takeUntilDestroyed()
+      )
+      .subscribe();
+
+    const controls = this.filtersForm.controls;
+    merge(
+      controls.from.valueChanges,
+      controls.to.valueChanges,
+      controls.participantId.valueChanges,
+      controls.expenseCategoryId.valueChanges,
+      controls.incomeCategoryId.valueChanges,
+      controls.paymentMethodId.valueChanges,
+      controls.expenseStatus.valueChanges,
+      controls.expensePaymentState.valueChanges,
+      controls.incomeStatus.valueChanges,
+      controls.expenseType.valueChanges,
+      controls.groupBy.valueChanges,
+      controls.debtState.valueChanges
+    )
+      .pipe(debounceTime(400), takeUntilDestroyed())
+      .subscribe(() => this.autoApply());
+
+    merge(controls.from.valueChanges, controls.to.valueChanges)
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => this.syncSpecificMonthFromRange());
+
+    merge(controls.specificYear.valueChanges, controls.specificMonth.valueChanges)
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => {
+        if (this.filtersForm.getRawValue().specificYear) {
+          this.applySpecificPeriod();
+        }
+      });
+  }
+
   ngOnInit(): void {
     this.patchFiltersForm(this.analyticsStore.loadPersistedFilters(this.accountId()));
+    this.loadFilterOptions();
+    this.loadDashboard();
+  }
+
+  selectPeriod(mode: PeriodMode): void {
+    if (mode === 'custom') {
+      this.periodMode.set('custom');
+      return;
+    }
+
+    const range = presetRange(mode, this.now);
+    this.filtersForm.patchValue(range, { emitEvent: false });
+    this.syncSpecificMonthFromRange();
+    this.periodMode.set(mode);
+    this.localError.set(null);
+    this.loadDashboard();
+  }
+
+  periodSummary(): string {
+    const raw = this.filtersForm.getRawValue();
+    return raw.from && raw.to ? `${raw.from} → ${raw.to}` : '';
+  }
+
+  activeFilterChips(): { key: AdvancedFilterKey; label: string }[] {
+    const raw = this.filtersForm.getRawValue();
+    const chips: { key: AdvancedFilterKey; label: string }[] = [];
+    const add = (key: AdvancedFilterKey, label: string) => chips.push({ key, label });
+
+    if (raw.participantId) {
+      add('participantId', `Participante: ${this.members().find((item) => String(item.participantId) === raw.participantId)?.displayName ?? `#${raw.participantId}`}`);
+    }
+    if (raw.expenseCategoryId) {
+      add('expenseCategoryId', `Categoría gasto: ${this.expenseCategories().find((item) => String(item.id) === raw.expenseCategoryId)?.name ?? `#${raw.expenseCategoryId}`}`);
+    }
+    if (raw.incomeCategoryId) {
+      add('incomeCategoryId', `Categoría ingreso: ${this.incomeCategories().find((item) => String(item.id) === raw.incomeCategoryId)?.name ?? `#${raw.incomeCategoryId}`}`);
+    }
+    if (raw.paymentMethodId) {
+      add('paymentMethodId', `Medio de pago: ${this.paymentMethods().find((item) => String(item.id) === raw.paymentMethodId)?.name ?? `#${raw.paymentMethodId}`}`);
+    }
+    if (raw.expenseStatus) {
+      add('expenseStatus', `Status gasto: ${enumLabel(raw.expenseStatus)}`);
+    }
+    if (raw.expensePaymentState) {
+      add('expensePaymentState', `Pago gasto: ${enumLabel(raw.expensePaymentState)}`);
+    }
+    if (raw.incomeStatus) {
+      add('incomeStatus', `Status ingreso: ${enumLabel(raw.incomeStatus)}`);
+    }
+    if (raw.expenseType) {
+      add('expenseType', `Tipo gasto: ${enumLabel(raw.expenseType)}`);
+    }
+    if (raw.debtState && raw.debtState !== 'ACTIVE') {
+      const debtStates: Record<string, string> = { PAID: 'Pagadas', CANCELLED: 'Canceladas', ALL: 'Todas' };
+      add('debtState', `Deudas: ${debtStates[raw.debtState] ?? raw.debtState}`);
+    }
+    if (raw.groupBy && raw.groupBy !== 'MONTH') {
+      add('groupBy', `Agrupar: ${enumLabel(raw.groupBy)}`);
+    }
+
+    return chips;
+  }
+
+  removeFilter(key: AdvancedFilterKey): void {
+    this.filtersForm.patchValue({ [key]: key === 'debtState' ? 'ACTIVE' : key === 'groupBy' ? 'MONTH' : '' });
+  }
+
+  clearAdvancedFilters(): void {
+    this.filtersForm.patchValue({
+      participantId: '',
+      expenseCategoryId: '',
+      incomeCategoryId: '',
+      paymentMethodId: '',
+      expenseStatus: '',
+      expensePaymentState: '',
+      incomeStatus: '',
+      expenseType: '',
+      groupBy: 'MONTH',
+      debtState: 'ACTIVE'
+    }, { emitEvent: false });
     this.loadDashboard();
   }
 
@@ -574,17 +802,13 @@ export class DashboardPageComponent implements OnInit {
       from: `${year}-01-01`,
       to: `${year}-12-31`
     };
-    this.filtersForm.patchValue({ from: range.from, to: range.to });
+    this.filtersForm.patchValue({ from: range.from, to: range.to }, { emitEvent: false });
     this.localError.set(null);
     this.loadDashboard();
   }
 
   applySpecificMonth(): void {
     this.applySpecificPeriod();
-  }
-
-  clearSpecificMonth(): void {
-    this.filtersForm.patchValue({ specificMonth: '' }, { emitEvent: false });
   }
 
   loadDashboard(): void {
@@ -596,10 +820,7 @@ export class DashboardPageComponent implements OnInit {
     }
 
     this.localError.set(null);
-    this.analyticsStore
-      .applyFilters(this.accountId(), this.currentFilters())
-      .pipe(take(1))
-      .subscribe({ error: () => undefined });
+    this.loadRequests.next({ filters: this.currentFilters(), persist: true });
   }
 
   clearFilters(): void {
@@ -647,10 +868,47 @@ export class DashboardPageComponent implements OnInit {
       return;
     }
 
-    this.analyticsStore
-      .applyFilters(this.accountId(), this.currentFilters(), { persist: false })
-      .pipe(take(1))
-      .subscribe({ error: () => undefined });
+    this.loadRequests.next({ filters: this.currentFilters(), persist: false });
+  }
+
+  private autoApply(): void {
+    const raw = this.filtersForm.getRawValue();
+
+    if (raw.from && raw.to) {
+      this.loadDashboard();
+    }
+  }
+
+  private loadFilterOptions(): void {
+    const accountId = this.accountId();
+    const page = { size: 100, sort: 'name,asc' };
+
+    this.accountsApi.listMembers(accountId).subscribe({
+      next: (members) => this.members.set(members),
+      error: () => this.members.set([])
+    });
+    this.catalogsApi.listCategories(accountId, { type: 'EXPENSE', ...page }).subscribe({
+      next: (result) => this.expenseCategories.set(result.content),
+      error: () => this.expenseCategories.set([])
+    });
+    this.catalogsApi.listCategories(accountId, { type: 'INCOME', ...page }).subscribe({
+      next: (result) => this.incomeCategories.set(result.content),
+      error: () => this.incomeCategories.set([])
+    });
+    this.catalogsApi.listPaymentMethods(accountId, page).subscribe({
+      next: (result) => this.paymentMethods.set(result.content),
+      error: () => this.paymentMethods.set([])
+    });
+  }
+
+  private detectPeriodMode(): PeriodMode {
+    const raw = this.filtersForm.getRawValue();
+    const presets: PeriodPreset[] = ['this-month', 'last-month', 'last-3-months', 'this-year'];
+
+    return presets.find((preset) => {
+      const range = presetRange(preset, this.now);
+      return range.from === raw.from && range.to === raw.to;
+    }) ?? 'custom';
   }
 
   private patchFiltersForm(filters: AnalyticsDashboardFilters): void {
@@ -667,8 +925,9 @@ export class DashboardPageComponent implements OnInit {
       expenseType: filters.expenseType ?? '',
       debtState: filters.debtState ?? 'ACTIVE',
       groupBy: filters.groupBy
-    });
+    }, { emitEvent: false });
     this.syncSpecificMonthFromRange();
+    this.periodMode.set(this.detectPeriodMode());
   }
 
   syncSpecificMonthFromRange(): void {
@@ -759,6 +1018,29 @@ export class DashboardPageComponent implements OnInit {
     };
 
     return messages[code] ?? fallback;
+  }
+}
+
+function presetRange(preset: PeriodPreset, now: Date): { from: string; to: string } {
+  const year = now.getFullYear();
+  const month = now.getMonth();
+
+  switch (preset) {
+    case 'last-month': {
+      const start = new Date(year, month - 1, 1);
+      return monthDateRange(start.getFullYear(), start.getMonth() + 1);
+    }
+    case 'last-3-months': {
+      const start = new Date(year, month - 2, 1);
+      return {
+        from: monthDateRange(start.getFullYear(), start.getMonth() + 1).from,
+        to: monthDateRange(year, month + 1).to
+      };
+    }
+    case 'this-year':
+      return { from: `${year}-01-01`, to: `${year}-12-31` };
+    default:
+      return monthDateRange(year, month + 1);
   }
 }
 
