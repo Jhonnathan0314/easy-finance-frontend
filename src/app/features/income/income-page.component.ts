@@ -14,11 +14,12 @@ import { MultiSelectDropdownComponent, MultiSelectOption } from '../../shared/ui
 
 type IncomeDateSort = 'incomeDate,asc' | 'incomeDate,desc';
 type IncomeMonthOption = { value: number; label: string };
+import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.directive';
 
 @Component({
   selector: 'ef-income-page',
   standalone: true,
-  imports: [CurrencyPipe, ReactiveFormsModule, RouterLink, MultiSelectDropdownComponent],
+  imports: [ScrollIntoViewDirective, CurrencyPipe, ReactiveFormsModule, RouterLink, MultiSelectDropdownComponent],
   styleUrl: './income-page.component.scss',
   template: `
     <section class="page-shell">
@@ -128,7 +129,7 @@ type IncomeMonthOption = { value: number; label: string };
       </section>
 
       @if (showForm()) {
-        <form class="panel form-grid income-form" [formGroup]="incomeForm" (ngSubmit)="saveIncome()">
+        <form class="panel form-grid income-form" [efScrollIntoView]="editingIncome()" [formGroup]="incomeForm" (ngSubmit)="saveIncome()">
           <h2>{{ editingIncome() ? 'Editar ingreso' : 'Crear ingreso' }}</h2>
           <label class="field">
             <span>Categoria</span>
@@ -168,7 +169,7 @@ type IncomeMonthOption = { value: number; label: string };
       }
 
       @if (showDuplicateForm()) {
-        <form class="panel form-grid duplicate-income-form" [formGroup]="duplicateIncomeForm" (ngSubmit)="saveDuplicateIncome()">
+        <form class="panel form-grid duplicate-income-form" [efScrollIntoView]="duplicatingIncome()" [formGroup]="duplicateIncomeForm" (ngSubmit)="saveDuplicateIncome()">
           <h2>Duplicar ingreso</h2>
           @if (duplicatingIncome(); as income) {
             <p class="form-note">Origen: {{ income.description }} - {{ income.incomeDate }}</p>

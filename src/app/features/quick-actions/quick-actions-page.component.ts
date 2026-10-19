@@ -22,11 +22,12 @@ import { MonthlyBudgetConsolidatedComponent } from '../budgets/monthly-budget-co
 import { installmentTotalValidator } from '../expenses/expenses-page.component';
 
 type QuickAction = 'none' | 'simple-expense' | 'installment-expense' | 'income';
+import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.directive';
 
 @Component({
   selector: 'ef-quick-actions-page',
   standalone: true,
-  imports: [CurrencyPipe, ReactiveFormsModule, RouterLink, MonthlyBudgetConsolidatedComponent],
+  imports: [ScrollIntoViewDirective, CurrencyPipe, ReactiveFormsModule, RouterLink, MonthlyBudgetConsolidatedComponent],
   styleUrl: './quick-actions-page.component.scss',
   template: `
     <section class="page-shell">
@@ -97,7 +98,7 @@ type QuickAction = 'none' | 'simple-expense' | 'installment-expense' | 'income';
       }
 
       @if (activeAction() === 'simple-expense') {
-        <form class="panel form-grid quick-action-form" [formGroup]="simpleExpenseForm" (ngSubmit)="saveSimpleExpense()">
+        <form class="panel form-grid quick-action-form" efScrollIntoView [formGroup]="simpleExpenseForm" (ngSubmit)="saveSimpleExpense()">
           <h2>Gasto simple</h2>
           <label class="field">
             <span>Categoria</span>
@@ -156,7 +157,7 @@ type QuickAction = 'none' | 'simple-expense' | 'installment-expense' | 'income';
       }
 
       @if (activeAction() === 'installment-expense') {
-        <form class="panel form-grid quick-action-form" [formGroup]="installmentExpenseForm" (ngSubmit)="saveInstallmentExpense()">
+        <form class="panel form-grid quick-action-form" efScrollIntoView [formGroup]="installmentExpenseForm" (ngSubmit)="saveInstallmentExpense()">
           <h2>Gasto en cuotas</h2>
           <label class="field">
             <span>Categoria</span>
@@ -242,7 +243,7 @@ type QuickAction = 'none' | 'simple-expense' | 'installment-expense' | 'income';
       }
 
       @if (activeAction() === 'income') {
-        <form class="panel form-grid quick-action-form" [formGroup]="incomeForm" (ngSubmit)="saveIncome()">
+        <form class="panel form-grid quick-action-form" efScrollIntoView [formGroup]="incomeForm" (ngSubmit)="saveIncome()">
           <h2>Crear ingreso</h2>
           <label class="field">
             <span>Categoria</span>

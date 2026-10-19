@@ -26,11 +26,12 @@ import { MultiSelectDropdownComponent, MultiSelectOption } from '../../shared/ui
 type ExpenseFormMode = 'simple' | 'installment';
 type ExpenseDateSort = 'expenseDate,asc' | 'expenseDate,desc';
 type ExpenseOriginFilter = '' | 'DEBT_PAYMENT' | 'NOT_DEBT_PAYMENT';
+import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.directive';
 
 @Component({
   selector: 'ef-expenses-page',
   standalone: true,
-  imports: [CurrencyPipe, ReactiveFormsModule, RouterLink, MultiSelectDropdownComponent],
+  imports: [ScrollIntoViewDirective, CurrencyPipe, ReactiveFormsModule, RouterLink, MultiSelectDropdownComponent],
   styleUrl: './expenses-page.component.scss',
   template: `
     <section class="page-shell">
@@ -160,7 +161,7 @@ type ExpenseOriginFilter = '' | 'DEBT_PAYMENT' | 'NOT_DEBT_PAYMENT';
       </div>
 
       @if (showForm()) {
-        <form class="panel form-grid expense-form" [formGroup]="activeForm()" (ngSubmit)="saveExpense()">
+        <form class="panel form-grid expense-form" [efScrollIntoView]="editingExpense()" [formGroup]="activeForm()" (ngSubmit)="saveExpense()">
           <h2>{{ formTitle() }}</h2>
           <label class="field">
             <span>Categoria</span>
@@ -267,7 +268,7 @@ type ExpenseOriginFilter = '' | 'DEBT_PAYMENT' | 'NOT_DEBT_PAYMENT';
       }
 
       @if (showDuplicateForm()) {
-        <form class="panel form-grid duplicate-expense-form" [formGroup]="duplicateExpenseForm" (ngSubmit)="saveDuplicateExpense()">
+        <form class="panel form-grid duplicate-expense-form" [efScrollIntoView]="duplicatingExpense()" [formGroup]="duplicateExpenseForm" (ngSubmit)="saveDuplicateExpense()">
           <h2>Duplicar gasto</h2>
           @if (duplicatingExpense(); as expense) {
             <p class="form-note">Origen: {{ expense.description }} - {{ expense.expenseDate }}</p>

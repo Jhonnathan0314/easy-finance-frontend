@@ -14,11 +14,12 @@ import {
 import { enumLabel } from '../../shared/ui/enum-labels';
 
 type CatalogTab = 'categories' | 'paymentMethods';
+import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.directive';
 
 @Component({
   selector: 'ef-catalogs-page',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ScrollIntoViewDirective, ReactiveFormsModule],
   styleUrl: './catalogs-page.component.scss',
   template: `
     <section class="page-shell">
@@ -90,7 +91,7 @@ type CatalogTab = 'categories' | 'paymentMethods';
           </form>
 
           @if (showCategoryForm()) {
-            <form class="panel form-grid catalog-form" [formGroup]="categoryForm" (ngSubmit)="saveCategory()">
+            <form class="panel form-grid catalog-form" [efScrollIntoView]="editingCategory()" [formGroup]="categoryForm" (ngSubmit)="saveCategory()">
               <h3>{{ editingCategory() ? 'Editar categoria' : 'Crear categoria' }}</h3>
               <label class="field">
                 <span>Nombre</span>
@@ -190,7 +191,7 @@ type CatalogTab = 'categories' | 'paymentMethods';
           </form>
 
           @if (showPaymentMethodForm()) {
-            <form class="panel form-grid catalog-form" [formGroup]="paymentMethodForm" (ngSubmit)="savePaymentMethod()">
+            <form class="panel form-grid catalog-form" [efScrollIntoView]="editingPaymentMethod()" [formGroup]="paymentMethodForm" (ngSubmit)="savePaymentMethod()">
               <h3>{{ editingPaymentMethod() ? 'Editar medio de pago' : 'Crear medio de pago' }}</h3>
               <label class="field">
                 <span>Nombre</span>

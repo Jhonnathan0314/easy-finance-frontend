@@ -23,11 +23,12 @@ import {
   RegisterDebtPaymentRequest
 } from '../../shared/models';
 import { enumLabel } from '../../shared/ui/enum-labels';
+import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.directive';
 
 @Component({
   selector: 'ef-debts-page',
   standalone: true,
-  imports: [CurrencyPipe, ReactiveFormsModule],
+  imports: [ScrollIntoViewDirective, CurrencyPipe, ReactiveFormsModule],
   styleUrl: './debts-page.component.scss',
   template: `
     <section class="page-shell">
@@ -91,7 +92,7 @@ import { enumLabel } from '../../shared/ui/enum-labels';
       </form>
 
       @if (showDebtForm()) {
-        <form class="panel form-grid debt-form" [formGroup]="manualDebtForm" (ngSubmit)="saveManualDebt()">
+        <form class="panel form-grid debt-form" efScrollIntoView [formGroup]="manualDebtForm" (ngSubmit)="saveManualDebt()">
           <h2>Crear deuda manual</h2>
           <label class="field">
             <span>Nombre</span>
@@ -258,7 +259,7 @@ import { enumLabel } from '../../shared/ui/enum-labels';
             </dl>
 
             @if (showPaymentForm()) {
-              <form class="payment-form" [formGroup]="paymentForm" (ngSubmit)="savePayment()">
+              <form class="payment-form" [efScrollIntoView]="editingPayment()" [formGroup]="paymentForm" (ngSubmit)="savePayment()">
                 <h3>{{ editingPayment() ? 'Editar pago' : 'Registrar pago' }}</h3>
                 <label class="field">
                   <span>Tipo</span>

@@ -38,11 +38,12 @@ interface ParticipantFilterOption {
   key: string;
   label: string;
 }
+import { ScrollIntoViewDirective } from '../../shared/ui/scroll-into-view.directive';
 
 @Component({
   selector: 'ef-budgets-page',
   standalone: true,
-  imports: [CurrencyPipe, ReactiveFormsModule, RouterLink, MonthlyBudgetConsolidatedComponent],
+  imports: [ScrollIntoViewDirective, CurrencyPipe, ReactiveFormsModule, RouterLink, MonthlyBudgetConsolidatedComponent],
   styleUrl: './budgets-page.component.scss',
   template: `
     <section class="page-shell">
@@ -138,7 +139,7 @@ interface ParticipantFilterOption {
       </section>
 
       @if (showBudgetForm()) {
-        <form class="panel form-grid budget-form" [formGroup]="budgetForm" (ngSubmit)="saveBudget()">
+        <form class="panel form-grid budget-form" [efScrollIntoView]="editingBudgetId()" [formGroup]="budgetForm" (ngSubmit)="saveBudget()">
           <h2>Presupuesto mensual</h2>
           <label class="field">
             <span>Año</span>
@@ -172,7 +173,7 @@ interface ParticipantFilterOption {
       }
 
       @if (showAnnualBudgetForm()) {
-        <form class="panel form-grid annual-form" [formGroup]="annualBudgetForm" (ngSubmit)="saveAnnualBudget()">
+        <form class="panel form-grid annual-form" efScrollIntoView [formGroup]="annualBudgetForm" (ngSubmit)="saveAnnualBudget()">
           <h2>Presupuesto anual</h2>
           @if (annualBudgetError(); as error) {
             <p class="form-error">{{ error }}</p>
@@ -385,7 +386,7 @@ interface ParticipantFilterOption {
                 </div>
 
             @if (showDuplicateBudgetForm()) {
-              <form class="panel form-grid duplicate-form" [formGroup]="duplicateBudgetForm" (ngSubmit)="saveDuplicateBudget()">
+              <form class="panel form-grid duplicate-form" efScrollIntoView [formGroup]="duplicateBudgetForm" (ngSubmit)="saveDuplicateBudget()">
                 <h2>Duplicar presupuesto</h2>
                 <p class="form-note">
                   Origen: {{ monthLabel(detail.budget.month) }} {{ detail.budget.year }}. Se copiaran solo los subpresupuestos manuales activos.
@@ -419,7 +420,7 @@ interface ParticipantFilterOption {
             }
 
                 @if (showSubBudgetForm()) {
-                  <form class="form-grid subbudget-form" [formGroup]="subBudgetForm" (ngSubmit)="saveSubBudget()">
+                  <form class="form-grid subbudget-form" [efScrollIntoView]="editingSubBudget()" [formGroup]="subBudgetForm" (ngSubmit)="saveSubBudget()">
                     <h3>{{ editingSubBudget() ? 'Editar subpresupuesto' : 'Crear subpresupuesto' }}</h3>
                     <label class="field">
                       <span>Categoria</span>
