@@ -381,6 +381,7 @@ export class QuickActionsPageComponent implements OnInit {
       paymentState: 'PAID',
       participantId: ''
     });
+    this.showCurrentMonthBudget.set(false);
     this.activeAction.set('simple-expense');
   }
 
@@ -403,6 +404,7 @@ export class QuickActionsPageComponent implements OnInit {
       notes: '',
       participantId: ''
     });
+    this.showCurrentMonthBudget.set(false);
     this.activeAction.set('installment-expense');
   }
 
@@ -419,6 +421,7 @@ export class QuickActionsPageComponent implements OnInit {
       incomeDate: today(),
       participantId: ''
     });
+    this.showCurrentMonthBudget.set(false);
     this.activeAction.set('income');
   }
 
@@ -427,7 +430,11 @@ export class QuickActionsPageComponent implements OnInit {
   }
 
   toggleCurrentMonthBudget(): void {
-    this.showCurrentMonthBudget.update((value) => !value);
+    const show = !this.showCurrentMonthBudget();
+    this.showCurrentMonthBudget.set(show);
+    if (show) {
+      this.activeAction.set('none');
+    }
   }
 
   saveSimpleExpense(): void {

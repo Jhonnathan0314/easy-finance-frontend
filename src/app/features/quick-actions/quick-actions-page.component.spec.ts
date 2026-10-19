@@ -306,4 +306,24 @@ describe('QuickActionsPageComponent', () => {
     expect(component.showCurrentMonthBudget()).toBeFalse();
     expect(fixture.nativeElement.querySelector('.monthly-consolidated-panel')).toBeNull();
   });
+
+  it('shows only the content of the selected quick action', () => {
+    const { fixture } = configure();
+    const component = fixture.componentInstance;
+
+    findButton(fixture, 'Ver presupuesto mes actual')?.click();
+    fixture.detectChanges();
+    findButton(fixture, 'Gasto simple')?.click();
+    fixture.detectChanges();
+
+    expect(component.activeAction()).toBe('simple-expense');
+    expect(component.showCurrentMonthBudget()).toBeFalse();
+    expect(fixture.nativeElement.querySelector('.monthly-consolidated-panel')).toBeNull();
+
+    findButton(fixture, 'Ver presupuesto mes actual')?.click();
+    fixture.detectChanges();
+
+    expect(component.activeAction()).toBe('none');
+    expect(component.showCurrentMonthBudget()).toBeTrue();
+  });
 });
