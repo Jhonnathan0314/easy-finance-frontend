@@ -35,7 +35,7 @@ type AdvancedFilterKey =
   | 'expenseType'
   | 'debtState'
   | 'groupBy';
-type DashboardTab = 'summary' | 'cashflow' | 'expenses' | 'debts' | 'budget';
+type DashboardTab = 'summary' | 'expenses' | 'debts' | 'budget';
 type AdvancedFilter =
   | 'participant'
   | 'expenseCategory'
@@ -229,7 +229,7 @@ type AdvancedFilter =
             </label> }
             @if (advancedFilterVisible('debtState')) { <label><span>Estado de deuda</span><select formControlName="debtState"><option value="ACTIVE">Activas</option><option value="PAID">Pagadas</option><option value="CANCELLED">Canceladas</option><option value="ALL">Todas</option></select></label> }
             @if (advancedFilterVisible('groupBy')) { <label>
-              <span>Agrupar cashflow</span>
+              <span>Agrupar por período</span>
               <select formControlName="groupBy">
                 @for (group of groupByOptions; track group) {
                   <option [value]="group">{{ enumLabel(group) }}</option>
@@ -347,42 +347,6 @@ type AdvancedFilter =
               </div>
             </section>
           }
-        }
-
-        @case ('cashflow') {
-          <section class="panel breakdown-panel timeline-panel">
-            <div class="section-heading">
-              <h2>Timeline cashflow</h2>
-              @if (analyticsStore.cashflowTimeline(); as timeline) {
-                <span>{{ enumLabel(timeline.groupBy) }}</span>
-              }
-            </div>
-            @if (analyticsStore.cashflowTimeline()?.items?.length) {
-              <div class="timeline-list">
-                @for (item of analyticsStore.cashflowTimeline()?.items ?? []; track item.period) {
-                  <article class="timeline-row">
-                    <div class="row-heading">
-                      <strong>{{ item.period }}</strong>
-                      <span [class.positive-text]="item.netCashflow >= 0" [class.negative-text]="item.netCashflow < 0">
-                        {{ item.netCashflow | currency: 'COP':'symbol-narrow':'1.0-0' }}
-                      </span>
-                    </div>
-                    <div class="timeline-bars">
-                      <span class="income-bar" [style.width.%]="cashflowPercent(item.totalIncome)"></span>
-                      <span class="outflow-bar" [style.width.%]="cashflowPercent(item.totalOutflow)"></span>
-                    </div>
-                    <div class="timeline-detail">
-                      <span>Ingreso {{ item.totalIncome | currency: 'COP':'symbol-narrow':'1.0-0' }}</span>
-                      <span>Gasto real {{ item.simpleExpenseOutflow | currency: 'COP':'symbol-narrow':'1.0-0' }}</span>
-                      <span>Deuda {{ item.debtPaymentOutflow | currency: 'COP':'symbol-narrow':'1.0-0' }}</span>
-                    </div>
-                  </article>
-                }
-              </div>
-            } @else {
-              <p class="muted">No hay cashflow para graficar en este rango.</p>
-            }
-          </section>
         }
 
         @case ('expenses') {
@@ -631,7 +595,6 @@ export class DashboardPageComponent implements OnInit {
   ];
   readonly dashboardTabs: { id: DashboardTab; label: string }[] = [
     { id: 'summary', label: 'Resumen' },
-    { id: 'cashflow', label: 'Cashflow' },
     { id: 'expenses', label: 'Gastos' },
     { id: 'debts', label: 'Deudas' },
     { id: 'budget', label: 'Presupuesto' }
@@ -851,7 +814,6 @@ export class DashboardPageComponent implements OnInit {
   advancedFilterVisible(filter: AdvancedFilter): boolean {
     const visibleByTab: Record<DashboardTab, AdvancedFilter[]> = {
       summary: ['participant', 'expenseCategory', 'incomeCategory', 'paymentMethod', 'expenseStatus', 'expensePaymentState', 'expenseType'],
-      cashflow: ['participant', 'groupBy'],
       expenses: ['participant', 'expenseCategory', 'paymentMethod', 'expenseStatus', 'expensePaymentState', 'expenseType'],
       debts: ['participant', 'expenseCategory', 'paymentMethod', 'debtState', 'groupBy'],
       budget: []
@@ -978,14 +940,6 @@ export class DashboardPageComponent implements OnInit {
 
   paymentMethodTypePercent(item: PaymentMethodTypeAmountItemDto, items: PaymentMethodTypeAmountItemDto[]): number {
     return amountPercent(item.amount, items.map((entry) => entry.amount));
-  }
-
-  cashflowPercent(amount: number): number {
-    const items = this.analyticsStore.cashflowTimeline()?.items ?? [];
-    return amountPercent(
-      amount,
-      items.flatMap((item) => [item.totalIncome, item.totalOutflow])
-    );
   }
 
   monthlyBudgetComparisonPeriod(): { year: number; month: number } | null {

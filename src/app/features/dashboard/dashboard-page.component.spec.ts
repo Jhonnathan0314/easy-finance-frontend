@@ -211,7 +211,7 @@ describe('DashboardPageComponent', () => {
     const text = fixture.nativeElement.textContent;
 
     expect(text).toContain('Resumen');
-    expect(text).toContain('Cashflow');
+    expect(text).not.toContain('Timeline cashflow');
     expect(text).toContain('Gastos');
     expect(text).toContain('Presupuesto');
     expect(fixture.nativeElement.querySelector('.dashboard-tabs button.active')?.textContent).toContain('Resumen');
@@ -388,20 +388,6 @@ describe('DashboardPageComponent', () => {
 
     expect(fixture.nativeElement.querySelector('.filter-chip')).toBeNull();
     expect(store.applyFilters).toHaveBeenCalledWith(1, jasmine.objectContaining({ participantId: null }));
-  });
-
-  it('shows cashflow timeline in the cashflow tab', () => {
-    const fixture = configure();
-
-    clickTab(fixture, 'Cashflow');
-
-    const text = fixture.nativeElement.textContent;
-
-    expect(text).toContain('Timeline cashflow');
-    expect(text).toContain('2026-W18');
-    expect(text).toContain('Ingreso');
-    expect(text).toContain('Gasto real');
-    expect(text).toContain('Deuda');
   });
 
   it('shows expense breakdowns in the expenses tab', () => {
