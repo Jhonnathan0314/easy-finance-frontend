@@ -223,6 +223,14 @@ input:-webkit-autofill:focus {
   --action-solid-hover: var(--color-success-solid-hover);
 }
 
+:root[data-theme='dark'] .btn-success {
+  --action-fg: #bbf7d0;
+  --action-solid: #166534;
+  --action-solid-hover: #15803d;
+  --action-border: #1e4d33;
+  --action-solid-fg: #dcfce7;
+}
+
 .btn-danger {
   --action-fg: var(--color-error-text);
   --action-bg: var(--color-error-bg);
@@ -270,7 +278,7 @@ button.button.btn-warning:not(.secondary):not(:disabled),
 button.button.btn-info:not(.secondary):not(:disabled) {
   border-color: var(--action-solid) !important;
   background: var(--action-solid) !important;
-  color: #ffffff !important;
+  color: var(--action-solid-fg, #ffffff) !important;
 }
 
 button.button.btn-success:not(.secondary):not(:disabled):hover,
